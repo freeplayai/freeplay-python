@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "freeplay"
+version = "0.2.27"
+description = ""
+authors = ["FreePlay Engineering <engineering@freeplay.ai>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.8, <4"
+requests = ">=2.20.0,<3.0.0dev"
+dacite = "^1.8.0"
+anthropic = "^0.7.7"
+openai = "^0.27.8"
+click = "8.1.7"
+pystache = "^0.6.5"
+
+[tool.poetry.group.test.dependencies]
+responses = "^0.23.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+freeplay = "freeplay.freeplay_cli:cli"

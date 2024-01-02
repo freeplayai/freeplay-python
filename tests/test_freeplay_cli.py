@@ -4,7 +4,7 @@ import os
 import os.path
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict
 from unittest import TestCase
 from uuid import uuid4
 
@@ -116,7 +116,7 @@ class TestFreeplayCLI(TestCase):
     def __get_templates_response(self) -> str:
         return json.dumps(self.__templates_as_dict())
 
-    def __templates_as_dict(self) -> dict[str, Any]:
+    def __templates_as_dict(self) -> Dict[str, Any]:
         return dataclasses.asdict(
             PromptTemplates([
                 PromptTemplateWithMetadata(

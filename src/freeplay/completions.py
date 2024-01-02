@@ -1,17 +1,22 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TypedDict
+
+from openai.types.chat.chat_completion_chunk import ChoiceDeltaFunctionCall
+from openai.types.chat.chat_completion_message import FunctionCall
 
 from .llm_parameters import LLMParameters
 
-ChatMessage = Dict[str, str]
-OpenAIFunctionCall = Dict[str, str]
+
+class ChatMessage(TypedDict):
+    role: str
+    content: str
 
 
 @dataclass
 class CompletionResponse:
     content: str
     is_complete: bool
-    openai_function_call: Optional[OpenAIFunctionCall] = None
+    openai_function_call: Optional[FunctionCall] = None
 
 
 @dataclass
@@ -44,4 +49,4 @@ class PromptTemplates:
 class CompletionChunk:
     text: str
     is_complete: bool
-    openai_function_call: Optional[OpenAIFunctionCall] = None
+    openai_function_call: Optional[ChoiceDeltaFunctionCall] = None

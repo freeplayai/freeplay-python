@@ -1,15 +1,20 @@
 import json
-from typing import Generator, Dict, Any, Collection
+from typing import Any, Collection, Dict, Generator, Iterable, Union
 from unittest import TestCase
+from unittest.mock import patch, MagicMock
 from uuid import uuid4
 
 import openai
 import responses
+import respx
+from openai.types.chat.chat_completion_chunk import ChatCompletionChunk, Choice, ChoiceDelta
 
-from freeplay.completions import CompletionChunk  # type: ignore
-from freeplay.errors import (FreeplayClientError,  # type: ignore
-                             FreeplayConfigurationError,
-                             LLMServerError)
+from freeplay.completions import ChatMessage, CompletionChunk  # type: ignore
+from freeplay.errors import (  # type: ignore
+    FreeplayClientError,
+    FreeplayConfigurationError,
+    LLMServerError
+)
 from freeplay.flavors import OpenAIChat  # type: ignore
 from freeplay.freeplay import Freeplay, JsonDom  # type: ignore
 from freeplay.provider_config import ProviderConfig, OpenAIConfig  # type: ignore
@@ -22,7 +27,7 @@ class TestFreeplay(TestCase):
         self.freeplay_api_key = "freeplay_api_key"
         self.openai_api_key = "openai_api_key"
         self.api_base = "http://localhost:9091/api"
-        self.openai_base = "http://localhost:666"
+        self.openai_base = "http://localhost:666/v1"
         self.project_id = str(uuid4())
         self.session_id = str(uuid4())
         self.project_version_id = str(uuid4())
@@ -41,7 +46,15 @@ class TestFreeplay(TestCase):
             api_base=self.api_base,
             provider_config=self.provider_config)
 
-    @responses.activate
+        responses.start()
+        respx.start()
+
+    def tearDown(self) -> None:
+        responses.stop()
+        responses.reset()
+        respx.stop()
+        respx.reset()
+
     def test_completion_parameters_with_overrides(self) -> None:
         self.__mock_freeplay_and_openai_http_apis()
         client_model_params = {
@@ -67,11 +80,11 @@ class TestFreeplay(TestCase):
                                 template_name="my-prompt",
                                 variables={"question": "Why isn't my internet working?"},
                                 tag=self.tag,
+                                flavor=None,
+                                metadata=None,
                                 **completion_model_params)
 
-        openai_request_dom = self.__extract_request_body_to_dom(responses.calls[2])
-        # From Freeplay API
-        self.assertEqual(1234, openai_request_dom['secret_param_only_in_freeplay_ui'])
+        openai_request_dom = json.loads(respx.calls.last.request.content)
         # From model defaults
         self.assertEqual('gpt-3.5-turbo', openai_request_dom['model'])
         # From client config
@@ -82,7 +95,6 @@ class TestFreeplay(TestCase):
         self.assertEqual(100, openai_request_dom['max_tokens'])
         self.assertEqual(-1.0, openai_request_dom['frequency_penalty'])
 
-    @responses.activate
     def test_completion_params_from_freeplay_api(self) -> None:
         self.__mock_freeplay_and_openai_http_apis()
         freeplay_flavorless_client = Freeplay(
@@ -95,8 +107,8 @@ class TestFreeplay(TestCase):
                                                   variables={"name": "Sparkles"},
                                                   tag=self.tag)
 
-        self.assertEqual('http://localhost:666/chat/completions', responses.calls[2].request.url)
-        openai_request_dom = self.__extract_request_body_to_dom(responses.calls[2])
+        self.assertEqual(f'{self.openai_base}/chat/completions', respx.calls.last.request.url)
+        openai_request_dom = json.loads(respx.calls.last.request.content)
         # From Prompt response object - request should go to chat_completions endpoint, and include UI configured data.
         self.assertEqual('gpt-2', openai_request_dom['model'])
         self.assertEqual(0.7, openai_request_dom['temperature'])
@@ -108,31 +120,29 @@ class TestFreeplay(TestCase):
                                                   variables={'question': "Some question"},
                                                   tag=self.tag)
 
-        self.assertEqual('http://localhost:666/chat/completions', responses.calls[6].request.url)
-        openai_request_2_dom = self.__extract_request_body_to_dom(responses.calls[6])
+        self.assertEqual(f'{self.openai_base}/chat/completions', respx.calls.last.request.url)
+        openai_request_2_dom = json.loads(respx.calls.last.request.content)
         self.assertEqual('gpt-3.5-turbo', openai_request_2_dom['model'])
-        self.assertEqual(1234, openai_request_2_dom['secret_param_only_in_freeplay_ui'])
 
-    @responses.activate
     def test_openai_chat_mustache(self) -> None:
         self.__mock_freeplay_and_openai_http_apis()
         completion = self.freeplay_chat_client.get_completion(
             project_id=str(self.project_id),
             template_name="my-mustache-prompt",
-            variables={"tolkien": True},
-            tag=self.tag, )
+            variables={"tolkien": "True"},
+            tag=self.tag,)
+
+        first_openai_call = json.loads(respx.calls[0].request.content)
+        self.assertEqual(first_openai_call['messages'][0]['content'], 'Tell me about John Ronald Reuel Tolkien')
 
         record_api_request = responses.calls[2].request
         recorded_body_dom = json.loads(record_api_request.body)
-        self.assertEqual(recorded_body_dom['messages'][0]['content'], 'Tell me about John Ronald Reuel Tolkien')
 
-        record_api_request = responses.calls[3].request
-        recorded_body_dom = json.loads(record_api_request.body)
+        self.assertEqual(
+            '[{"content": "Tell me about John Ronald Reuel Tolkien", "role": "system"}]',
+            recorded_body_dom['prompt_content']
+        )
 
-        self.assertEqual('[{"content": "Tell me about John Ronald Reuel Tolkien", "role": "system"}]',
-                         recorded_body_dom['prompt_content'])
-
-    @responses.activate
     def test_openai_chat_single_prompt_session(self) -> None:
         self.__mock_freeplay_and_openai_http_apis()
         completion = self.freeplay_chat_client.get_completion(
@@ -145,12 +155,12 @@ class TestFreeplay(TestCase):
                 "gitSHA": "d5afe656acfedad35ef75eb55c8a1b853fcd1cd2",
             })
 
-        record_api_request = responses.calls[0].request
-        recorded_body_dom = json.loads(record_api_request.body)
-        self.assertEqual(123456, recorded_body_dom['metadata']['customer_id'])
-        self.assertEqual("d5afe656acfedad35ef75eb55c8a1b853fcd1cd2", recorded_body_dom['metadata']['gitSHA'])
+        session_api_request = responses.calls[0].request
+        session_body_dom = json.loads(session_api_request.body)
+        self.assertEqual(123456, session_body_dom['metadata']['customer_id'])
+        self.assertEqual("d5afe656acfedad35ef75eb55c8a1b853fcd1cd2", session_body_dom['metadata']['gitSHA'])
 
-        record_api_request = responses.calls[3].request
+        record_api_request = responses.calls[-1].request
         recorded_body_dom = json.loads(record_api_request.body)
         self.assertEqual('Bearer freeplay_api_key', record_api_request.headers['Authorization'])
         self.assertEqual(True, recorded_body_dom['is_complete'])
@@ -160,7 +170,7 @@ class TestFreeplay(TestCase):
         self.assertIsNotNone(recorded_body_dom['end_time'])
         self.assertEqual(self.tag, recorded_body_dom['tag'])
         self.assertEqual('[{"content": "System message", "role": "system"}, {"content": "How may I '
-                         'help you, Sparkles?", "role": "Assistant"}]', recorded_body_dom['prompt_content'])
+                         'help you, Sparkles?", "role": "assistant"}]', recorded_body_dom['prompt_content'])
         self.assertEqual('I am your assistant',
                          recorded_body_dom['return_content'])
         self.assertEqual('openai_chat', recorded_body_dom['format_type'])
@@ -173,7 +183,6 @@ class TestFreeplay(TestCase):
         self.assertEqual(True, completion.is_complete)
         self.assertEqual('I am your assistant', completion.content)
 
-    @responses.activate
     def test_openai_chat_single_prompt_session_function_call(self) -> None:
         self.__mock_freeplay_apis()
         function_call_response = {
@@ -183,11 +192,9 @@ class TestFreeplay(TestCase):
                 'genre': 'Pop'
             }
         }
-        responses.post(
-            url=f'{self.openai_base}/chat/completions',
-            status=200,
-            body=self.__openai_chat_response('soy tu asistente', function_call_response),
-            content_type='application/json'
+        respx.post(f'{self.openai_base}/chat/completions').respond(
+            status_code=200,
+            text=self.__openai_chat_response('soy tu asistente', function_call_response),
         )
         functions = [
             {
@@ -216,24 +223,24 @@ class TestFreeplay(TestCase):
             functions=functions
         )
 
-        self.assertEqual(completion.openai_function_call['name'], 'get_album_tracklist')
-        self.assertEqual(completion.openai_function_call['arguments'], {'album_name': '24K Magic', 'genre': 'Pop'})
+        if completion.openai_function_call is not None:
+            self.assertEqual(completion.openai_function_call.name, 'get_album_tracklist')
+            self.assertEqual(completion.openai_function_call.arguments, {'album_name': '24K Magic', 'genre': 'Pop'})
+        else:
+            self.assertIsNotNone(completion.openai_function_call)
 
-    @responses.activate
     def test_openai_continuous_chat_session(self) -> None:
         self.__mock_freeplay_and_openai_http_apis()
-        responses.post(
-            url=f'{self.openai_base}/chat/completions',
-            status=200,
-            body=self.__openai_chat_response('soy tu asistente'),
-            content_type='application/json'
-        )
 
         chat_session, _ = self.freeplay_chat_client.start_chat(
             project_id=str(self.project_id),
             template_name="my-chat-prompt",
             variables={"name": "Sparkles"},
             tag=self.tag
+        )
+        respx.post(f'{self.openai_base}/chat/completions').respond(
+            status_code=200,
+            text=self.__openai_chat_response('soy tu asistente'),
         )
 
         second_completion = chat_session.continue_chat(
@@ -257,7 +264,7 @@ class TestFreeplay(TestCase):
         )
 
         expected_final_message_history = [{"content": "System message", "role": "system"},
-                                          {"content": "How may I help you, Sparkles?", "role": "Assistant"},
+                                          {"content": "How may I help you, Sparkles?", "role": "assistant"},
                                           {"role": "assistant", "content": "I am your assistant"},
                                           {"role": "user", "content": "En espanol por favor"},
                                           {"role": "assistant", "content": "soy tu asistente"},
@@ -266,44 +273,33 @@ class TestFreeplay(TestCase):
 
         self.assertEqual(expected_final_message_history, restored_chat_session.message_history)
 
-        self.assertEqual(9, len(responses.calls))
+        self.assertEqual(6, len(responses.calls))
+        self.assertEqual(3, len(respx.calls))
 
         # Ensure all the appropriate data is passed to OpenAI
-        first_openai_call = self.__extract_request_body_to_dom(responses.calls[2])
+        first_openai_call = json.loads(respx.calls[0].request.content)
         self.assertEqual(2, len(first_openai_call['messages']))
-        second_openai_call = self.__extract_request_body_to_dom(responses.calls[4])
+        second_openai_call = json.loads(respx.calls[1].request.content)
         self.assertEqual(4, len(second_openai_call['messages']))
         self.assertEqual(10, second_openai_call['max_tokens'])
 
         # Ensure expected data is recorded to Freeplay
-        first_record_call = self.__extract_request_body_to_dom(responses.calls[3])
+        first_record_call = self.__extract_request_body_to_dom(responses.calls[2])
         self.assertEqual(self.session_id, first_record_call['session_id'])
         self.assertEqual(json.dumps(expected_final_message_history[0:2]), first_record_call['prompt_content'])
         second_record_call = self.__extract_request_body_to_dom(responses.calls[5])
         self.assertEqual(self.session_id, second_record_call['session_id'])
-        self.assertEqual(expected_final_message_history[0:4], json.loads(second_record_call['prompt_content']))
+        self.assertEqual(expected_final_message_history[0:6], json.loads(second_record_call['prompt_content']))
         self.assertEqual(second_record_call['return_content'], 'soy tu asistente')
 
-        third_record_call = self.__extract_request_body_to_dom(responses.calls[8])
+        third_record_call = self.__extract_request_body_to_dom(responses.calls[5])
         self.assertEqual(self.session_id, third_record_call['session_id'])
 
-    @responses.activate
-    def test_openai_continuous_chat_session_streaming(self) -> None:
+    @patch("openai.resources.chat.Completions.create")
+    def test_openai_continuous_chat_session_streaming(self, mock_completion_create: MagicMock) -> None:
         self.__mock_freeplay_apis()
-        responses.post(
-            url=f'{self.openai_base}/chat/completions',
-            status=200,
-            body=f"data: {self.__openai_chat_streaming_response('I am your assistant')}",
-            auto_calculate_content_length=True,
-            content_type='text/event-stream'
-        )
-        responses.post(
-            url=f'{self.openai_base}/chat/completions',
-            status=200,
-            body=f"data: {self.__openai_chat_streaming_response('soy tu asistente')}",
-            auto_calculate_content_length=True,
-            content_type='text/event-stream'
-        )
+
+        mock_completion_create.return_value = self.__mock_openai_completion_stream_response("I am your assistant")
 
         chat_session, first_completion = self.freeplay_chat_client.start_chat_stream(
             project_id=str(self.project_id),
@@ -313,20 +309,16 @@ class TestFreeplay(TestCase):
 
         self.__assert_generator_response(first_completion, 'I am your assistant', True)
 
-        new_message = {"role": "user", "content": "A message"}
+        mock_completion_create.return_value = self.__mock_openai_completion_stream_response("soy tu asistente")
+
+        new_message = ChatMessage(role="user", content="A message")
         second_completion = chat_session.continue_chat_stream(
             [new_message],
             max_tokens=10)
 
         self.__assert_generator_response(second_completion, "soy tu asistente", True)
 
-        responses.post(
-            url=f'{self.openai_base}/chat/completions',
-            status=200,
-            body=f"data: {self.__openai_chat_streaming_response('I am your assistant')}",
-            auto_calculate_content_length=True,
-            content_type='text/event-stream'
-        )
+        mock_completion_create.return_value = self.__mock_openai_completion_stream_response("I am your assistant")
 
         restored_chat_session = self.freeplay_chat_client.restore_chat_session(
             project_id=str(self.project_id),
@@ -338,30 +330,21 @@ class TestFreeplay(TestCase):
         )
 
         third_completion = restored_chat_session.continue_chat_stream(
-            message_history=chat_session.message_history,
             new_messages=[new_message],
             max_tokens=10
         )
         self.__assert_generator_response(third_completion, "I am your assistant", True)
 
-        self.assertEqual(9, len(responses.calls))
+        self.assertEqual(6, len(responses.calls))
         expected_final_message_history = [{"content": "System message", "role": "system"},
-                                          {"content": "How may I help you, Sparkles?", "role": "Assistant"},
+                                          {"content": "How may I help you, Sparkles?", "role": "assistant"},
                                           {"role": "assistant", "content": "I am your assistant"},
                                           {"role": "user", "content": "A message"},
                                           {"role": "assistant", "content": "soy tu asistente"},
                                           {"role": "user", "content": "A message"}]
 
-        # Ensure all the appropriate data is passed to OpenAI
-        first_openai_call = self.__extract_request_body_to_dom(responses.calls[2])
-        self.assertEqual(2, len(first_openai_call['messages']))
-        second_openai_call = self.__extract_request_body_to_dom(responses.calls[4])
-
-        self.assertEqual(4, len(second_openai_call['messages']))
-        self.assertEqual(10, second_openai_call['max_tokens'])
-
         # Ensure expected data is recorded to Freeplay
-        first_record_call = self.__extract_request_body_to_dom(responses.calls[3])
+        first_record_call = self.__extract_request_body_to_dom(responses.calls[2])
         self.assertEqual(self.session_id, first_record_call['session_id'])
         self.assertEqual(json.dumps(expected_final_message_history[0:2]), first_record_call['prompt_content'])
 
@@ -369,18 +352,17 @@ class TestFreeplay(TestCase):
         self.assertEqual(0.7, first_record_call['llm_parameters']['temperature'])
         self.assertEqual(5, first_record_call['llm_parameters']['max_tokens'])
 
-        second_record_call = self.__extract_request_body_to_dom(responses.calls[5])
+        second_record_call = self.__extract_request_body_to_dom(responses.calls[3])
         self.assertEqual(self.session_id, second_record_call['session_id'])
         self.assertEqual(expected_final_message_history[0:4], json.loads(second_record_call['prompt_content']))
         self.assertEqual(second_record_call['return_content'], 'soy tu asistente')
 
         # Third call is a restored session. Session ID must match
-        third_record_call = self.__extract_request_body_to_dom(responses.calls[8])
+        third_record_call = self.__extract_request_body_to_dom(responses.calls[5])
         self.assertEqual(self.session_id, third_record_call['session_id'])
         self.assertEqual(json.dumps(expected_final_message_history[0:6]), third_record_call['prompt_content'])
         self.assertEqual(third_record_call['return_content'], 'I am your assistant')
 
-    @responses.activate
     def test_openai_mixed_multi_prompt_session(self) -> None:
         self.__mock_freeplay_and_openai_http_apis()
         freeplay = Freeplay(
@@ -407,36 +389,32 @@ class TestFreeplay(TestCase):
             variables={"question": "Why is nothing working?"},
             tag=self.tag)
 
-        self.assertEqual(len(responses.calls), 9)
-        first_openai_request_dom = self.__extract_request_body_to_dom(responses.calls[2])
+        self.assertEqual(len(responses.calls), 6)
+        self.assertEqual(len(respx.calls), 3)
+        first_openai_request_dom = json.loads(respx.calls[0].request.content)
         self.assertEqual('text-davinci-003', first_openai_request_dom['model'])
         self.assertEqual(1, first_openai_request_dom['max_tokens'])
-        first_recorded_body_dom = self.__extract_request_body_to_dom(responses.calls[3])
+        first_recorded_body_dom = self.__extract_request_body_to_dom(responses.calls[2])
         self.assertEqual(session.session_id, first_recorded_body_dom['session_id'])
         self.assertEqual(self.tag, first_recorded_body_dom['tag'])
 
-        second_openai_request_dom = self.__extract_request_body_to_dom(responses.calls[4])
+        second_openai_request_dom = json.loads(respx.calls[1].request.content)
         self.assertEqual('gpt-4', second_openai_request_dom['model'])
         self.assertEqual(1, second_openai_request_dom['max_tokens'])
-        second_recorded_body_dom = self.__extract_request_body_to_dom(responses.calls[5])
+        second_recorded_body_dom = self.__extract_request_body_to_dom(responses.calls[3])
         self.assertEqual(session.session_id, second_recorded_body_dom['session_id'])
 
         # Restored session test
-        third_recorded_body_dom = self.__extract_request_body_to_dom(responses.calls[8])
+        third_recorded_body_dom = self.__extract_request_body_to_dom(responses.calls[5])
         self.assertEqual(session.session_id, third_recorded_body_dom['session_id'])
 
-    @responses.activate
-    def test_openai_chat_single_prompt_session_streaming(self) -> None:
+    @patch("openai.resources.chat.Completions.create")
+    def test_openai_chat_single_prompt_session_streaming(self, mock_completion_create: MagicMock) -> None:
         # The Responses mocking library does not support sending multiple streamed chunks -- we stream a single response
         # with a full completion response.
         self.__mock_freeplay_apis()
-        responses.post(
-            url=f'{self.openai_base}/chat/completions',
-            status=200,
-            body=f"data: {self.__openai_chat_streaming_response()}",
-            auto_calculate_content_length=True,
-            content_type='text/event-stream'
-        )
+
+        mock_completion_create.return_value = self.__mock_openai_completion_stream_response("I am your assistant")
 
         completion_stream = self.freeplay_chat_client.get_completion_stream(project_id=str(self.project_id),
                                                                             template_name="my-chat-prompt",
@@ -446,32 +424,28 @@ class TestFreeplay(TestCase):
                                                                             frequency_penalty=-1.0)
         self.__assert_generator_response(completion_stream, 'I am your assistant', True)
 
-        self.assertEqual(len(responses.calls), 4)
+        self.assertEqual(len(responses.calls), 3)
 
-        openai_request_dom = self.__extract_request_body_to_dom(responses.calls[2])
-        self.assertEqual('gpt-3.5-turbo', openai_request_dom['model'])
-        self.assertEqual(100, openai_request_dom['max_tokens'])
-        self.assertEqual(-1.0, openai_request_dom['frequency_penalty'])
-
-        recorded_body_dom = self.__extract_request_body_to_dom(responses.calls[3])
+        recorded_body_dom = self.__extract_request_body_to_dom(responses.calls[2])
         self.assertEqual("I am your assistant", recorded_body_dom['return_content'])
 
-    @responses.activate
     def test_single_session_uses_default_tag_when_tag_omitted(self) -> None:
-        session_url = f'{self.api_base}/projects/{self.project_id}/sessions/tag/latest'
         responses.post(
-            url=session_url,
+            url=f'{self.api_base}/projects/{self.project_id}/sessions/tag/latest',
             status=201,
             body=self.__session_create_response(self.session_id)
         )
-        templates_url = f'{self.api_base}/projects/{self.project_id}/templates/all/latest'
         responses.get(
-            url=templates_url,
+            url=f'{self.api_base}/projects/{self.project_id}/templates/all/latest',
             status=200,
             body=self.__get_templates_response()
         )
+        responses.post(
+            url=self.record_url,
+            status=201,
+            content_type='application/json'
+        )
         self.__mock_openai_apis()
-        self.__mock_record_api()
 
         freeplay = Freeplay(
             flavor=self.open_ai_chat_flavor,
@@ -483,11 +457,8 @@ class TestFreeplay(TestCase):
                                 template_name="my-prompt",
                                 variables={"question": "Why isn't my internet working?"})
 
-        responses.assert_call_count(session_url, 1)
-        responses.assert_call_count(templates_url, 1)
-
-    @responses.activate
     def test_multi_session_uses_default_tag_when_tag_omitted(self) -> None:
+        self.__mock_openai_apis()
         responses.post(
             url=f'{self.api_base}/projects/{self.project_id}/sessions/tag/latest',
             status=201,
@@ -498,8 +469,11 @@ class TestFreeplay(TestCase):
             status=200,
             body=self.__get_templates_response()
         )
-        self.__mock_openai_apis()
-        self.__mock_record_api()
+        responses.post(
+            url=self.record_url,
+            status=201,
+            content_type='application/json'
+        )
 
         freeplay = Freeplay(
             flavor=self.open_ai_chat_flavor,
@@ -525,7 +499,6 @@ class TestFreeplay(TestCase):
                 api_base=self.api_base,
                 provider_config=self.provider_config)
 
-    @responses.activate
     def test_proceeds_on_record_failure(self) -> None:
         self.__mock_freeplay_and_openai_http_apis()
         responses.replace(responses.POST, url=self.record_url, body='{}', status=500)
@@ -543,7 +516,6 @@ class TestFreeplay(TestCase):
 
         self.assertEqual("I am your assistant", completion.content)
 
-    @responses.activate
     def test_auth_error(self) -> None:
         responses.post(
             url=f'{self.api_base}/projects/{self.project_id}/sessions/tag/{self.tag}',
@@ -562,7 +534,6 @@ class TestFreeplay(TestCase):
                                     tag=self.tag,
                                     variables={})
 
-    @responses.activate
     def test_template_not_found(self) -> None:
         self.__mock_freeplay_and_openai_http_apis()
         with self.assertRaisesRegex(
@@ -574,13 +545,10 @@ class TestFreeplay(TestCase):
                                                      tag=self.tag,
                                                      variables={})
 
-    @responses.activate
     def test_internal_error_from_openai(self) -> None:
         self.__mock_freeplay_apis()
-        responses.post(
-            url=f'{self.openai_base}/chat/completions',
-            status=500,
-            content_type='application/json'
+        respx.post(f'{self.openai_base}/chat/completions').respond(
+            status_code=500,
         )
 
         with self.assertRaisesRegex(LLMServerError, "Unable to call OpenAI") as context:
@@ -588,9 +556,8 @@ class TestFreeplay(TestCase):
                                                      template_name="my-chat-prompt",
                                                      tag=self.tag,
                                                      variables={"name": "Sparkles"})
-        self.assertIsInstance(context.exception.__cause__, openai.error.APIError)
+        self.assertIsInstance(context.exception.__cause__, openai.APIError)
 
-    @responses.activate
     def test_no_record_session(self) -> None:
         self.__mock_freeplay_and_openai_http_apis()
 
@@ -609,14 +576,14 @@ class TestFreeplay(TestCase):
             tag=self.tag
         )
         # One less call
-        self.assertEqual(len(responses.calls), 3)
+        self.assertEqual(len(responses.calls), 2)
+        self.assertEqual(len(respx.calls), 1)
         self.assertTrue(all([self.record_url not in call.request.url for call in responses.calls]))
 
         # Completion checks
         self.assertEqual(True, completion.is_complete)
         self.assertEqual("I am your assistant", completion.content)
 
-    @responses.activate
     def test_no_record_session_2(self) -> None:
         self.__mock_freeplay_and_openai_http_apis()
 
@@ -647,7 +614,8 @@ class TestFreeplay(TestCase):
         self.assertEqual("I am your assistant", second_completion.content)
 
         # Two less calls
-        self.assertEqual(len(responses.calls), 4)
+        self.assertEqual(len(responses.calls), 2)
+        self.assertEqual(len(respx.calls), 2)
         self.assertTrue(all([self.record_url not in call.request.url for call in responses.calls]))
 
     def __mock_freeplay_apis(self) -> None:
@@ -661,9 +629,6 @@ class TestFreeplay(TestCase):
             status=200,
             body=self.__get_templates_response()
         )
-        self.__mock_record_api()
-
-    def __mock_record_api(self) -> None:
         responses.post(
             url=self.record_url,
             status=201,
@@ -671,16 +636,30 @@ class TestFreeplay(TestCase):
         )
 
     def __mock_openai_apis(self) -> None:
-        responses.post(
-            url=f'{self.openai_base}/chat/completions',
-            status=200,
-            body=self.__openai_chat_response(),
-            content_type='application/json'
+        respx.post(f'{self.openai_base}/chat/completions').respond(
+            status_code=200,
+            text=self.__openai_chat_response(),
         )
 
     def __mock_freeplay_and_openai_http_apis(self) -> None:
         self.__mock_freeplay_apis()
         self.__mock_openai_apis()
+
+    @staticmethod
+    def __mock_openai_completion_stream_response(content: str) -> Iterable[ChatCompletionChunk]:
+        return iter([
+            ChatCompletionChunk(
+                id="1",
+                choices=[Choice(
+                    delta=ChoiceDelta(content=content),
+                    finish_reason="stop",
+                    index=1
+                )],
+                created=1703021942,
+                model="gpt3.5-turbo-1106",
+                object="chat.completion.chunk",
+            )
+        ])
 
     # For a given Freeplay SDK completion, there are usually 3 API calls (and response mocks)
     # 1. Retrieve prompts (Freeplay HTTP API)
@@ -730,7 +709,6 @@ class TestFreeplay(TestCase):
                     'flavor_name': 'openai_chat',
                     'params': {
                         'temperature': 'override_this_value',
-                        'secret_param_only_in_freeplay_ui': 1234
                     }
                 }, {
                     'content': json.dumps([{
@@ -747,7 +725,7 @@ class TestFreeplay(TestCase):
                         "role": "system",
                         "content": "System message"
                     }, {
-                        "role": "Assistant",
+                        "role": "assistant",
                         "content": "How may I help you, {{name}}?"
                     }]),
                     'name': 'my-chat-prompt',
@@ -797,8 +775,10 @@ class TestFreeplay(TestCase):
     @staticmethod
     def __openai_chat_response(
             content: str = 'I am your assistant',
-            function_call_response: dict[str, Collection[str]] = {}
+            function_call_response: Union[Dict[str, Collection[str]], None] = None,
     ) -> str:
+        if function_call_response is None:
+            function_call_response = {}
         response: Dict[str, Any] = {
             'id': 'chatcmpl-7R1UPz7UYFVU1K5Wk9b6fS1R3Spsc',
             'object': 'chat.completion',

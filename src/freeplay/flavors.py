@@ -1,17 +1,18 @@
 import json
 from abc import abstractmethod, ABC
 from copy import copy
-from typing import Any, Dict, Generator, List, Optional
+from typing import cast, Any, Dict, Generator, List, Optional, Union
 
-import anthropic  # type: ignore
+import anthropic
 import openai
-from openai.error import AuthenticationError, InvalidRequestError
+from openai import AuthenticationError, BadRequestError, Stream
+from openai.types.chat import ChatCompletion, ChatCompletionChunk, ChatCompletionMessageParam
 
 from .completions import CompletionChunk, PromptTemplateWithMetadata, CompletionResponse, ChatCompletionResponse, \
     ChatMessage
 from .errors import FreeplayConfigurationError, LLMClientError, LLMServerError, FreeplayError
 from .llm_parameters import LLMParameters
-from .provider_config import ProviderConfig, OpenAIConfig, AnthropicConfig
+from .provider_config import AnthropicConfig, AzureConfig, OpenAIConfig, ProviderConfig
 from .utils import format_template_variables
 
 
@@ -89,45 +90,17 @@ class ChatFlavor(Flavor, ABC):
         pass
 
 
-class OpenAI(Flavor, ABC):
-    def configure_openai(
+class OpenAIChatFlavor(ChatFlavor, ABC):
+
+    @abstractmethod
+    def _call_openai(
             self,
-            openai_config: Optional[OpenAIConfig],
-            api_base: Optional[str] = None,
-            api_version: Optional[str] = None,
-            api_type: Optional[str] = None,
-    ) -> None:
-        super().__init__()
-        if not openai_config:
-            raise FreeplayConfigurationError(
-                "Missing OpenAI key. Use a ProviderConfig to specify keys prior to getting completion.")
-
-        if api_base:
-            openai.api_base = api_base
-        elif openai_config.api_base:
-            openai.api_base = openai_config.api_base
-
-        if api_type:
-            openai.api_type = api_type
-
-        if api_version:
-            openai.api_version = api_version
-
-        if not openai_config.api_key or not openai_config.api_key.strip():
-            raise FreeplayConfigurationError("OpenAI API key is not set. It must be set to make calls to the service.")
-
-        openai.api_key = openai_config.api_key
-
-    @property
-    def provider(self) -> str:
-        return "openai"
-
-
-class OpenAIChat(OpenAI, ChatFlavor):
-    record_format_type = "openai_chat"
-    _model_params_with_defaults = LLMParameters({
-        "model": "gpt-3.5-turbo"
-    })
+            messages: List[ChatMessage],
+            provider_config: ProviderConfig,
+            llm_parameters: LLMParameters,
+            stream: bool
+    ) -> Union[ChatCompletion, openai.Stream[ChatCompletionChunk]]:
+        pass
 
     def format(self, prompt_template: PromptTemplateWithMetadata, variables: Dict[str, str]) -> str:
         # Extract messages JSON to enable formatting of individual content fields of each message. If we do not
@@ -146,11 +119,12 @@ class OpenAIChat(OpenAI, ChatFlavor):
             llm_parameters: LLMParameters
     ) -> CompletionResponse:
         messages = json.loads(formatted_prompt)
-        completion = self._call_openai(messages, provider_config, llm_parameters, stream=False)
+        completion = cast(ChatCompletion, self._call_openai(messages, provider_config, llm_parameters, stream=False))
+
         return CompletionResponse(
             content=completion.choices[0].message.content or '',
             is_complete=completion.choices[0].finish_reason == 'stop',
-            openai_function_call=completion.choices[0].message.get('function_call')
+            openai_function_call=completion.choices[0].message.function_call,
         )
 
     def call_service_stream(
@@ -160,12 +134,13 @@ class OpenAIChat(OpenAI, ChatFlavor):
             llm_parameters: LLMParameters
     ) -> Generator[CompletionChunk, None, None]:
         messages = json.loads(formatted_prompt)
-        completion_stream = self._call_openai(messages, provider_config, llm_parameters, stream=True)
+        completion_stream = cast(Stream[ChatCompletionChunk],
+                                 self._call_openai(messages, provider_config, llm_parameters, stream=True))
         for chunk in completion_stream:
             yield CompletionChunk(
-                text=chunk.choices[0].delta.get('content') or '',
+                text=chunk.choices[0].delta.content or '',
                 is_complete=chunk.choices[0].finish_reason == 'stop',
-                openai_function_call=chunk.choices[0].delta.get('function_call')
+                openai_function_call=chunk.choices[0].delta.function_call
             )
 
     def continue_chat(
@@ -174,12 +149,16 @@ class OpenAIChat(OpenAI, ChatFlavor):
             provider_config: ProviderConfig,
             llm_parameters: LLMParameters
     ) -> ChatCompletionResponse:
-        completion = self._call_openai(messages, provider_config, llm_parameters, stream=False)
+        completion = cast(ChatCompletion, self._call_openai(messages, provider_config, llm_parameters, stream=False))
 
         message_history = copy(messages)
-        message_history.append(completion.choices[0].message.to_dict())
+        message = completion.choices[0].message
+        message_history.append({
+            "role": message.role or '',
+            "content": message.content or ''
+        })
         return ChatCompletionResponse(
-            content=completion.choices[0].message.content,
+            content=message.content or '',
             message_history=message_history,
             is_complete=completion.choices[0].finish_reason == "stop"
         )
@@ -190,12 +169,38 @@ class OpenAIChat(OpenAI, ChatFlavor):
             provider_config: ProviderConfig,
             llm_parameters: LLMParameters
     ) -> Generator[CompletionChunk, None, None]:
-        completion_stream = self._call_openai(messages, provider_config, llm_parameters, stream=True)
+        completion_stream = cast(Stream[ChatCompletionChunk],
+                                 self._call_openai(messages, provider_config, llm_parameters, stream=True))
         for chunk in completion_stream:
             yield CompletionChunk(
-                text=chunk.choices[0].delta.get('content', ''),
+                text=chunk.choices[0].delta.content or '',
                 is_complete=chunk.choices[0].finish_reason == "stop"
             )
+
+
+class OpenAIChat(OpenAIChatFlavor):
+    record_format_type = "openai_chat"
+    _model_params_with_defaults = LLMParameters({
+        "model": "gpt-3.5-turbo"
+    })
+
+    def __init__(self) -> None:
+        self.client: Optional[openai.OpenAI] = None
+
+    @property
+    def provider(self) -> str:
+        return "openai"
+
+    def get_openai_client(self, openai_config: Optional[OpenAIConfig]) -> openai.OpenAI:
+        if self.client:
+            return self.client
+
+        if not openai_config:
+            raise FreeplayConfigurationError(
+                "Missing OpenAI key. Use a ProviderConfig to specify keys prior to getting completion.")
+
+        self.client = openai.OpenAI(api_key=openai_config.api_key, base_url=openai_config.base_url)
+        return self.client
 
     def _call_openai(
             self,
@@ -203,23 +208,51 @@ class OpenAIChat(OpenAI, ChatFlavor):
             provider_config: ProviderConfig,
             llm_parameters: LLMParameters,
             stream: bool
-    ) -> Any:
-        self.configure_openai(provider_config.openai)
-        llm_parameters.pop('endpoint')
+    ) -> Union[ChatCompletion, openai.Stream[ChatCompletionChunk]]:
+        client = self.get_openai_client(provider_config.openai)
         try:
-            return openai.ChatCompletion.create(
-                messages=messages,
+            return client.chat.completions.create(
+                messages=cast(List[ChatCompletionMessageParam], messages),
                 **self.get_model_params(llm_parameters),
                 stream=stream,
-            )  # type: ignore
-        except (InvalidRequestError, AuthenticationError) as e:
+            )
+        except (BadRequestError, AuthenticationError) as e:
             raise LLMClientError("Unable to call OpenAI") from e
         except Exception as e:
             raise LLMServerError("Unable to call OpenAI") from e
 
 
-class AzureOpenAIChat(OpenAIChat):
+class AzureOpenAIChat(OpenAIChatFlavor):
     record_format_type = "azure_openai_chat"
+
+    def __init__(self) -> None:
+        self.client: Optional[openai.AzureOpenAI] = None
+
+    @property
+    def provider(self) -> str:
+        return "azure"
+
+    def get_azure_client(
+            self,
+            azure_config: Optional[AzureConfig],
+            api_version: Optional[str] = None,
+            endpoint: Optional[str] = None,
+            deployment: Optional[str] = None,
+    ) -> openai.AzureOpenAI:
+        if self.client:
+            return self.client
+
+        if not azure_config:
+            raise FreeplayConfigurationError(
+                "Missing Azure key. Use a ProviderConfig to specify keys prior to getting completion.")
+
+        self.client = openai.AzureOpenAI(
+            api_key=azure_config.api_key,
+            api_version=api_version,
+            azure_endpoint=endpoint or '',
+            azure_deployment=deployment,
+        )
+        return self.client
 
     def _call_openai(
             self,
@@ -232,28 +265,25 @@ class AzureOpenAIChat(OpenAIChat):
         deployment_id = llm_parameters.get('deployment_id')
         resource_name = llm_parameters.get('resource_name')
         endpoint = f'https://{resource_name}.openai.azure.com'
-        self.configure_openai(
-            provider_config.azure,
-            api_base=endpoint,
-            api_type='azure',
-            api_version=api_version
-        )
         llm_parameters.pop('resource_name')
-        try:
-            return openai.ChatCompletion.create(
-                messages=messages,
-                **self.get_model_params(llm_parameters),
-                engine=deployment_id,
-                stream=stream,
-            )  # type: ignore
-        except (InvalidRequestError, AuthenticationError) as e:
-            raise LLMClientError("Unable to call OpenAI") from e
-        except Exception as e:
-            raise LLMServerError("Unable to call OpenAI") from e
 
-    @property
-    def provider(self) -> str:
-        return "azure"
+        client = self.get_azure_client(
+            azure_config=provider_config.azure,
+            api_version=api_version,
+            endpoint=endpoint,
+            deployment=deployment_id,
+        )
+
+        try:
+            return client.chat.completions.create(
+                messages=cast(List[ChatCompletionMessageParam], messages),
+                **self.get_model_params(llm_parameters),
+                stream=stream,
+            )
+        except (BadRequestError, AuthenticationError) as e:
+            raise LLMClientError("Unable to call Azure") from e
+        except Exception as e:
+            raise LLMServerError("Unable to call Azure") from e
 
 
 class AnthropicClaudeText(Flavor):

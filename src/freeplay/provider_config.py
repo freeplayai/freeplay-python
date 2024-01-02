@@ -7,7 +7,7 @@ from .errors import FreeplayConfigurationError
 @dataclass
 class OpenAIConfig:
     api_key: str
-    api_base: Optional[str] = None
+    base_url: Optional[str] = None
 
     def validate(self) -> None:
         if not self.api_key or not self.api_key.strip():

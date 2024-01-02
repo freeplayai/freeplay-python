@@ -7,8 +7,14 @@ from typing import cast, Any, Dict, Generator, List, Optional, Tuple, Union
 
 from . import api_support
 from .api_support import try_decode
-from .completions import PromptTemplates, CompletionResponse, CompletionChunk, PromptTemplateWithMetadata, \
-    ChatCompletionResponse, ChatMessage
+from .completions import (
+    PromptTemplates,
+    CompletionResponse,
+    CompletionChunk,
+    PromptTemplateWithMetadata,
+    ChatCompletionResponse,
+    ChatMessage
+)
 from .errors import FreeplayConfigurationError, freeplay_response_error, FreeplayServerError
 from .flavors import Flavor, ChatFlavor
 from .llm_parameters import LLMParameters
@@ -699,6 +705,7 @@ def require_chat_flavor(flavor: Flavor) -> ChatFlavor:
         raise FreeplayConfigurationError('A Chat flavor is required to start a chat session.')
 
     return flavor
+
 
 def check_all_values_string_or_number(metadata: Optional[Dict[str, Union[str,int,float]]]) -> None:
     if metadata:

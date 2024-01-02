@@ -4,4 +4,4 @@ type-checks:
 	poetry run mypy tests;
 
 test: type-checks
-	[[ -f .env ]] && source .env; FREEPLAY_LOG_LEVEL=CRITICAL poetry run python -m unittest;
+	poetry run python -m unittest;

@@ -3,6 +3,7 @@ from unittest import TestCase
 from uuid import uuid4
 
 import responses
+import respx
 
 from freeplay.provider_config import ProviderConfig, OpenAIConfig  # type: ignore
 from freeplay.flavors import OpenAIChat  # type: ignore
@@ -15,7 +16,7 @@ class TestFreeplayTestRun(TestCase):
         self.freeplay_api_key = "freeplay_api_key"
         self.openai_api_key = "openai_api_key"
         self.api_base = "http://localhost:9091/api"
-        self.openai_base = "http://localhost:666"
+        self.openai_base_url = "http://localhost:666/v1"
         self.project_id = str(uuid4())
         self.session_id = str(uuid4())
         self.project_version_id = str(uuid4())
@@ -24,17 +25,16 @@ class TestFreeplayTestRun(TestCase):
         self.test_run_id = str(uuid4())
         self.flavor = OpenAIChat()
         self.provider_config = ProviderConfig(
-            openai=OpenAIConfig(api_key=self.openai_api_key, api_base=self.openai_base))
+            openai=OpenAIConfig(api_key=self.openai_api_key, base_url=self.openai_base_url))
         self.record_url = f'{self.api_base}/v1/record'
         self.tag = 'latest'
 
     @responses.activate
+    @respx.mock
     def test_test_runs(self) -> None:
-        responses.post(
-            url=f'{self.openai_base}/chat/completions',
-            status=200,
-            body=self.__openai_chat_response(),
-            content_type='application/json'
+        respx.post(f'{self.openai_base_url}/chat/completions').respond(
+            status_code=200,
+            text=self.__openai_chat_response(),
         )
         responses.post(
             url=f'{self.api_base}/projects/{self.project_id}/test-runs',
@@ -84,7 +84,7 @@ class TestFreeplayTestRun(TestCase):
             self.assertEqual(True, completion.is_complete)
             self.assertEqual("I am your assistant", completion.content)
 
-        record_api_request = responses.calls[4].request
+        record_api_request = responses.calls[3].request
         recorded_body_dom = json.loads(record_api_request.body)
         self.assertEqual('Bearer freeplay_api_key', record_api_request.headers['Authorization'])
         self.assertEqual(True, recorded_body_dom['is_complete'])
@@ -102,7 +102,7 @@ class TestFreeplayTestRun(TestCase):
         self.assertEqual(self.record_url, record_api_request.url)
         self.assertEqual(self.test_run_id, recorded_body_dom['test_run_id'])
 
-        record_api_request_2 = responses.calls[8].request
+        record_api_request_2 = responses.calls[6].request
         recorded_body_dom_2 = json.loads(record_api_request_2.body)
 
         self.assertEqual(

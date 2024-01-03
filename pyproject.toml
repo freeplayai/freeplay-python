@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "freeplay"
-version = "0.2.27"
+version = "0.2.30"
 description = ""
 authors = ["FreePlay Engineering <engineering@freeplay.ai>"]
 license = "MIT"

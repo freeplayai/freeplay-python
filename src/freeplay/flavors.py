@@ -9,11 +9,11 @@ from openai import AuthenticationError, BadRequestError, Stream
 from openai.types.chat import ChatCompletion, ChatCompletionChunk, ChatCompletionMessageParam
 
 from .completions import CompletionChunk, PromptTemplateWithMetadata, CompletionResponse, ChatCompletionResponse, \
-    ChatMessage
+    ChatMessage, OpenAIFunctionCall
 from .errors import FreeplayConfigurationError, LLMClientError, LLMServerError, FreeplayError
 from .llm_parameters import LLMParameters
 from .provider_config import AnthropicConfig, AzureConfig, OpenAIConfig, ProviderConfig
-from .utils import format_template_variables
+from .utils import bind_template_variables
 
 
 class Flavor(ABC):
@@ -47,6 +47,10 @@ class Flavor(ABC):
     @abstractmethod
     def format(self, prompt_template: PromptTemplateWithMetadata, variables: Dict[str, str]) -> str:
         pass
+
+    @abstractmethod
+    def to_llm_syntax(self, messages: List[ChatMessage]) -> str | List[ChatMessage]:
+        raise NotImplementedError()
 
     @abstractmethod
     def call_service(
@@ -108,9 +112,12 @@ class OpenAIChatFlavor(ChatFlavor, ABC):
         messages_as_json: List[Dict[str, str]] = json.loads(prompt_template.content)
         formatted_messages = [
             {
-                "content": format_template_variables(message['content'], variables), "role": message['role']
+                "content": bind_template_variables(message['content'], variables), "role": message['role']
             } for message in messages_as_json]
         return json.dumps(formatted_messages)
+
+    def to_llm_syntax(self, messages: List[ChatMessage]) -> List[ChatMessage]:
+        return messages
 
     def call_service(
             self,
@@ -124,8 +131,17 @@ class OpenAIChatFlavor(ChatFlavor, ABC):
         return CompletionResponse(
             content=completion.choices[0].message.content or '',
             is_complete=completion.choices[0].finish_reason == 'stop',
-            openai_function_call=completion.choices[0].message.function_call,
+            openai_function_call=self.__maybe_function_call(completion),
         )
+
+    def __maybe_function_call(self, completion: ChatCompletion) -> Optional[OpenAIFunctionCall]:
+        maybe_function_call = completion.choices[0].message.function_call
+        if maybe_function_call:
+            return OpenAIFunctionCall(
+                name=maybe_function_call.name,
+                arguments=maybe_function_call.arguments
+            )
+        return None
 
     def call_service_stream(
             self,
@@ -153,10 +169,10 @@ class OpenAIChatFlavor(ChatFlavor, ABC):
 
         message_history = copy(messages)
         message = completion.choices[0].message
-        message_history.append({
-            "role": message.role or '',
-            "content": message.content or ''
-        })
+        message_history.append(ChatMessage(
+            role=message.role or '',
+            content=message.content or ''
+        ))
         return ChatCompletionResponse(
             content=message.content or '',
             message_history=message_history,
@@ -286,83 +302,6 @@ class AzureOpenAIChat(OpenAIChatFlavor):
             raise LLMServerError("Unable to call Azure") from e
 
 
-class AnthropicClaudeText(Flavor):
-    record_format_type = "anthropic_text"
-    _model_params_with_defaults = LLMParameters({
-        "model": "claude-v1",
-        "max_tokens_to_sample": 100
-    })
-
-    def __init__(self) -> None:
-        self.client: Optional[anthropic.Client] = None
-
-    @property
-    def provider(self) -> str:
-        return "anthropic"
-
-    def get_anthropic_client(self, anthropic_config: Optional[AnthropicConfig]) -> Any:
-        if self.client:
-            return self.client
-
-        if not anthropic_config:
-            raise FreeplayConfigurationError(
-                "Missing Anthropic key. Use a ProviderConfig to specify keys prior to getting completion.")
-
-        self.client = anthropic.Client(api_key=anthropic_config.api_key)
-        return self.client
-
-    def format(self, prompt_template: PromptTemplateWithMetadata, variables: Dict[str, str]) -> str:
-        interpolated_prompt = format_template_variables(prompt_template.content, variables)
-        # Anthropic expects a specific Chat format "Human: $PROMPT_TEXT\n\nAssistant:". We add the wrapping for Text.
-        chat_formatted_prompt = f"{anthropic.HUMAN_PROMPT} {interpolated_prompt} {anthropic.AI_PROMPT}"
-        return chat_formatted_prompt
-
-    def call_service(self, formatted_prompt: str, provider_config: ProviderConfig,
-                     llm_parameters: LLMParameters) -> CompletionResponse:
-        try:
-            client = self.get_anthropic_client(provider_config.anthropic)
-            anthropic_response = client.completion(
-                prompt=formatted_prompt,
-                **self.get_model_params(llm_parameters)
-            )
-            return CompletionResponse(
-                content=anthropic_response['completion'],
-                is_complete=anthropic_response['stop_reason'] == 'stop_sequence'
-            )
-        except anthropic.APIError as e:
-            raise FreeplayError("Error calling Anthropic") from e
-
-    def call_service_stream(
-            self,
-            formatted_prompt: str,
-            provider_config: ProviderConfig,
-            llm_parameters: LLMParameters
-    ) -> Generator[CompletionChunk, None, None]:
-        try:
-            client = self.get_anthropic_client(provider_config.anthropic)
-            anthropic_response = client.completion_stream(
-                prompt=formatted_prompt,
-                **self.get_model_params(llm_parameters)
-            )
-
-            # Yield incremental text completions. Claude returns the full text output in every chunk.
-            # We want to predictably return a stream like we do for OpenAI.
-            prev_chunk = ''
-            for chunk in anthropic_response:
-                if len(prev_chunk) != 0:
-                    incremental_new_text = chunk['completion'].split(prev_chunk)[1]
-                else:
-                    incremental_new_text = chunk['completion']
-
-                prev_chunk = chunk['completion']
-                yield CompletionChunk(
-                    text=incremental_new_text,
-                    is_complete=chunk['stop_reason'] == 'stop_sequence'
-                )
-        except anthropic.APIError as e:
-            raise FreeplayError("Error calling Anthropic") from e
-
-
 class AnthropicClaudeChat(ChatFlavor):
     record_format_type = "anthropic_chat"
     _model_params_with_defaults = LLMParameters({
@@ -396,10 +335,19 @@ class AnthropicClaudeChat(ChatFlavor):
         messages_as_json: List[Dict[str, str]] = json.loads(prompt_template.content)
         formatted_messages = [
             {
-                "content": format_template_variables(message['content'], variables),
+                "content": bind_template_variables(message['content'], variables),
                 "role": self.__to_anthropic_role(message['role'])
             } for message in messages_as_json]
         return json.dumps(formatted_messages)
+
+    def to_llm_syntax(self, messages: List[ChatMessage]) -> str:
+        formatted_messages = [
+            ChatMessage(
+                content=message['content'],
+                role=self.__to_anthropic_role(message['role'])
+            ) for message in messages
+        ]
+        return self.__to_anthropic_chat_format(formatted_messages)
 
     @staticmethod
     def __to_anthropic_role(role: str) -> str:

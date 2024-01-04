@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, TypedDict
 
 from openai.types.chat.chat_completion_chunk import ChoiceDeltaFunctionCall
-from openai.types.chat.chat_completion_message import FunctionCall
 
 from .llm_parameters import LLMParameters
 
@@ -12,11 +11,16 @@ class ChatMessage(TypedDict):
     content: str
 
 
+class OpenAIFunctionCall(TypedDict):
+    name: str
+    arguments: str
+
+
 @dataclass
 class CompletionResponse:
     content: str
     is_complete: bool
-    openai_function_call: Optional[FunctionCall] = None
+    openai_function_call: Optional[OpenAIFunctionCall] = None
 
 
 @dataclass

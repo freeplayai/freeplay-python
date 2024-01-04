@@ -1,13 +1,14 @@
 import logging
-from dataclasses import dataclass
-from typing import Any, Dict, Optional
 from abc import abstractmethod, ABC
+from dataclasses import dataclass
+from typing import Dict, Optional
 
-from .llm_parameters import LLMParameters
-from .completions import PromptTemplateWithMetadata
 from . import api_support
+from .completions import PromptTemplateWithMetadata
+from .llm_parameters import LLMParameters
 
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class RecordCallFields:
@@ -35,6 +36,7 @@ class RecordProcessor(ABC):
     ) -> None:
         pass
 
+
 class NoOpRecorder(RecordProcessor):
     def record_call(
             self,
@@ -42,7 +44,9 @@ class NoOpRecorder(RecordProcessor):
     ) -> None:
         pass
 
+
 no_op_recorder = NoOpRecorder()
+
 
 class DefaultRecordProcessor(RecordProcessor):
 
@@ -55,8 +59,8 @@ class DefaultRecordProcessor(RecordProcessor):
         self.freeplay_api_key = freeplay_api_key
 
     def record_call(
-        self,
-        record_call: RecordCallFields
+            self,
+            record_call: RecordCallFields
     ) -> None:
         record_payload = {
             "session_id": record_call.session_id,

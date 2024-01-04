@@ -224,8 +224,8 @@ class TestFreeplay(TestCase):
         )
 
         if completion.openai_function_call is not None:
-            self.assertEqual(completion.openai_function_call.name, 'get_album_tracklist')
-            self.assertEqual(completion.openai_function_call.arguments, {'album_name': '24K Magic', 'genre': 'Pop'})
+            self.assertEqual(completion.openai_function_call['name'], 'get_album_tracklist')
+            self.assertEqual(completion.openai_function_call['arguments'], {'album_name': '24K Magic', 'genre': 'Pop'})
         else:
             self.assertIsNotNone(completion.openai_function_call)
 

@@ -57,8 +57,8 @@ class CallSupport:
             project_id: str,
             tag: str,
             test_run_id: Optional[str] = None,
-            metadata: Optional[Dict[str, Union[str,int,float]]] = None
-        ) -> JsonDom:
+            metadata: Optional[Dict[str, Union[str, int, float]]] = None
+    ) -> JsonDom:
         request_body: Dict[str, Any] = {}
         if test_run_id is not None:
             request_body['test_run_id'] = test_run_id
@@ -74,6 +74,10 @@ class CallSupport:
             return cast(Dict[str, Any], json.loads(response.content))
         else:
             raise freeplay_response_error('Error while creating a session.', response)
+
+    def get_prompt(self, project_id: str, template_name: str, environment: str) -> PromptTemplateWithMetadata:
+        prompt_templates = self.get_prompts(project_id, environment)
+        return self.find_template_by_name(prompt_templates, template_name)
 
     def get_prompts(self, project_id: str, tag: str) -> PromptTemplates:
         response = api_support.get_raw(
@@ -553,7 +557,7 @@ class Freeplay:
             variables: Dict[str, str],
             tag: str = default_tag,
             flavor: Optional[Flavor] = None,
-            metadata: Optional[Dict[str, Union[str,int,float]]] = None,
+            metadata: Optional[Dict[str, Union[str, int, float]]] = None,
             **kwargs: Any
     ) -> CompletionResponse:
         project_session = self.call_support.create_session(project_id, tag, None, metadata)
@@ -576,7 +580,7 @@ class Freeplay:
             variables: Dict[str, str],
             tag: str = default_tag,
             flavor: Optional[Flavor] = None,
-            metadata: Optional[Dict[str, Union[str,int,float]]] = None,
+            metadata: Optional[Dict[str, Union[str, int, float]]] = None,
             **kwargs: Any
     ) -> Generator[CompletionChunk, None, None]:
         project_session = self.call_support.create_session(project_id, tag, None, metadata)
@@ -617,7 +621,7 @@ class Freeplay:
             template_name: str,
             variables: Variables,
             tag: str = default_tag,
-            metadata: Optional[Dict[str, Union[str,int,float]]] = None,
+            metadata: Optional[Dict[str, Union[str, int, float]]] = None,
             **kwargs: Any
     ) -> Tuple[ChatSession, ChatCompletionResponse]:
         session = self.__create_chat_session(project_id, tag, template_name, variables, metadata)
@@ -653,7 +657,7 @@ class Freeplay:
             template_name: str,
             variables: Variables,
             tag: str = default_tag,
-            metadata: Optional[Dict[str, Union[str,int,float]]] = None,
+            metadata: Optional[Dict[str, Union[str, int, float]]] = None,
             **kwargs: Any
     ) -> Tuple[ChatSession, Generator[CompletionChunk, None, None]]:
         """Returns a chat session, the base prompt template messages, and a streamed response from the LLM."""
@@ -667,7 +671,7 @@ class Freeplay:
             tag: str,
             template_name: str,
             variables: Variables,
-            metadata: Optional[Dict[str, Union[str,int,float]]] = None) -> ChatSession:
+            metadata: Optional[Dict[str, Union[str, int, float]]] = None) -> ChatSession:
         chat_flavor = require_chat_flavor(self.client_flavor) if self.client_flavor else None
 
         project_session = self.call_support.create_session(project_id, tag, None, metadata)
@@ -707,7 +711,7 @@ def require_chat_flavor(flavor: Flavor) -> ChatFlavor:
     return flavor
 
 
-def check_all_values_string_or_number(metadata: Optional[Dict[str, Union[str,int,float]]]) -> None:
+def check_all_values_string_or_number(metadata: Optional[Dict[str, Union[str, int, float]]]) -> None:
     if metadata:
         for key, value in metadata.items():
             if not isinstance(value, (str, int, float)):

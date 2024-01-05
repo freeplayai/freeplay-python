@@ -1,4 +1,6 @@
 import logging
+from dataclasses import dataclass
+from typing import Dict, Optional, Union
 from abc import abstractmethod, ABC
 from dataclasses import dataclass
 from typing import Dict, Optional
@@ -26,6 +28,7 @@ class RecordCallFields:
     model: Optional[str]
     provider: Optional[str]
     llm_parameters: Optional[LLMParameters]
+    custom_metadata: Optional[Dict[str, Union[str,int,float]]] = None
 
 
 class RecordProcessor(ABC):
@@ -76,7 +79,8 @@ class DefaultRecordProcessor(RecordProcessor):
             "is_complete": record_call.completion_is_complete,
             "model": record_call.model,
             "provider": record_call.provider,
-            "llm_parameters": record_call.llm_parameters
+            "llm_parameters": record_call.llm_parameters,
+            "custom_metadata": record_call.custom_metadata,
         }
 
         if record_call.test_run_id is not None:

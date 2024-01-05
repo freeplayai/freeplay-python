@@ -135,7 +135,7 @@ class TestFreeplay(TestCase):
         first_openai_call = json.loads(respx.calls[0].request.content)
         self.assertEqual(first_openai_call['messages'][0]['content'], 'Tell me about John Ronald Reuel Tolkien')
 
-        record_api_request = responses.calls[2].request
+        record_api_request = responses.calls[1].request
         recorded_body_dom = json.loads(record_api_request.body)
 
         self.assertEqual(
@@ -155,10 +155,10 @@ class TestFreeplay(TestCase):
                 "gitSHA": "d5afe656acfedad35ef75eb55c8a1b853fcd1cd2",
             })
 
-        session_api_request = responses.calls[0].request
+        session_api_request = responses.calls[1].request
         session_body_dom = json.loads(session_api_request.body)
-        self.assertEqual(123456, session_body_dom['metadata']['customer_id'])
-        self.assertEqual("d5afe656acfedad35ef75eb55c8a1b853fcd1cd2", session_body_dom['metadata']['gitSHA'])
+        self.assertEqual(123456, session_body_dom['custom_metadata']['customer_id'])
+        self.assertEqual("d5afe656acfedad35ef75eb55c8a1b853fcd1cd2", session_body_dom['custom_metadata']['gitSHA'])
 
         record_api_request = responses.calls[-1].request
         recorded_body_dom = json.loads(record_api_request.body)
@@ -229,8 +229,11 @@ class TestFreeplay(TestCase):
         else:
             self.assertIsNotNone(completion.openai_function_call)
 
-    def test_openai_continuous_chat_session(self) -> None:
+    @patch("freeplay.freeplay.CallSupport.create_session_id")
+    def test_openai_continuous_chat_session(self, mock_create_session_id: MagicMock) -> None:
         self.__mock_freeplay_and_openai_http_apis()
+
+        mock_create_session_id.return_value = self.session_id
 
         chat_session, _ = self.freeplay_chat_client.start_chat(
             project_id=str(self.project_id),
@@ -273,7 +276,7 @@ class TestFreeplay(TestCase):
 
         self.assertEqual(expected_final_message_history, restored_chat_session.message_history)
 
-        self.assertEqual(6, len(responses.calls))
+        self.assertEqual(5, len(responses.calls))
         self.assertEqual(3, len(respx.calls))
 
         # Ensure all the appropriate data is passed to OpenAI
@@ -284,22 +287,25 @@ class TestFreeplay(TestCase):
         self.assertEqual(10, second_openai_call['max_tokens'])
 
         # Ensure expected data is recorded to Freeplay
-        first_record_call = self.__extract_request_body_to_dom(responses.calls[2])
+        first_record_call = self.__extract_request_body_to_dom(responses.calls[1])
         self.assertEqual(self.session_id, first_record_call['session_id'])
         self.assertEqual(json.dumps(expected_final_message_history[0:2]), first_record_call['prompt_content'])
-        second_record_call = self.__extract_request_body_to_dom(responses.calls[5])
+
+        second_record_call = self.__extract_request_body_to_dom(responses.calls[2])
         self.assertEqual(self.session_id, second_record_call['session_id'])
-        self.assertEqual(expected_final_message_history[0:6], json.loads(second_record_call['prompt_content']))
+        self.assertEqual(expected_final_message_history[0:4], json.loads(second_record_call['prompt_content']))
         self.assertEqual(second_record_call['return_content'], 'soy tu asistente')
 
-        third_record_call = self.__extract_request_body_to_dom(responses.calls[5])
+        third_record_call = self.__extract_request_body_to_dom(responses.calls[4])
         self.assertEqual(self.session_id, third_record_call['session_id'])
 
+    @patch("freeplay.freeplay.CallSupport.create_session_id")
     @patch("openai.resources.chat.Completions.create")
-    def test_openai_continuous_chat_session_streaming(self, mock_completion_create: MagicMock) -> None:
+    def test_openai_continuous_chat_session_streaming(self, mock_completion_create: MagicMock, mock_create_session_id: MagicMock) -> None:
         self.__mock_freeplay_apis()
 
         mock_completion_create.return_value = self.__mock_openai_completion_stream_response("I am your assistant")
+        mock_create_session_id.return_value = self.session_id
 
         chat_session, first_completion = self.freeplay_chat_client.start_chat_stream(
             project_id=str(self.project_id),
@@ -335,7 +341,7 @@ class TestFreeplay(TestCase):
         )
         self.__assert_generator_response(third_completion, "I am your assistant", True)
 
-        self.assertEqual(6, len(responses.calls))
+        self.assertEqual(5, len(responses.calls))
         expected_final_message_history = [{"content": "System message", "role": "system"},
                                           {"content": "How may I help you, Sparkles?", "role": "assistant"},
                                           {"role": "assistant", "content": "I am your assistant"},
@@ -344,7 +350,7 @@ class TestFreeplay(TestCase):
                                           {"role": "user", "content": "A message"}]
 
         # Ensure expected data is recorded to Freeplay
-        first_record_call = self.__extract_request_body_to_dom(responses.calls[2])
+        first_record_call = self.__extract_request_body_to_dom(responses.calls[1])
         self.assertEqual(self.session_id, first_record_call['session_id'])
         self.assertEqual(json.dumps(expected_final_message_history[0:2]), first_record_call['prompt_content'])
 
@@ -352,13 +358,13 @@ class TestFreeplay(TestCase):
         self.assertEqual(0.7, first_record_call['llm_parameters']['temperature'])
         self.assertEqual(5, first_record_call['llm_parameters']['max_tokens'])
 
-        second_record_call = self.__extract_request_body_to_dom(responses.calls[3])
+        second_record_call = self.__extract_request_body_to_dom(responses.calls[2])
         self.assertEqual(self.session_id, second_record_call['session_id'])
         self.assertEqual(expected_final_message_history[0:4], json.loads(second_record_call['prompt_content']))
         self.assertEqual(second_record_call['return_content'], 'soy tu asistente')
 
         # Third call is a restored session. Session ID must match
-        third_record_call = self.__extract_request_body_to_dom(responses.calls[5])
+        third_record_call = self.__extract_request_body_to_dom(responses.calls[4])
         self.assertEqual(self.session_id, third_record_call['session_id'])
         self.assertEqual(json.dumps(expected_final_message_history[0:6]), third_record_call['prompt_content'])
         self.assertEqual(third_record_call['return_content'], 'I am your assistant')
@@ -389,7 +395,7 @@ class TestFreeplay(TestCase):
             variables={"question": "Why is nothing working?"},
             tag=self.tag)
 
-        self.assertEqual(len(responses.calls), 6)
+        self.assertEqual(len(responses.calls), 5)
         self.assertEqual(len(respx.calls), 3)
         first_openai_request_dom = json.loads(respx.calls[0].request.content)
         self.assertEqual('text-davinci-003', first_openai_request_dom['model'])
@@ -401,11 +407,11 @@ class TestFreeplay(TestCase):
         second_openai_request_dom = json.loads(respx.calls[1].request.content)
         self.assertEqual('gpt-4', second_openai_request_dom['model'])
         self.assertEqual(1, second_openai_request_dom['max_tokens'])
-        second_recorded_body_dom = self.__extract_request_body_to_dom(responses.calls[3])
+        second_recorded_body_dom = self.__extract_request_body_to_dom(responses.calls[2])
         self.assertEqual(session.session_id, second_recorded_body_dom['session_id'])
 
         # Restored session test
-        third_recorded_body_dom = self.__extract_request_body_to_dom(responses.calls[5])
+        third_recorded_body_dom = self.__extract_request_body_to_dom(responses.calls[4])
         self.assertEqual(session.session_id, third_recorded_body_dom['session_id'])
 
     @patch("openai.resources.chat.Completions.create")
@@ -424,9 +430,9 @@ class TestFreeplay(TestCase):
                                                                             frequency_penalty=-1.0)
         self.__assert_generator_response(completion_stream, 'I am your assistant', True)
 
-        self.assertEqual(len(responses.calls), 3)
+        self.assertEqual(len(responses.calls), 2)
 
-        recorded_body_dom = self.__extract_request_body_to_dom(responses.calls[2])
+        recorded_body_dom = self.__extract_request_body_to_dom(responses.calls[1])
         self.assertEqual("I am your assistant", recorded_body_dom['return_content'])
 
     def test_single_session_uses_default_tag_when_tag_omitted(self) -> None:
@@ -517,8 +523,8 @@ class TestFreeplay(TestCase):
         self.assertEqual("I am your assistant", completion.content)
 
     def test_auth_error(self) -> None:
-        responses.post(
-            url=f'{self.api_base}/projects/{self.project_id}/sessions/tag/{self.tag}',
+        responses.get(
+            url=f'{self.api_base}/projects/{self.project_id}/templates/all/{self.tag}',
             status=401
         )
 
@@ -528,7 +534,7 @@ class TestFreeplay(TestCase):
             api_base=self.api_base,
             provider_config=self.provider_config)
 
-        with self.assertRaisesRegex(FreeplayClientError, "Error while creating a session. \\[401\\]"):
+        with self.assertRaisesRegex(FreeplayClientError, "Error getting prompt templates \\[401\\]"):
             freeplay.get_completion(project_id=self.project_id,
                                     template_name="my-chat-prompt",
                                     tag=self.tag,
@@ -576,7 +582,7 @@ class TestFreeplay(TestCase):
             tag=self.tag
         )
         # One less call
-        self.assertEqual(len(responses.calls), 2)
+        self.assertEqual(len(responses.calls), 1)
         self.assertEqual(len(respx.calls), 1)
         self.assertTrue(all([self.record_url not in call.request.url for call in responses.calls]))
 
@@ -614,7 +620,7 @@ class TestFreeplay(TestCase):
         self.assertEqual("I am your assistant", second_completion.content)
 
         # Two less calls
-        self.assertEqual(len(responses.calls), 2)
+        self.assertEqual(len(responses.calls), 1)
         self.assertEqual(len(respx.calls), 2)
         self.assertTrue(all([self.record_url not in call.request.url for call in responses.calls]))
 

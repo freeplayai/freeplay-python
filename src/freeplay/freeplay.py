@@ -4,6 +4,7 @@ import time
 from copy import copy
 from dataclasses import dataclass
 from typing import cast, Any, Dict, Generator, List, Optional, Tuple, Union
+from uuid import uuid4
 
 from . import api_support
 from .api_support import try_decode
@@ -52,28 +53,14 @@ class CallSupport:
             raise FreeplayConfigurationError(f'Could not find template with name "{template_name}"')
         return templates[0]
 
-    def create_session(
-            self,
-            project_id: str,
-            tag: str,
-            test_run_id: Optional[str] = None,
-            metadata: Optional[Dict[str, Union[str, int, float]]] = None
-    ) -> JsonDom:
-        request_body: Dict[str, Any] = {}
-        if test_run_id is not None:
-            request_body['test_run_id'] = test_run_id
-        if metadata is not None:
-            check_all_values_string_or_number(metadata)
-            request_body['metadata'] = metadata
+    def create_session_id(self) -> str:
+        return str(uuid4())
 
-        response = api_support.post_raw(api_key=self.freeplay_api_key,
-                                        url=f'{self.api_base}/projects/{project_id}/sessions/tag/{tag}',
-                                        payload=request_body)
-
-        if response.status_code == 201:
-            return cast(Dict[str, Any], json.loads(response.content))
-        else:
-            raise freeplay_response_error('Error while creating a session.', response)
+    def check_all_values_string_or_number(self, metadata: Optional[Dict[str, Union[str,int,float]]]) -> None:
+        if metadata:
+            for key, value in metadata.items():
+                if not isinstance(value, (str, int, float)):
+                    raise FreeplayConfigurationError(f"Invalid value for key {key}: Value must be a string or number.")
 
     def get_prompt(self, project_id: str, template_name: str, environment: str) -> PromptTemplateWithMetadata:
         prompt_templates = self.get_prompts(project_id, environment)
@@ -106,7 +93,8 @@ class CallSupport:
             message_history: List[ChatMessage],
             new_messages: Optional[List[ChatMessage]],
             test_run_id: Optional[str] = None,
-            completion_parameters: Optional[LLMParameters] = None) -> ChatCompletionResponse:
+            completion_parameters: Optional[LLMParameters] = None,
+            metadata: Optional[Dict[str, Union[str,int,float]]] = None) -> ChatCompletionResponse:
         # make call
         start = time.time()
         params = target_template.get_params() \
@@ -137,7 +125,8 @@ class CallSupport:
             test_run_id=test_run_id,
             model=model,
             provider=flavor.provider,
-            llm_parameters=params
+            llm_parameters=params,
+            custom_metadata=metadata,
         )
         self.record_processor.record_call(record_call_fields)
 
@@ -154,7 +143,8 @@ class CallSupport:
             variables: Variables,
             message_history: List[ChatMessage],
             test_run_id: Optional[str] = None,
-            completion_parameters: Optional[LLMParameters] = None
+            completion_parameters: Optional[LLMParameters] = None,
+            metadata: Optional[Dict[str, Union[str,int,float]]] = None
     ) -> Generator[CompletionChunk, None, None]:
         # make call
         start = time.time()
@@ -189,7 +179,8 @@ class CallSupport:
             test_run_id=test_run_id,
             model=model,
             provider=flavor.provider,
-            llm_parameters=params
+            llm_parameters=params,
+            custom_metadata=metadata,
         )
         self.record_processor.record_call(record_call_fields)
 
@@ -204,7 +195,8 @@ class CallSupport:
             provider_config: ProviderConfig,
             tag: str,
             test_run_id: Optional[str] = None,
-            completion_parameters: Optional[LLMParameters] = None
+            completion_parameters: Optional[LLMParameters] = None,
+            metadata: Optional[Dict[str, Union[str,int,float]]] = None
     ) -> CompletionResponse:
         target_template = self.find_template_by_name(prompts, template_name)
         params = target_template.get_params() \
@@ -238,7 +230,8 @@ class CallSupport:
             test_run_id=test_run_id,
             model=model,
             provider=final_flavor.provider,
-            llm_parameters=params
+            llm_parameters=params,
+            custom_metadata=metadata,
         )
         self.record_processor.record_call(record_call_fields)
 
@@ -254,7 +247,8 @@ class CallSupport:
             provider_config: ProviderConfig,
             tag: str,
             test_run_id: Optional[str] = None,
-            completion_parameters: Optional[LLMParameters] = None
+            completion_parameters: Optional[LLMParameters] = None,
+            metadata: Optional[Dict[str, Union[str,int,float]]] = None
     ) -> Generator[CompletionChunk, None, None]:
         target_template = self.find_template_by_name(prompts, template_name)
         params = target_template.get_params() \
@@ -293,7 +287,8 @@ class CallSupport:
             test_run_id=test_run_id,
             model=model,
             provider=final_flavor.provider,
-            llm_parameters=params
+            llm_parameters=params,
+            custom_metadata=metadata,
         )
         self.record_processor.record_call(record_call_fields)
 
@@ -366,13 +361,15 @@ class ChatSession(Session):
             variables: Variables,
             tag: str = default_tag,
             test_run_id: Optional[str] = None,
-            messages: Optional[List[ChatMessage]] = None
+            messages: Optional[List[ChatMessage]] = None,
+            metadata: Optional[Dict[str, Union[str, int, float]]] = None,
     ) -> None:
         super().__init__(call_support, session_id, prompts, flavor, provider_config, tag, test_run_id)
         # A Chat Session tracks the template_name and variables for a set of chat completions.
         # Assumes these will be the same for subsequent chat messages.
         self.message_history = messages or []
         self.variables = variables
+        self.metadata = metadata
         self.target_template = self.call_support.find_template_by_name(self.prompts, template_name)
         self.flavor = get_chat_flavor_from_config(flavor, self.target_template.flavor_name)
         self.__initial_messages = json.loads(self.flavor.format(self.target_template, self.variables))
@@ -398,7 +395,8 @@ class ChatSession(Session):
             variables=self.variables,
             message_history=self.__initial_messages,
             new_messages=None,
-            completion_parameters=LLMParameters(kwargs)
+            completion_parameters=LLMParameters(kwargs),
+            metadata=self.metadata,
         )
 
         self.store_new_messages(response.message_history)
@@ -436,7 +434,8 @@ class ChatSession(Session):
             variables=self.variables,
             message_history=self.message_history,
             new_messages=new_messages,
-            completion_parameters=LLMParameters(kwargs)
+            completion_parameters=LLMParameters(kwargs),
+            metadata=self.metadata,
         )
 
         if new_messages is not None:
@@ -464,7 +463,9 @@ class ChatSession(Session):
             variables=self.variables,
             message_history=self.message_history,
             test_run_id=self.test_run_id,
-            completion_parameters=LLMParameters(kwargs))
+            completion_parameters=LLMParameters(kwargs),
+            metadata=self.metadata,
+        )
 
         self.store_new_messages(new_messages)
         yield from self.aggregate_message_from_response(response)
@@ -490,9 +491,9 @@ class FreeplayTestRun:
         return self.inputs
 
     def create_session(self, project_id: str, tag: str = default_tag) -> Session:
-        project_session = self.call_support.create_session(project_id, tag, self.test_run_id)
+        session_id = self.call_support.create_session_id()
         prompts = self.call_support.get_prompts(project_id, tag)
-        return Session(self.call_support, project_session['session_id'], prompts, self.flavor, self.provider_config,
+        return Session(self.call_support, session_id, prompts, self.flavor, self.provider_config,
                        tag, self.test_run_id)
 
 
@@ -522,9 +523,9 @@ class Freeplay:
         self.api_base = api_base
 
     def create_session(self, project_id: str, tag: str = default_tag) -> Session:
-        project_session = self.call_support.create_session(project_id, tag)
+        session_id = self.call_support.create_session_id()
         prompts = self.call_support.get_prompts(project_id, tag)
-        return Session(self.call_support, project_session['session_id'], prompts, self.client_flavor,
+        return Session(self.call_support, session_id, prompts, self.client_flavor,
                        self.provider_config, tag)
 
     def restore_session(
@@ -547,8 +548,7 @@ class Freeplay:
             flavor=completion_flavor,
             provider_config=self.provider_config,
             tag=tag,
-            completion_parameters=LLMParameters(kwargs),
-        )
+            completion_parameters=LLMParameters(kwargs))
 
     def get_completion(
             self,
@@ -560,18 +560,20 @@ class Freeplay:
             metadata: Optional[Dict[str, Union[str, int, float]]] = None,
             **kwargs: Any
     ) -> CompletionResponse:
-        project_session = self.call_support.create_session(project_id, tag, None, metadata)
+        self.call_support.check_all_values_string_or_number(metadata)
+        session_id = self.call_support.create_session_id();
         prompts = self.call_support.get_prompts(project_id, tag)
         completion_flavor = flavor or self.client_flavor
 
-        return self.call_support.prepare_and_make_call(project_session['session_id'],
+        return self.call_support.prepare_and_make_call(session_id,
                                                        prompts,
                                                        template_name,
                                                        variables,
                                                        completion_flavor,
                                                        self.provider_config,
                                                        tag,
-                                                       completion_parameters=LLMParameters(kwargs))
+                                                       completion_parameters=LLMParameters(kwargs),
+                                                       metadata=metadata)
 
     def get_completion_stream(
             self,
@@ -583,18 +585,20 @@ class Freeplay:
             metadata: Optional[Dict[str, Union[str, int, float]]] = None,
             **kwargs: Any
     ) -> Generator[CompletionChunk, None, None]:
-        project_session = self.call_support.create_session(project_id, tag, None, metadata)
+        self.call_support.check_all_values_string_or_number(metadata)
+        session_id = self.call_support.create_session_id();
         prompts = self.call_support.get_prompts(project_id, tag)
         completion_flavor = flavor or self.client_flavor
 
-        return self.call_support.prepare_and_make_call_stream(project_session['session_id'],
+        return self.call_support.prepare_and_make_call_stream(session_id,
                                                               prompts,
                                                               template_name,
                                                               variables,
                                                               completion_flavor,
                                                               self.provider_config,
                                                               tag,
-                                                              completion_parameters=LLMParameters(kwargs))
+                                                              completion_parameters=LLMParameters(kwargs),
+                                                              metadata=metadata)
 
     def create_test_run(self, project_id: str, testlist: str) -> FreeplayTestRun:
         response = api_support.post_raw(
@@ -674,17 +678,18 @@ class Freeplay:
             metadata: Optional[Dict[str, Union[str, int, float]]] = None) -> ChatSession:
         chat_flavor = require_chat_flavor(self.client_flavor) if self.client_flavor else None
 
-        project_session = self.call_support.create_session(project_id, tag, None, metadata)
+        session_id = self.call_support.create_session_id()
         prompts = self.call_support.get_prompts(project_id, tag)
         return ChatSession(
             self.call_support,
-            project_session['session_id'],
+            session_id,
             prompts,
             chat_flavor,
             self.provider_config,
             template_name,
             variables,
-            tag)
+            tag,
+            metadata=metadata)
 
 
 def pick_flavor_from_config(completion_flavor: Optional[Flavor], ui_flavor_name: Optional[str]) -> Flavor:
@@ -709,10 +714,3 @@ def require_chat_flavor(flavor: Flavor) -> ChatFlavor:
         raise FreeplayConfigurationError('A Chat flavor is required to start a chat session.')
 
     return flavor
-
-
-def check_all_values_string_or_number(metadata: Optional[Dict[str, Union[str, int, float]]]) -> None:
-    if metadata:
-        for key, value in metadata.items():
-            if not isinstance(value, (str, int, float)):
-                raise FreeplayConfigurationError(f"Invalid value for key {key}: Value must be a string or number.")

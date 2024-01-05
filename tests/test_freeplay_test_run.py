@@ -84,7 +84,7 @@ class TestFreeplayTestRun(TestCase):
             self.assertEqual(True, completion.is_complete)
             self.assertEqual("I am your assistant", completion.content)
 
-        record_api_request = responses.calls[3].request
+        record_api_request = responses.calls[2].request
         recorded_body_dom = json.loads(record_api_request.body)
         self.assertEqual('Bearer freeplay_api_key', record_api_request.headers['Authorization'])
         self.assertEqual(True, recorded_body_dom['is_complete'])
@@ -102,7 +102,7 @@ class TestFreeplayTestRun(TestCase):
         self.assertEqual(self.record_url, record_api_request.url)
         self.assertEqual(self.test_run_id, recorded_body_dom['test_run_id'])
 
-        record_api_request_2 = responses.calls[6].request
+        record_api_request_2 = responses.calls[4].request
         recorded_body_dom_2 = json.loads(record_api_request_2.body)
 
         self.assertEqual(

@@ -6,7 +6,8 @@ from typing import Dict, List, Optional, Tuple
 from .completions import PromptTemplates, ChatMessage, OpenAIFunctionCall, PromptTemplateWithMetadata
 from .errors import FreeplayConfigurationError, FreeplayClientError
 from .flavors import Flavor
-from .freeplay import CallSupport
+from .model import InputVariables
+from .support import CallSupport
 from .llm_parameters import LLMParameters
 from .record import DefaultRecordProcessor, RecordCallFields
 from .utils import bind_template_variables
@@ -23,7 +24,7 @@ class PromptInfo:
     prompt_template_version_id: str
     template_name: str
     environment: str
-    variables: Dict[str, str]
+    variables: InputVariables
     model_parameters: LLMParameters
     provider: str
     model: str
@@ -84,7 +85,7 @@ class FreeplayThin:
             project_id: str,
             template_name: str,
             environment: str,
-            variables: Dict[str, str]
+            variables: InputVariables
     ) -> Tuple[PromptInfo, List[ChatMessage]]:
         prompt_template = self.call_support.get_prompt(
             project_id=project_id,

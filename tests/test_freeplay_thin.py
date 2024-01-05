@@ -10,7 +10,7 @@ from freeplay.errors import (FreeplayClientError,  # type: ignore
                              FreeplayConfigurationError,
                              LLMServerError)
 from freeplay.flavors import OpenAIChat  # type: ignore
-from freeplay.freeplay import Freeplay, JsonDom  # type: ignore
+from freeplay.freeplay import Freeplay  # type: ignore
 from freeplay.freeplay_thin import FreeplayThin, CallInfo, ResponseInfo, RecordPayload  # type: ignore
 from freeplay.provider_config import ProviderConfig, OpenAIConfig  # type: ignore
 from freeplay.record import no_op_recorder  # type: ignore

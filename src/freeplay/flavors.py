@@ -12,6 +12,7 @@ from .completions import CompletionChunk, PromptTemplateWithMetadata, Completion
     ChatMessage, OpenAIFunctionCall
 from .errors import FreeplayConfigurationError, LLMClientError, LLMServerError, FreeplayError
 from .llm_parameters import LLMParameters
+from .model import InputVariables
 from .provider_config import AnthropicConfig, AzureConfig, OpenAIConfig, ProviderConfig
 from .utils import bind_template_variables
 
@@ -45,7 +46,7 @@ class Flavor(ABC):
         return LLMParameters.empty()
 
     @abstractmethod
-    def format(self, prompt_template: PromptTemplateWithMetadata, variables: Dict[str, str]) -> str:
+    def format(self, prompt_template: PromptTemplateWithMetadata, variables: InputVariables) -> str:
         pass
 
     @abstractmethod
@@ -106,7 +107,7 @@ class OpenAIChatFlavor(ChatFlavor, ABC):
     ) -> Union[ChatCompletion, openai.Stream[ChatCompletionChunk]]:
         pass
 
-    def format(self, prompt_template: PromptTemplateWithMetadata, variables: Dict[str, str]) -> str:
+    def format(self, prompt_template: PromptTemplateWithMetadata, variables: InputVariables) -> str:
         # Extract messages JSON to enable formatting of individual content fields of each message. If we do not
         # extract the JSON, current variable interpolation will fail on JSON curly braces.
         messages_as_json: List[Dict[str, str]] = json.loads(prompt_template.content)
@@ -134,6 +135,7 @@ class OpenAIChatFlavor(ChatFlavor, ABC):
             openai_function_call=self.__maybe_function_call(completion),
         )
 
+    # noinspection PyMethodMayBeStatic
     def __maybe_function_call(self, completion: ChatCompletion) -> Optional[OpenAIFunctionCall]:
         maybe_function_call = completion.choices[0].message.function_call
         if maybe_function_call:
@@ -329,7 +331,7 @@ class AnthropicClaudeChat(ChatFlavor):
 
     # This just formats the prompt for uploading to the record endpoint.
     # TODO: Move this to a base class.
-    def format(self, prompt_template: PromptTemplateWithMetadata, variables: Dict[str, str]) -> str:
+    def format(self, prompt_template: PromptTemplateWithMetadata, variables: InputVariables) -> str:
         # Extract messages JSON to enable formatting of individual content fields of each message. If we do not
         # extract the JSON, current variable interpolation will fail on JSON curly braces.
         messages_as_json: List[Dict[str, str]] = json.loads(prompt_template.content)
@@ -431,3 +433,27 @@ class AnthropicClaudeChat(ChatFlavor):
     ) -> Generator[CompletionChunk, None, None]:
         messages = json.loads(formatted_prompt)
         return self.continue_chat_stream(messages, provider_config, llm_parameters)
+
+
+def pick_flavor_from_config(completion_flavor: Optional[Flavor], ui_flavor_name: Optional[str]) -> Flavor:
+    ui_flavor = Flavor.get_by_name(ui_flavor_name) if ui_flavor_name else None
+    flavor = completion_flavor or ui_flavor
+
+    if flavor is None:
+        raise FreeplayConfigurationError(
+            "Flavor must be configured on either the Freeplay client, completion call, "
+            "or in the Freeplay UI. Unable to fulfill request.")
+
+    return flavor
+
+
+def get_chat_flavor_from_config(completion_flavor: Optional[Flavor], ui_flavor_name: Optional[str]) -> ChatFlavor:
+    flavor = pick_flavor_from_config(completion_flavor, ui_flavor_name)
+    return require_chat_flavor(flavor)
+
+
+def require_chat_flavor(flavor: Flavor) -> ChatFlavor:
+    if not isinstance(flavor, ChatFlavor):
+        raise FreeplayConfigurationError('A Chat flavor is required to start a chat session.')
+
+    return flavor

@@ -3,11 +3,12 @@ from dataclasses import dataclass
 from typing import Dict, Optional, Union
 from abc import abstractmethod, ABC
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Optional
 
 from . import api_support
 from .completions import PromptTemplateWithMetadata
 from .llm_parameters import LLMParameters
+from .model import InputVariables
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ class RecordCallFields:
     session_id: str
     start: float
     target_template: PromptTemplateWithMetadata
-    variables: Dict[str, str]
+    variables: InputVariables
     tag: str
     test_run_id: Optional[str]
     record_format_type: Optional[str]

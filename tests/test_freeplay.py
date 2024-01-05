@@ -16,9 +16,10 @@ from freeplay.errors import (  # type: ignore
     LLMServerError
 )
 from freeplay.flavors import OpenAIChat  # type: ignore
-from freeplay.freeplay import Freeplay, JsonDom  # type: ignore
+from freeplay.freeplay import Freeplay  # type: ignore
 from freeplay.provider_config import ProviderConfig, OpenAIConfig  # type: ignore
 from freeplay.record import no_op_recorder  # type: ignore
+from freeplay.support import JsonDom  # type: ignore
 
 
 class TestFreeplay(TestCase):
@@ -126,11 +127,12 @@ class TestFreeplay(TestCase):
 
     def test_openai_chat_mustache(self) -> None:
         self.__mock_freeplay_and_openai_http_apis()
-        completion = self.freeplay_chat_client.get_completion(
+        self.freeplay_chat_client.get_completion(
             project_id=str(self.project_id),
             template_name="my-mustache-prompt",
             variables={"tolkien": "True"},
-            tag=self.tag,)
+            tag=self.tag,
+        )
 
         first_openai_call = json.loads(respx.calls[0].request.content)
         self.assertEqual(first_openai_call['messages'][0]['content'], 'Tell me about John Ronald Reuel Tolkien')
@@ -619,7 +621,7 @@ class TestFreeplay(TestCase):
         self.assertEqual(True, second_completion.is_complete)
         self.assertEqual("I am your assistant", second_completion.content)
 
-        # Two less calls
+        # Two fewer calls
         self.assertEqual(len(responses.calls), 1)
         self.assertEqual(len(respx.calls), 2)
         self.assertTrue(all([self.record_url not in call.request.url for call in responses.calls]))
@@ -763,7 +765,8 @@ class TestFreeplay(TestCase):
                 {
                     'content': json.dumps([{
                         "role": "system",
-                        "content": "{{#tolkien}}Tell me about John Ronald Reuel Tolkien{{/tolkien}}{{#lewis}}Tell me about Clive Staples Lewis{{/lewis}}"
+                        "content": "{{#tolkien}}Tell me about John Ronald Reuel Tolkien{{/tolkien}}{{#lewis}}"
+                                   "Tell me about Clive Staples Lewis{{/lewis}}"
                     }]),
                     'name': 'my-mustache-prompt',
                     'project_version_id': self.project_version_id,

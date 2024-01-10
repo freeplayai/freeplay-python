@@ -145,8 +145,13 @@ class TestFreeplay(TestCase):
             recorded_body_dom['prompt_content']
         )
 
-    def test_openai_chat_single_prompt_session(self) -> None:
+    @patch("freeplay.api_support.build_request_header")
+    def test_openai_chat_single_prompt_session(self, mock_build_request_header: MagicMock) -> None:
         self.__mock_freeplay_and_openai_http_apis()
+        mock_build_request_header.return_value = {
+            'Authorization': 'Bearer freeplay_api_key',
+            'User-Agent':'Freeplay/0.2.30 (Python/3.10; Darwin/23.2.0)'
+        }
         completion = self.freeplay_chat_client.get_completion(
             project_id=str(self.project_id),
             template_name="my-chat-prompt",
@@ -165,6 +170,7 @@ class TestFreeplay(TestCase):
         record_api_request = responses.calls[-1].request
         recorded_body_dom = json.loads(record_api_request.body)
         self.assertEqual('Bearer freeplay_api_key', record_api_request.headers['Authorization'])
+        self.assertEqual('Freeplay/0.2.30 (Python/3.10; Darwin/23.2.0)', record_api_request.headers['User-Agent'])
         self.assertEqual(True, recorded_body_dom['is_complete'])
         self.assertEqual(self.project_version_id, recorded_body_dom['project_version_id'])
         self.assertEqual(self.openai_chat_prompt_template_id_3, recorded_body_dom['prompt_template_id'])

@@ -7,6 +7,8 @@ import dacite
 import requests
 from requests import Response
 
+from freeplay.utils import build_request_header
+
 T = t.TypeVar("T")
 
 logger = logging.getLogger(__name__)
@@ -28,7 +30,7 @@ def try_decode(target_type: t.Type[T], data: bytes) -> t.Optional[T]:
 def post(target_type: t.Type[T], api_key: str, url: str, payload: t.Optional[Dict[str, str]] = None) -> T:
     response = requests.post(
         url=url,
-        headers={'Authorization': f'Bearer {api_key}'},
+        headers=build_request_header(api_key),
         json=payload
     )
 
@@ -45,7 +47,7 @@ def post(target_type: t.Type[T], api_key: str, url: str, payload: t.Optional[Dic
 def post_raw(api_key: str, url: str, payload: t.Optional[Dict[str, t.Any]] = None) -> Response:
     return requests.post(
         url=url,
-        headers={'Authorization': f'Bearer {api_key}'},
+        headers=build_request_header(api_key),
         json=payload
     )
 
@@ -53,7 +55,7 @@ def post_raw(api_key: str, url: str, payload: t.Optional[Dict[str, t.Any]] = Non
 def get(target_type: t.Type[T], api_key: str, url: str) -> T:
     response = requests.get(
         url=url,
-        headers={'Authorization': f'Bearer {api_key}'}
+        headers=build_request_header(api_key),
     )
 
     if response.status_code != 200:
@@ -69,5 +71,5 @@ def get(target_type: t.Type[T], api_key: str, url: str) -> T:
 def get_raw(api_key: str, url: str) -> Response:
     return requests.get(
         url=url,
-        headers={'Authorization': f'Bearer {api_key}'}
+        headers=build_request_header(api_key),
     )

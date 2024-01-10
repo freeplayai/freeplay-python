@@ -3,7 +3,7 @@ import time
 
 from anthropic import Anthropic
 
-from src.freeplay.freeplay_thin import FreeplayThin, RecordPayload, CallInfo, ResponseInfo
+from freeplay.freeplay_thin import FreeplayThin, RecordPayload, CallInfo, ResponseInfo
 
 fpclient = FreeplayThin(
     freeplay_api_key=os.environ['FREEPLAY_API_KEY'],
@@ -17,7 +17,7 @@ prompt_info, messages = fpclient.get_prompt(
     variables={'question': "Why isn't my door working?"}
 )
 
-ready_for_llm = fpclient.format(prompt_info.flavor_name, messages)
+ready_for_llm = str(fpclient.format(prompt_info.flavor_name, messages))
 print(f"Ready for LLM: {ready_for_llm}")
 
 client = Anthropic(

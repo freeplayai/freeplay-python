@@ -5,15 +5,9 @@ from uuid import uuid4
 
 import responses
 
-from freeplay.completions import CompletionChunk  # type: ignore
-from freeplay.errors import (FreeplayClientError,  # type: ignore
-                             FreeplayConfigurationError,
-                             LLMServerError)
-from freeplay.flavors import OpenAIChat  # type: ignore
-from freeplay.freeplay import Freeplay  # type: ignore
-from freeplay.freeplay_thin import FreeplayThin, CallInfo, ResponseInfo, RecordPayload  # type: ignore
-from freeplay.provider_config import ProviderConfig, OpenAIConfig  # type: ignore
-from freeplay.record import no_op_recorder  # type: ignore
+from freeplay.errors import (FreeplayClientError,
+                             FreeplayConfigurationError)
+from freeplay.freeplay_thin import FreeplayThin, CallInfo, ResponseInfo, RecordPayload
 
 
 class TestFreeplay(TestCase):
@@ -74,7 +68,7 @@ class TestFreeplay(TestCase):
             )
         )
 
-        self.assertTrue(ready_for_llm.startswith("\n\nHuman: System message"))
+        self.assertTrue(str(ready_for_llm).startswith("\n\nHuman: System message"))
 
         record_api_request = responses.calls[1].request
         recorded_body_dom = json.loads(record_api_request.body)

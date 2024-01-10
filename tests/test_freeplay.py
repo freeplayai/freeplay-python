@@ -9,17 +9,17 @@ import responses
 import respx
 from openai.types.chat.chat_completion_chunk import ChatCompletionChunk, Choice, ChoiceDelta
 
-from freeplay.completions import ChatMessage, CompletionChunk  # type: ignore
-from freeplay.errors import (  # type: ignore
+from freeplay.completions import ChatMessage, CompletionChunk
+from freeplay.errors import (
     FreeplayClientError,
     FreeplayConfigurationError,
     LLMServerError
 )
-from freeplay.flavors import OpenAIChat  # type: ignore
-from freeplay.freeplay import Freeplay  # type: ignore
-from freeplay.provider_config import ProviderConfig, OpenAIConfig  # type: ignore
-from freeplay.record import no_op_recorder  # type: ignore
-from freeplay.support import JsonDom  # type: ignore
+from freeplay.flavors import OpenAIChat
+from freeplay.freeplay import Freeplay
+from freeplay.provider_config import ProviderConfig, OpenAIConfig
+from freeplay.record import no_op_recorder
+from freeplay.support import JsonDom
 
 
 class TestFreeplay(TestCase):
@@ -682,7 +682,7 @@ class TestFreeplay(TestCase):
     # We access them by index in order of the requests made by the SDK.
     @staticmethod
     def __extract_request_body_to_dom(responses_call: responses.Call) -> JsonDom:
-        return json.loads(responses_call.request.body)
+        return dict(json.loads(responses_call.request.body))
 
     def __assert_generator_response(self, generator: Generator[CompletionChunk, None, None], expected_text: str,
                                     expected_is_complete: bool) -> None:

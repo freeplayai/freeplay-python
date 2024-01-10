@@ -5,9 +5,9 @@ from uuid import uuid4
 import responses
 import respx
 
-from freeplay.provider_config import ProviderConfig, OpenAIConfig  # type: ignore
-from freeplay.flavors import OpenAIChat  # type: ignore
-from freeplay.freeplay import Freeplay  # type: ignore
+from freeplay.provider_config import ProviderConfig, OpenAIConfig
+from freeplay.flavors import OpenAIChat
+from freeplay.freeplay import Freeplay
 
 
 class TestFreeplayTestRun(TestCase):

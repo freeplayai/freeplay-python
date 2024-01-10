@@ -11,8 +11,8 @@ from uuid import uuid4
 import responses
 from click.testing import CliRunner
 
-from freeplay.completions import PromptTemplateWithMetadata, PromptTemplates  # type: ignore
-from freeplay.freeplay_cli import cli  # type: ignore
+from freeplay.completions import PromptTemplateWithMetadata, PromptTemplates
+from freeplay.freeplay_cli import cli
 
 
 class TestFreeplayCLI(TestCase):

@@ -1,7 +1,8 @@
 import unittest
 
-from freeplay.errors import FreeplayError  # type: ignore
-from freeplay.utils import bind_template_variables  # type: ignore
+from freeplay.errors import FreeplayError
+from freeplay.model import InputVariables
+from freeplay.utils import bind_template_variables
 
 
 class MyTestCase(unittest.TestCase):
@@ -9,7 +10,7 @@ class MyTestCase(unittest.TestCase):
                        '"array": [{}]}'
 
     def test_format_template_variables(self) -> None:
-        variables = {'name': 'Mr. Roboto', 'question_1': 'What is the meaning of life?'}
+        variables: InputVariables = {'name': 'Mr. Roboto', 'question_1': 'What is the meaning of life?'}
         self.assertEqual(
             'Hello, Mr. Roboto, here is a question: What is the meaning of life? Here is some json: {"is_json": true, '
             '"array": [{}]}',
@@ -25,14 +26,15 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual('Broken template ', bind_template_variables(template_content, {'variable': 'value'}))
 
     def test_format_template_variables__missing_variables(self) -> None:
-        variables = {'name': 'Mr. Roboto'}
+        variables: InputVariables = {'name': 'Mr. Roboto'}
         expected = 'Hello, Mr. Roboto, here is a question:  Here is some json: {"is_json": true, "array": [{}]}'
 
         output = bind_template_variables(self.template_content, variables)
         self.assertEqual(output, expected)
 
     def test_format_template_variables__extra_variables(self) -> None:
-        variables = {'name': 'Mr. Roboto', 'question_1': 'What is the meaning of life?', 'something-else': 'value'}
+        variables: InputVariables = {'name': 'Mr. Roboto', 'question_1': 'What is the meaning of life?',
+                                     'something-else': 'value'}
         self.assertEqual(
             'Hello, Mr. Roboto, here is a question: What is the meaning of life? Here is some json: {"is_json": true, '
             '"array": [{}]}',
@@ -40,8 +42,11 @@ class MyTestCase(unittest.TestCase):
         )
 
     def test_format_template_variables__bad_variable(self) -> None:
+        # We are forcing invalid types with a type ignore here to trigger runtime checks.
         with self.assertRaises(FreeplayError):
-            bind_template_variables('Hello', {"foo": None})
+            variables: InputVariables = {"foo": None}  # type: ignore
+            bind_template_variables('Hello', variables)
 
         with self.assertRaises(FreeplayError):
-            bind_template_variables('Hello', {"foo": lambda s: 1})
+            bad_variables: InputVariables = {"foo": lambda s: 1}  # type: ignore
+            bind_template_variables('Hello', bad_variables)

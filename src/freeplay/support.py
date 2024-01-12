@@ -18,13 +18,22 @@ from freeplay.record import RecordProcessor, RecordCallFields
 JsonDom = Dict[str, Any]
 
 
+class TestCaseTestRunResponse:
+    def __init__(self, test_case: JsonDom):
+        self.variables: InputVariables = test_case['variables']
+        self.id: str = test_case['id']
+
+
 class TestRunResponse:
     def __init__(
             self,
             test_run_id: str,
-            inputs: list[InputVariables]
+            test_cases: list[JsonDom]
     ):
-        self.inputs = inputs
+        self.test_cases = [
+            TestCaseTestRunResponse(test_case)
+            for test_case in test_cases
+        ]
         self.test_run_id = test_run_id
 
 
@@ -79,8 +88,8 @@ class CallSupport:
     def create_test_run(self, project_id: str, testlist: str) -> TestRunResponse:
         response = api_support.post_raw(
             api_key=self.freeplay_api_key,
-            url=f'{self.api_base}/projects/{project_id}/test-runs',
-            payload={'playlist_name': testlist},
+            url=f'{self.api_base}/projects/{project_id}/test-runs-cases',
+            payload={'testlist_name': testlist},
         )
 
         if response.status_code != 201:
@@ -88,7 +97,7 @@ class CallSupport:
 
         json_dom = response.json()
 
-        return TestRunResponse(json_dom['test_run_id'], json_dom['inputs'])
+        return TestRunResponse(json_dom['test_run_id'], json_dom['test_cases'])
 
     # noinspection PyUnboundLocalVariable
     def prepare_and_make_chat_call(
@@ -133,6 +142,7 @@ class CallSupport:
             record_format_type=flavor.record_format_type,
             tag=tag,
             test_run_id=test_run_id,
+            test_case_id=None,
             model=model,
             provider=flavor.provider,
             llm_parameters=params,
@@ -187,6 +197,7 @@ class CallSupport:
             record_format_type=flavor.record_format_type,
             tag=tag,
             test_run_id=test_run_id,
+            test_case_id=None,
             model=model,
             provider=flavor.provider,
             llm_parameters=params,
@@ -238,6 +249,7 @@ class CallSupport:
             record_format_type=final_flavor.record_format_type,
             tag=tag,
             test_run_id=test_run_id,
+            test_case_id=None,
             model=model,
             provider=final_flavor.provider,
             llm_parameters=params,
@@ -295,6 +307,7 @@ class CallSupport:
             record_format_type=final_flavor.record_format_type,
             tag=tag,
             test_run_id=test_run_id,
+            test_case_id=None,
             model=model,
             provider=final_flavor.provider,
             llm_parameters=params,

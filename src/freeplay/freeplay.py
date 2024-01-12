@@ -400,7 +400,7 @@ class Freeplay:
             self.client_flavor,
             self.provider_config,
             test_run_response.test_run_id,
-            test_run_response.inputs
+            [test_case.variables for test_case in test_run_response.test_cases]
         )
 
     def __create_chat_session(

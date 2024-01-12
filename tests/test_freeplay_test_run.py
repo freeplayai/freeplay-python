@@ -37,7 +37,7 @@ class TestFreeplayTestRun(TestCase):
             text=self.__openai_chat_response(),
         )
         responses.post(
-            url=f'{self.api_base}/projects/{self.project_id}/test-runs',
+            url=f'{self.api_base}/projects/{self.project_id}/test-runs-cases',
             status=201,
             body=self.__freeplay_test_runs_response(self.test_run_id),
             content_type='application/json'
@@ -115,9 +115,15 @@ class TestFreeplayTestRun(TestCase):
     def __freeplay_test_runs_response(test_run_id: str) -> str:
         return json.dumps({
             'test_run_id': test_run_id,
-            'inputs': [
-                {'question': "Why isn't my internet working?"},
-                {'question': "What does blue look like?"}
+            'test_cases': [
+                {
+                    'id': str(uuid4()),
+                    'variables': {'question': "Why isn't my internet working?"}
+                },
+                {
+                    'id': str(uuid4()),
+                    'variables': {'question': "What does blue look like?"}
+                }
             ]
         })
 

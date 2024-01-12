@@ -25,6 +25,7 @@ class RecordCallFields:
     variables: InputVariables
     tag: str
     test_run_id: Optional[str]
+    test_case_id: Optional[str]
     record_format_type: Optional[str]
     model: Optional[str]
     provider: Optional[str]
@@ -86,6 +87,9 @@ class DefaultRecordProcessor(RecordProcessor):
 
         if record_call.test_run_id is not None:
             record_payload['test_run_id'] = record_call.test_run_id
+
+        if record_call.test_case_id is not None:
+            record_payload['test_case_id'] = record_call.test_case_id
 
         try:
             recorded_response = api_support.post_raw(

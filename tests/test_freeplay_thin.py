@@ -129,7 +129,7 @@ class TestFreeplay(TestCase):
 
         test_run = self.freeplay_thin.create_test_run(self.project_id, testlist='good stuff')
 
-        self.assertEqual(2, len(test_run.get_inputs()))
+        self.assertEqual(2, len(test_run.get_test_cases()))
 
     @responses.activate
     def test_auth_error(self) -> None:
@@ -184,7 +184,7 @@ class TestFreeplay(TestCase):
 
     def __mock_test_run_api(self) -> None:
         responses.post(
-            url=f'{self.api_base}/projects/{self.project_id}/test-runs',
+            url=f'{self.api_base}/projects/{self.project_id}/test-runs-cases',
             status=201,
             body=self.__create_test_run_response(self.test_run_id),
             content_type='application/json'
@@ -222,8 +222,14 @@ class TestFreeplay(TestCase):
     def __create_test_run_response(test_run_id: str) -> str:
         return json.dumps({
             'test_run_id': test_run_id,
-            'inputs': [
-                {'question': "Why isn't my internet working?"},
-                {'question': "What does blue look like?"}
+            'test_cases': [
+                {
+                    'id': str(uuid4()),
+                    'variables': {'question': "Why isn't my internet working?"}
+                },
+                {
+                    'id': str(uuid4()),
+                    'variables': {'question': "What does blue look like?"}
+                }
             ]
         })

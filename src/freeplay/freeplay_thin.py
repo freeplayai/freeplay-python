@@ -25,7 +25,6 @@ class CallInfo:
     start_time: float
     end_time: float
     model_parameters: LLMParameters
-    test_run_id: Optional[str] = None
 
 
 @dataclass
@@ -39,19 +38,13 @@ class PromptInfo:
     model: str
     flavor_name: str
 
-    def get_call_info(
-            self,
-            start_time: float,
-            end_time: float,
-            test_run_id: Optional[str] = None
-    ) -> CallInfo:
+    def get_call_info(self, start_time: float, end_time: float) -> CallInfo:
         return CallInfo(
             self.provider,
             self.model,
             start_time,
             end_time,
-            self.model_parameters,
-            test_run_id
+            self.model_parameters
         )
 
 
@@ -61,6 +54,12 @@ class ResponseInfo:
     function_call_response: Optional[OpenAIFunctionCall] = None
     prompt_tokens: Optional[int] = None
     response_tokens: Optional[int] = None
+
+
+@dataclass
+class TestRunInfo:
+    test_run_id: str
+    test_case_id: str
 
 
 class FormattedPrompt:
@@ -131,6 +130,14 @@ class RecordPayload:
     prompt_info: PromptInfo
     call_info: CallInfo
     response_info: ResponseInfo
+    test_run_info: Optional[TestRunInfo] = None
+
+
+@dataclass
+class TestCase:
+    def __init__(self, test_case_id: str, variables: InputVariables):
+        self.id = test_case_id
+        self.variables = variables
 
 
 @dataclass
@@ -138,13 +145,16 @@ class TestRun:
     def __init__(
             self,
             test_run_id: str,
-            inputs: List[InputVariables]
+            test_cases: List[TestCase]
     ):
         self.test_run_id = test_run_id
-        self.inputs = inputs
+        self.test_cases = test_cases
 
-    def get_inputs(self) -> List[InputVariables]:
-        return self.inputs
+    def get_test_cases(self) -> List[TestCase]:
+        return self.test_cases
+
+    def get_test_run_info(self, test_case_id: str) -> TestRunInfo:
+        return TestRunInfo(self.test_run_id, test_case_id)
 
 
 class FreeplayThin:
@@ -238,8 +248,12 @@ class FreeplayThin:
 
     def create_test_run(self, project_id: str, testlist: str) -> TestRun:
         test_run = self.call_support.create_test_run(project_id, testlist)
+        test_cases = [
+            TestCase(test_case_id=test_case.id, variables=test_case.variables)
+            for test_case in test_run.test_cases
+        ]
 
-        return TestRun(test_run.test_run_id, test_run.inputs)
+        return TestRun(test_run.test_run_id, test_cases)
 
     def record_call(self, record_payload: RecordPayload) -> None:
         if len(record_payload.all_messages) < 1:
@@ -269,7 +283,8 @@ class FreeplayThin:
                 target_template=template,
                 variables=record_payload.inputs,
                 tag=record_payload.prompt_info.environment,
-                test_run_id=record_payload.call_info.test_run_id,
+                test_run_id=record_payload.test_run_info.test_run_id if record_payload.test_run_info else None,
+                test_case_id=record_payload.test_run_info.test_case_id if record_payload.test_run_info else None,
                 model=record_payload.call_info.model,
                 provider=record_payload.prompt_info.provider,
                 llm_parameters=record_payload.call_info.model_parameters,

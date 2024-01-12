@@ -1,9 +1,10 @@
 import os
 import time
+from typing import cast
 
 from anthropic import Anthropic
 
-from src.freeplay.freeplay_thin import FreeplayThin, RecordPayload, ResponseInfo
+from freeplay.freeplay_thin import FreeplayThin, RecordPayload, ResponseInfo
 
 fpclient = FreeplayThin(
     freeplay_api_key=os.environ['FREEPLAY_API_KEY'],
@@ -21,14 +22,14 @@ template_prompt = fpclient.get_prompt(
 )
 
 test_run = fpclient.create_test_run(project_id, "core-tests")
-for variables in test_run.inputs:
-    formatted_prompt = template_prompt.bind(variables).format()
+for test_case in test_run.test_cases:
+    formatted_prompt = template_prompt.bind(test_case.variables).format()
     print(f"Ready for LLM: {formatted_prompt.llm_prompt}")
 
     start = time.time()
     completion = anthropic_client.completions.create(
         model=formatted_prompt.prompt_info.model,
-        prompt=formatted_prompt.llm_prompt,
+        prompt=cast(str, formatted_prompt.llm_prompt),
         **formatted_prompt.prompt_info.model_parameters
     )
     end = time.time()
@@ -39,7 +40,8 @@ for variables in test_run.inputs:
     )
 
     session = fpclient.create_session()
-    call_info = formatted_prompt.prompt_info.get_call_info(start, end, test_run.test_run_id)
+    call_info = formatted_prompt.prompt_info.get_call_info(start, end)
+    test_run_info = test_run.get_test_run_info(test_case.id)
     # Anthropic-specific
     response_info = ResponseInfo(
         is_complete=completion.stop_reason == 'stop_sequence'
@@ -48,10 +50,11 @@ for variables in test_run.inputs:
     fpclient.record_call(
         RecordPayload(
             all_messages=all_messages,
-            inputs=variables,
+            inputs=test_case.variables,
             session_id=session.session_id,
             prompt_info=formatted_prompt.prompt_info,
             call_info=call_info,
             response_info=response_info,
+            test_run_info=test_run_info
         )
     )

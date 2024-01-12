@@ -3,9 +3,8 @@ import uuid
 from dataclasses import dataclass
 from typing import List, Optional, cast
 
-from . import api_support
 from .completions import PromptTemplates, ChatMessage, OpenAIFunctionCall, PromptTemplateWithMetadata
-from .errors import FreeplayConfigurationError, FreeplayClientError, freeplay_response_error
+from .errors import FreeplayConfigurationError, FreeplayClientError
 from .flavors import Flavor
 from .llm_parameters import LLMParameters
 from .model import InputVariables
@@ -64,16 +63,6 @@ class ResponseInfo:
     response_tokens: Optional[int] = None
 
 
-class TemplateMessage:
-    def __init__(self, role: str, content: str):
-        self.role = role
-        self.content = content
-
-    def bind(self, variables: InputVariables) -> dict[str, str]:
-        bound_string = bind_template_variables(self.content, variables)
-        return {'role': self.role, 'content': bound_string}
-
-
 class FormattedPrompt:
     def __init__(
             self,
@@ -120,13 +109,16 @@ class TemplatePrompt:
     def __init__(
             self,
             prompt_info: PromptInfo,
-            messages: List[TemplateMessage] # TODO make this dict[str, str] to match the later prompt types?
+            messages: List[dict[str, str]]
     ):
         self.prompt_info = prompt_info
         self.messages = messages
 
     def bind(self, variables: InputVariables) -> BoundPrompt:
-        bound_messages = [message.bind(variables) for message in self.messages]
+        bound_messages = [
+            {'role': message['role'], 'content': bind_template_variables(message['content'], variables)}
+            for message in self.messages
+        ]
         return BoundPrompt(self.prompt_info, bound_messages)
 
 
@@ -188,13 +180,7 @@ class FreeplayThin:
             environment=environment
         )
 
-        messages: list[dict[str, str]] = json.loads(prompt_template.content)
-        template_messages = [
-            TemplateMessage(
-                content=message['content'],
-                role=message['role']
-            ) for message in messages
-        ]
+        messages = json.loads(prompt_template.content)
 
         params = prompt_template.get_params()
         model = params.pop('model')
@@ -216,7 +202,7 @@ class FreeplayThin:
             flavor_name=prompt_template.flavor_name
         )
 
-        return TemplatePrompt(prompt_info, template_messages)
+        return TemplatePrompt(prompt_info, messages)
 
     def get_bound_prompt(
             self,

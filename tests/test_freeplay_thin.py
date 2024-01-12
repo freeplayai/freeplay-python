@@ -104,7 +104,7 @@ class TestFreeplay(TestCase):
             environment=self.tag
         )
 
-        self.assertTrue("{{question}}" in template_prompt.messages[2].content)
+        self.assertTrue("{{question}}" in template_prompt.messages[2]['content'])
 
         bound_prompt = template_prompt.bind(input_variables)
 

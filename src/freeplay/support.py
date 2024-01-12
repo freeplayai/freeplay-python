@@ -1,7 +1,8 @@
 import json
 import time
 from copy import copy
-from typing import cast, Dict, Any, Optional, Union, List, Generator
+from typing import Dict, Any, Optional, Union, List, Generator
+from uuid import uuid4
 
 from freeplay import api_support
 from freeplay.api_support import try_decode
@@ -13,10 +14,18 @@ from freeplay.llm_parameters import LLMParameters
 from freeplay.model import InputVariables
 from freeplay.provider_config import ProviderConfig
 from freeplay.record import RecordProcessor, RecordCallFields
-from freeplay.utils import check_all_values_string_or_number
-from uuid import uuid4
 
 JsonDom = Dict[str, Any]
+
+
+class TestRunResponse:
+    def __init__(
+            self,
+            test_run_id: str,
+            inputs: list[InputVariables]
+    ):
+        self.inputs = inputs
+        self.test_run_id = test_run_id
 
 
 class CallSupport:
@@ -67,6 +76,20 @@ class CallSupport:
 
         return maybe_prompts
 
+    def create_test_run(self, project_id: str, testlist: str) -> TestRunResponse:
+        response = api_support.post_raw(
+            api_key=self.freeplay_api_key,
+            url=f'{self.api_base}/projects/{project_id}/test-runs',
+            payload={'playlist_name': testlist},
+        )
+
+        if response.status_code != 201:
+            raise freeplay_response_error('Error while creating a test run.', response)
+
+        json_dom = response.json()
+
+        return TestRunResponse(json_dom['test_run_id'], json_dom['inputs'])
+
     # noinspection PyUnboundLocalVariable
     def prepare_and_make_chat_call(
             self,
@@ -80,7 +103,7 @@ class CallSupport:
             new_messages: Optional[List[ChatMessage]],
             test_run_id: Optional[str] = None,
             completion_parameters: Optional[LLMParameters] = None,
-            metadata: Optional[Dict[str, Union[str,int,float]]] = None
+            metadata: Optional[Dict[str, Union[str, int, float]]] = None
     ) -> ChatCompletionResponse:
         # make call
         start = time.time()
@@ -131,7 +154,7 @@ class CallSupport:
             message_history: List[ChatMessage],
             test_run_id: Optional[str] = None,
             completion_parameters: Optional[LLMParameters] = None,
-            metadata: Optional[Dict[str, Union[str,int,float]]] = None
+            metadata: Optional[Dict[str, Union[str, int, float]]] = None
     ) -> Generator[CompletionChunk, None, None]:
         # make call
         start = time.time()
@@ -183,7 +206,7 @@ class CallSupport:
             tag: str,
             test_run_id: Optional[str] = None,
             completion_parameters: Optional[LLMParameters] = None,
-            metadata: Optional[Dict[str, Union[str,int,float]]] = None
+            metadata: Optional[Dict[str, Union[str, int, float]]] = None
     ) -> CompletionResponse:
         target_template = self.find_template_by_name(prompts, template_name)
         params = target_template.get_params() \
@@ -235,7 +258,7 @@ class CallSupport:
             tag: str,
             test_run_id: Optional[str] = None,
             completion_parameters: Optional[LLMParameters] = None,
-            metadata: Optional[Dict[str, Union[str,int,float]]] = None
+            metadata: Optional[Dict[str, Union[str, int, float]]] = None
     ) -> Generator[CompletionChunk, None, None]:
         target_template = self.find_template_by_name(prompts, template_name)
         params = target_template.get_params() \

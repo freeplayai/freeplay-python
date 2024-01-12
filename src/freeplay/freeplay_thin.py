@@ -1,34 +1,22 @@
 import json
 import uuid
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, cast
 
+from . import api_support
 from .completions import PromptTemplates, ChatMessage, OpenAIFunctionCall, PromptTemplateWithMetadata
-from .errors import FreeplayConfigurationError, FreeplayClientError
+from .errors import FreeplayConfigurationError, FreeplayClientError, freeplay_response_error
 from .flavors import Flavor
-from .model import InputVariables
-from .support import CallSupport
 from .llm_parameters import LLMParameters
+from .model import InputVariables
 from .record import DefaultRecordProcessor, RecordCallFields
+from .support import CallSupport
 from .utils import bind_template_variables
 
 
 @dataclass
 class Session:
     session_id: str
-
-
-@dataclass
-class PromptInfo:
-    prompt_template_id: str
-    prompt_template_version_id: str
-    template_name: str
-    environment: str
-    variables: InputVariables
-    model_parameters: LLMParameters
-    provider: str
-    model: str
-    flavor_name: str
 
 
 @dataclass
@@ -42,6 +30,33 @@ class CallInfo:
 
 
 @dataclass
+class PromptInfo:
+    prompt_template_id: str
+    prompt_template_version_id: str
+    template_name: str
+    environment: str
+    model_parameters: LLMParameters
+    provider: str
+    model: str
+    flavor_name: str
+
+    def get_call_info(
+            self,
+            start_time: float,
+            end_time: float,
+            test_run_id: Optional[str] = None
+    ) -> CallInfo:
+        return CallInfo(
+            self.provider,
+            self.model,
+            start_time,
+            end_time,
+            self.model_parameters,
+            test_run_id
+        )
+
+
+@dataclass
 class ResponseInfo:
     is_complete: bool
     function_call_response: Optional[OpenAIFunctionCall] = None
@@ -49,14 +64,95 @@ class ResponseInfo:
     response_tokens: Optional[int] = None
 
 
+class TemplateMessage:
+    def __init__(self, role: str, content: str):
+        self.role = role
+        self.content = content
+
+    def bind(self, variables: InputVariables) -> dict[str, str]:
+        bound_string = bind_template_variables(self.content, variables)
+        return {'role': self.role, 'content': bound_string}
+
+
+class FormattedPrompt:
+    def __init__(
+            self,
+            prompt_info: PromptInfo,
+            messages: List[dict[str, str]],
+            formatted_prompt: str | list[dict[str, str]]
+    ):
+        self.prompt_info = prompt_info
+        self.messages = messages
+        self.llm_prompt = formatted_prompt
+
+    def all_messages(
+            self,
+            new_message: dict[str, str]
+    ) -> list[dict[str, str]]:
+        return self.messages + [new_message]
+
+
+class BoundPrompt:
+    def __init__(
+            self,
+            prompt_info: PromptInfo,
+            messages: List[dict[str, str]]
+    ):
+        self.prompt_info = prompt_info
+        self.messages = messages
+
+    def format(
+            self,
+            flavor_name: Optional[str] = None
+    ) -> FormattedPrompt:
+        final_flavor = flavor_name or self.prompt_info.flavor_name
+        flavor = Flavor.get_by_name(final_flavor)
+        llm_format = flavor.to_llm_syntax(cast(list[ChatMessage], self.messages))
+
+        return FormattedPrompt(
+            self.prompt_info,
+            self.messages,
+            cast(str | list[dict[str, str]], llm_format)
+        )
+
+
+class TemplatePrompt:
+    def __init__(
+            self,
+            prompt_info: PromptInfo,
+            messages: List[TemplateMessage] # TODO make this dict[str, str] to match the later prompt types?
+    ):
+        self.prompt_info = prompt_info
+        self.messages = messages
+
+    def bind(self, variables: InputVariables) -> BoundPrompt:
+        bound_messages = [message.bind(variables) for message in self.messages]
+        return BoundPrompt(self.prompt_info, bound_messages)
+
+
 @dataclass
 class RecordPayload:
-    all_messages: List[ChatMessage]
+    all_messages: list[dict[str, str]]
+    inputs: InputVariables
     session_id: str
 
     prompt_info: PromptInfo
     call_info: CallInfo
     response_info: ResponseInfo
+
+
+@dataclass
+class TestRun:
+    def __init__(
+            self,
+            test_run_id: str,
+            inputs: List[InputVariables]
+    ):
+        self.test_run_id = test_run_id
+        self.inputs = inputs
+
+    def get_inputs(self) -> List[InputVariables]:
+        return self.inputs
 
 
 class FreeplayThin:
@@ -84,21 +180,20 @@ class FreeplayThin:
             self,
             project_id: str,
             template_name: str,
-            environment: str,
-            variables: InputVariables
-    ) -> Tuple[PromptInfo, List[ChatMessage]]:
+            environment: str
+    ) -> TemplatePrompt:
         prompt_template = self.call_support.get_prompt(
             project_id=project_id,
             template_name=template_name,
             environment=environment
         )
 
-        messages: List[Dict[str, str]] = json.loads(prompt_template.content)
-        bound_messages: List[ChatMessage] = [
-            {
-                "content": bind_template_variables(message['content'], variables),
-                "role": message['role']
-            } for message in messages
+        messages: list[dict[str, str]] = json.loads(prompt_template.content)
+        template_messages = [
+            TemplateMessage(
+                content=message['content'],
+                role=message['role']
+            ) for message in messages
         ]
 
         params = prompt_template.get_params()
@@ -115,19 +210,50 @@ class FreeplayThin:
             prompt_template_version_id=prompt_template.prompt_template_version_id,
             template_name=prompt_template.name,
             environment=environment,
-            variables=variables,
             model_parameters=params,
             provider=flavor.provider,
             model=model,
             flavor_name=prompt_template.flavor_name
         )
 
-        return prompt_info, bound_messages
+        return TemplatePrompt(prompt_info, template_messages)
 
-    # noinspection PyMethodMayBeStatic
-    def format(self, flavor_name: str, messages: List[ChatMessage]) -> str | List[ChatMessage]:
-        flavor = Flavor.get_by_name(flavor_name)
-        return flavor.to_llm_syntax(messages)
+    def get_bound_prompt(
+            self,
+            project_id: str,
+            template_name: str,
+            environment: str,
+            variables: InputVariables
+    ) -> BoundPrompt:
+        template_prompt = self.get_prompt(
+            project_id=project_id,
+            template_name=template_name,
+            environment=environment
+        )
+
+        return template_prompt.bind(variables)
+
+    def get_formatted_prompt(
+            self,
+            project_id: str,
+            template_name: str,
+            environment: str,
+            variables: InputVariables,
+            flavor_name: Optional[str] = None
+    ) -> FormattedPrompt:
+        bound_prompt = self.get_bound_prompt(
+            project_id=project_id,
+            template_name=template_name,
+            environment=environment,
+            variables=variables
+        )
+
+        return bound_prompt.format(flavor_name)
+
+    def create_test_run(self, project_id: str, testlist: str) -> TestRun:
+        test_run = self.call_support.create_test_run(project_id, testlist)
+
+        return TestRun(test_run.test_run_id, test_run.inputs)
 
     def record_call(self, record_payload: RecordPayload) -> None:
         if len(record_payload.all_messages) < 1:
@@ -155,7 +281,7 @@ class FreeplayThin:
                 end=record_payload.call_info.end_time,
                 session_id=record_payload.session_id,
                 target_template=template,
-                variables=record_payload.prompt_info.variables,
+                variables=record_payload.inputs,
                 tag=record_payload.prompt_info.environment,
                 test_run_id=record_payload.call_info.test_run_id,
                 model=record_payload.call_info.model,

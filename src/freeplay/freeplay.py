@@ -3,7 +3,6 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Dict, Generator, List, Optional, Tuple, Union
 
-from . import api_support
 from .completions import (
     PromptTemplates,
     CompletionResponse,
@@ -11,7 +10,7 @@ from .completions import (
     ChatCompletionResponse,
     ChatMessage
 )
-from .errors import FreeplayConfigurationError, freeplay_response_error
+from .errors import FreeplayConfigurationError
 from .flavors import Flavor, ChatFlavor, require_chat_flavor, get_chat_flavor_from_config
 from .llm_parameters import LLMParameters
 from .model import InputVariables
@@ -236,6 +235,8 @@ class FreeplayTestRun:
 # The simplifications are:
 #  - Always assumes there is a single choice returned, does not support multiple
 #  - Does not support an "escape hatch" to allow use of features we don't explicitly expose
+
+
 class Freeplay:
     def __init__(
             self,
@@ -341,25 +342,6 @@ class Freeplay:
                                                               completion_parameters=LLMParameters(kwargs),
                                                               metadata=metadata)
 
-    def create_test_run(self, project_id: str, testlist: str) -> FreeplayTestRun:
-        response = api_support.post_raw(
-            api_key=self.freeplay_api_key,
-            url=f'{self.api_base}/projects/{project_id}/test-runs',
-            payload={'playlist_name': testlist},
-        )
-
-        if response.status_code != 201:
-            raise freeplay_response_error('Error while creating a test run.', response)
-
-        json_dom = response.json()
-
-        return FreeplayTestRun(
-            self.call_support,
-            self.client_flavor,
-            self.provider_config,
-            json_dom['test_run_id'],
-            json_dom['inputs'])
-
     def start_chat(
             self,
             project_id: str,
@@ -409,6 +391,17 @@ class Freeplay:
         session = self.__create_chat_session(project_id, tag, template_name, variables, metadata)
         completion_response = session.start_chat_stream(**kwargs)
         return session, completion_response
+
+    def create_test_run(self, project_id: str, testlist: str) -> FreeplayTestRun:
+        test_run_response = self.call_support.create_test_run(project_id=project_id, testlist=testlist)
+
+        return FreeplayTestRun(
+            self.call_support,
+            self.client_flavor,
+            self.provider_config,
+            test_run_response.test_run_id,
+            test_run_response.inputs
+        )
 
     def __create_chat_session(
             self,

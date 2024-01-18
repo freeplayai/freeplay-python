@@ -7,7 +7,7 @@ import responses
 
 from freeplay.errors import (FreeplayClientError,
                              FreeplayConfigurationError)
-from freeplay.freeplay_thin import FreeplayThin, CallInfo, ResponseInfo, RecordPayload
+from freeplay.thin import Freeplay, CallInfo, ResponseInfo, RecordPayload
 
 
 class TestFreeplay(TestCase):
@@ -24,7 +24,7 @@ class TestFreeplay(TestCase):
         self.tag = 'test-tag'
         self.test_run_id = str(uuid4())
 
-        self.freeplay_thin = FreeplayThin(
+        self.freeplay_thin = Freeplay(
             freeplay_api_key=self.freeplay_api_key,
             api_base=self.api_base
         )
@@ -35,14 +35,14 @@ class TestFreeplay(TestCase):
 
         input_variables = {"name": "Sparkles", "question": "Why isn't my door working"}
 
-        formatted_prompt = self.freeplay_thin.get_formatted_prompt(
+        formatted_prompt = self.freeplay_thin.prompts.get_formatted(
             project_id=self.project_id,
             template_name="my-chat-prompt",
             environment=self.tag,
             variables={"name": "Sparkles", "question": "Why isn't my door working"}
         )
 
-        session = self.freeplay_thin.create_session()
+        session = self.freeplay_thin.sessions.create()
         start = time.time()
         end = start + 5
         openai_response = 'This is the response from Anthropic'
@@ -59,7 +59,7 @@ class TestFreeplay(TestCase):
             is_complete=True
         )
 
-        self.freeplay_thin.record_call(
+        self.freeplay_thin.recordings.create(
             RecordPayload(
                 all_messages=all_messages,
                 inputs=input_variables,
@@ -98,7 +98,7 @@ class TestFreeplay(TestCase):
 
         input_variables = {"name": "Sparkles", "question": "Why isn't my door working"}
 
-        template_prompt = self.freeplay_thin.get_prompt(
+        template_prompt = self.freeplay_thin.prompts.get(
             project_id=self.project_id,
             template_name="my-chat-prompt",
             environment=self.tag
@@ -127,7 +127,7 @@ class TestFreeplay(TestCase):
     def test_create_test_run(self) -> None:
         self.__mock_freeplay_apis()
 
-        test_run = self.freeplay_thin.create_test_run(self.project_id, testlist='good stuff')
+        test_run = self.freeplay_thin.test_runs.create(self.project_id, testlist='good stuff')
 
         self.assertEqual(2, len(test_run.get_test_cases()))
 
@@ -139,17 +139,16 @@ class TestFreeplay(TestCase):
             body=self.__get_templates_response()
         )
 
-        freeplay_thin = FreeplayThin(
+        freeplay_thin = Freeplay(
             freeplay_api_key="not-the-key",
             api_base=self.api_base,
         )
 
         with self.assertRaisesRegex(FreeplayClientError, "Error getting prompt templates \\[401\\]"):
-            freeplay_thin.get_bound_prompt(
+            freeplay_thin.prompts.get(
                 project_id=self.project_id,
                 template_name="my-chat-prompt",
-                environment=self.tag,
-                variables={}
+                environment=self.tag
             )
 
     @responses.activate
@@ -159,11 +158,10 @@ class TestFreeplay(TestCase):
                 FreeplayConfigurationError,
                 'Could not find template with name "invalid-template-id"'
         ):
-            self.freeplay_thin.get_bound_prompt(
+            self.freeplay_thin.prompts.get(
                 project_id=self.project_id,
                 template_name="invalid-template-id",
-                environment=self.tag,
-                variables={}
+                environment=self.tag
             )
 
     def __mock_freeplay_apis(self) -> None:

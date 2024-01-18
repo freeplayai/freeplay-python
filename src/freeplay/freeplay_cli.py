@@ -9,7 +9,7 @@ import click
 
 from .completions import PromptTemplates, PromptTemplateWithMetadata
 from .errors import FreeplayClientError, FreeplayServerError
-from .freeplay_thin import FreeplayThin
+from .thin import Freeplay
 
 
 @click.group()
@@ -40,13 +40,13 @@ def download(project_id: str, environment: str, output_dir: str) -> None:
     click.echo("Downloading prompts for project %s, environment %s, to directory %s from %s" %
                (project_id, environment, output_dir, freeplay_api_url))
 
-    fp_client = FreeplayThin(
+    fp_client = Freeplay(
         freeplay_api_key=FREEPLAY_API_KEY,
         api_base=freeplay_api_url
     )
 
     try:
-        prompts: PromptTemplates = fp_client.get_prompts(project_id, tag=environment)
+        prompts: PromptTemplates = fp_client.prompts.get_all(project_id, environment=environment)
         click.echo("Found %s prompt templates" % len(prompts.templates))
 
         for prompt in prompts.templates:

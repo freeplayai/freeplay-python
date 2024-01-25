@@ -1,12 +1,11 @@
 import logging
-from dataclasses import dataclass
-from typing import Dict, Optional, Union
 from abc import abstractmethod, ABC
 from dataclasses import dataclass
+from typing import Dict, Union
 from typing import Optional
 
 from . import api_support
-from .completions import PromptTemplateWithMetadata
+from .completions import PromptTemplateWithMetadata, OpenAIFunctionCall
 from .llm_parameters import LLMParameters
 from .model import InputVariables
 
@@ -30,6 +29,7 @@ class RecordCallFields:
     model: Optional[str]
     provider: Optional[str]
     llm_parameters: Optional[LLMParameters]
+    function_call_response: Optional[OpenAIFunctionCall] = None
     custom_metadata: Optional[Dict[str, Union[str,int,float]]] = None
 
 
@@ -83,6 +83,7 @@ class DefaultRecordProcessor(RecordProcessor):
             "provider": record_call.provider,
             "llm_parameters": record_call.llm_parameters,
             "custom_metadata": record_call.custom_metadata,
+            "function_call_response": record_call.function_call_response
         }
 
         if record_call.test_run_id is not None:

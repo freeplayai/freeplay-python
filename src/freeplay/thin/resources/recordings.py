@@ -31,7 +31,8 @@ class Recordings:
         self.call_support.record_processor.record_call(
             RecordCallFields(
                 formatted_prompt=history_as_string,
-                completion_content=completion['content'],
+                # Content may not be set for function calls, but it is required in the record API payload.
+                completion_content=completion.get('content', ''),
                 completion_is_complete=record_payload.response_info.is_complete,
                 start=record_payload.call_info.start_time,
                 end=record_payload.call_info.end_time,
@@ -44,6 +45,7 @@ class Recordings:
                 model=record_payload.call_info.model,
                 provider=record_payload.prompt_info.provider,
                 llm_parameters=record_payload.call_info.model_parameters,
+                function_call_response=record_payload.response_info.function_call_response,
                 record_format_type=None  # This is deprecated and unused in the API
             )
         )

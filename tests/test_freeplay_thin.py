@@ -1,13 +1,17 @@
 import json
 import time
+from typing import Tuple
 from unittest import TestCase
 from uuid import uuid4
 
 import responses
 
+from freeplay.completions import OpenAIFunctionCall
 from freeplay.errors import (FreeplayClientError,
                              FreeplayConfigurationError)
+from freeplay.model import InputVariables
 from freeplay.thin import Freeplay, CallInfo, ResponseInfo, RecordPayload
+from freeplay.thin.model import FormattedPrompt, Session
 
 
 class TestFreeplay(TestCase):
@@ -32,33 +36,13 @@ class TestFreeplay(TestCase):
     @responses.activate
     def test_single_prompt_get_and_record(self) -> None:
         self.__mock_freeplay_apis()
-
-        input_variables = {"name": "Sparkles", "question": "Why isn't my door working"}
-
-        formatted_prompt = self.freeplay_thin.prompts.get_formatted(
-            project_id=self.project_id,
-            template_name="my-chat-prompt",
-            environment=self.tag,
-            variables={"name": "Sparkles", "question": "Why isn't my door working"}
-        )
-
-        session = self.freeplay_thin.sessions.create()
-        start = time.time()
-        end = start + 5
         openai_response = 'This is the response from Anthropic'
-        all_messages = formatted_prompt.all_messages({'role': 'Assistant', 'content': ('%s' % openai_response)})
+        (formatted_prompt, call_info, input_variables, session) = self.__llm_call_fixtures()
 
-        call_info = CallInfo(
-            provider=formatted_prompt.prompt_info.provider,
-            model=formatted_prompt.prompt_info.model,
-            start_time=start,
-            end_time=end,
-            model_parameters=formatted_prompt.prompt_info.model_parameters
-        )
+        all_messages = formatted_prompt.all_messages({'role': 'Assistant', 'content': ('%s' % openai_response)})
         response_info = ResponseInfo(
             is_complete=True
         )
-
         self.freeplay_thin.recordings.create(
             RecordPayload(
                 all_messages=all_messages,
@@ -91,6 +75,43 @@ class TestFreeplay(TestCase):
         self.assertEqual('anthropic', recorded_body_dom['provider'])
         self.assertEqual(0.7, recorded_body_dom['llm_parameters']['temperature'])
         self.assertEqual(50, recorded_body_dom['llm_parameters']['max_tokens_to_sample'])
+
+    @responses.activate
+    def test_record_function_call(self) -> None:
+        self.__mock_freeplay_apis()
+
+        (formatted_prompt, call_info, input_variables, session) = self.__llm_call_fixtures()
+        response_info = ResponseInfo(
+            is_complete=True,
+            function_call_response=OpenAIFunctionCall(
+                name='function_name',
+                arguments='{"location": "San Francisco, CA", "format": "celsius"}')
+        )
+        self.freeplay_thin.recordings.create(
+            RecordPayload(
+                # Function call has empty 'content'
+                all_messages=formatted_prompt.all_messages({'role': 'assistant'}),
+                inputs=input_variables,
+                session_id=session.session_id,
+                prompt_info=formatted_prompt.prompt_info,
+                call_info=call_info,
+                response_info=response_info
+            )
+        )
+
+        record_api_request = responses.calls[1].request
+        recorded_body_dom = json.loads(record_api_request.body)
+
+        self.assertEqual(
+            '[{"role": "system", "content": "System message"}, '
+            '{"role": "Assistant", "content": "How may I help you, Sparkles?"}, '
+            '{"role": "user", "content": "Why isn\'t my door working"}]',
+            recorded_body_dom['prompt_content']
+        )
+        # Empty body since we have a function call
+        self.assertEqual('', recorded_body_dom['return_content'])
+        self.assertEqual({'arguments': '{"location": "San Francisco, CA", "format": "celsius"}',
+                          'name': 'function_name'}, recorded_body_dom['function_call_response'])
 
     @responses.activate
     def test_get_template_prompt_then_populate(self) -> None:
@@ -231,3 +252,26 @@ class TestFreeplay(TestCase):
                 }
             ]
         })
+
+    def __llm_call_fixtures(self) -> Tuple[FormattedPrompt, CallInfo, InputVariables, Session]:
+        input_variables = {"name": "Sparkles", "question": "Why isn't my door working"}
+        session = self.freeplay_thin.sessions.create()
+        formatted_prompt = self.freeplay_thin.prompts.get_formatted(
+            project_id=self.project_id,
+            template_name="my-chat-prompt",
+            environment=self.tag,
+            variables={"name": "Sparkles", "question": "Why isn't my door working"}
+        )
+        self.freeplay_thin.sessions.create()
+        start = time.time()
+        end = start + 5
+        # No content for a function_call message.
+        call_info = CallInfo(
+            provider=formatted_prompt.prompt_info.provider,
+            model=formatted_prompt.prompt_info.model,
+            start_time=start,
+            end_time=end,
+            model_parameters=formatted_prompt.prompt_info.model_parameters
+        )
+        return formatted_prompt, call_info, input_variables, session
+

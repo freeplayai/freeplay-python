@@ -1,5 +1,7 @@
 from .freeplay_thin import Freeplay
-from .model import CallInfo, ResponseInfo, RecordPayload, PromptInfo, TestRunInfo
+from .resources.prompts import PromptInfo
+from .resources.recordings import CallInfo, ResponseInfo, RecordPayload, TestRunInfo
+from .resources.sessions import SessionInfo
 
 __all__ = [
     'Freeplay',
@@ -7,5 +9,6 @@ __all__ = [
     'PromptInfo',
     'RecordPayload',
     'ResponseInfo',
+    'SessionInfo',
     'TestRunInfo',
 ]

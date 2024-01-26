@@ -1,12 +1,85 @@
 import json
-from typing import Optional
+from dataclasses import dataclass
+from typing import Optional, List, Union, cast
 
-from freeplay.completions import PromptTemplates
+from freeplay.completions import PromptTemplates, ChatMessage
 from freeplay.errors import FreeplayConfigurationError
 from freeplay.flavors import Flavor
+from freeplay.llm_parameters import LLMParameters
 from freeplay.model import InputVariables
 from freeplay.support import CallSupport
-from freeplay.thin.model import TemplatePrompt, PromptInfo, FormattedPrompt
+from freeplay.utils import bind_template_variables
+
+
+@dataclass
+class PromptInfo:
+    prompt_template_id: str
+    prompt_template_version_id: str
+    template_name: str
+    environment: str
+    model_parameters: LLMParameters
+    provider: str
+    model: str
+    flavor_name: str
+
+
+class FormattedPrompt:
+    def __init__(
+            self,
+            prompt_info: PromptInfo,
+            messages: List[dict[str, str]],
+            formatted_prompt: Union[str, List[dict[str, str]]]
+    ):
+        self.prompt_info = prompt_info
+        self.messages = messages
+        self.llm_prompt = formatted_prompt
+
+    def all_messages(
+            self,
+            new_message: dict[str, str]
+    ) -> List[dict[str, str]]:
+        return self.messages + [new_message]
+
+
+class BoundPrompt:
+    def __init__(
+            self,
+            prompt_info: PromptInfo,
+            messages: List[dict[str, str]]
+    ):
+        self.prompt_info = prompt_info
+        self.messages = messages
+
+    def format(
+            self,
+            flavor_name: Optional[str] = None
+    ) -> FormattedPrompt:
+        final_flavor = flavor_name or self.prompt_info.flavor_name
+        flavor = Flavor.get_by_name(final_flavor)
+        llm_format = flavor.to_llm_syntax(cast(List[ChatMessage], self.messages))
+
+        return FormattedPrompt(
+            self.prompt_info,
+            self.messages,
+            cast(Union[str, List[dict[str, str]]], llm_format)
+        )
+
+
+class TemplatePrompt:
+    def __init__(
+            self,
+            prompt_info: PromptInfo,
+            messages: List[dict[str, str]]
+    ):
+        self.prompt_info = prompt_info
+        self.messages = messages
+
+    def bind(self, variables: InputVariables) -> BoundPrompt:
+        bound_messages = [
+            {'role': message['role'], 'content': bind_template_variables(message['content'], variables)}
+            for message in self.messages
+        ]
+        return BoundPrompt(self.prompt_info, bound_messages)
 
 
 class Prompts:

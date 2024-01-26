@@ -30,7 +30,7 @@ class RecordCallFields:
     provider: Optional[str]
     llm_parameters: Optional[LLMParameters]
     function_call_response: Optional[OpenAIFunctionCall] = None
-    custom_metadata: Optional[Dict[str, Union[str,int,float]]] = None
+    custom_metadata: Optional[Dict[str, Union[str, int, float]]] = None
 
 
 class RecordProcessor(ABC):
@@ -82,9 +82,13 @@ class DefaultRecordProcessor(RecordProcessor):
             "model": record_call.model,
             "provider": record_call.provider,
             "llm_parameters": record_call.llm_parameters,
-            "custom_metadata": record_call.custom_metadata,
-            "function_call_response": record_call.function_call_response
         }
+
+        if record_call.custom_metadata is not None:
+            record_payload['custom_metadata'] = record_call.custom_metadata
+
+        if record_call.function_call_response is not None:
+            record_payload['function_call_response'] = record_call.function_call_response
 
         if record_call.test_run_id is not None:
             record_payload['test_run_id'] = record_call.test_run_id

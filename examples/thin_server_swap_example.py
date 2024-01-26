@@ -6,7 +6,7 @@ from anthropic import Anthropic
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
 
-from freeplay.thin import Freeplay, ResponseInfo, RecordPayload
+from freeplay.thin import Freeplay, ResponseInfo, RecordPayload, CallInfo
 
 fpclient = Freeplay(
     freeplay_api_key=os.environ['FREEPLAY_API_KEY'],
@@ -55,13 +55,13 @@ session = fpclient.sessions.create()
 all_messages = formatted_prompt.all_messages(
     new_message={'role': 'Assistant', 'content': completion_text}
 )
-call_info = formatted_prompt.prompt_info.get_call_info(start, end)
+call_info = CallInfo.from_prompt_info(formatted_prompt.prompt_info, start, end)
 response_info = ResponseInfo(is_complete)
 
 fpclient.recordings.create(
     RecordPayload(
         all_messages=all_messages,
-        session_id=session.session_id,
+        session_info=session.session_info,
         inputs=input_variables,
         prompt_info=formatted_prompt.prompt_info,
         call_info=call_info,

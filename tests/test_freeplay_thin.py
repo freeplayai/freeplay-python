@@ -11,7 +11,8 @@ from freeplay.errors import (FreeplayClientError,
                              FreeplayConfigurationError)
 from freeplay.model import InputVariables
 from freeplay.thin import Freeplay, CallInfo, ResponseInfo, RecordPayload
-from freeplay.thin.model import FormattedPrompt, Session
+from freeplay.thin.resources.prompts import FormattedPrompt
+from freeplay.thin.resources.sessions import Session
 
 
 class TestFreeplay(TestCase):
@@ -47,7 +48,7 @@ class TestFreeplay(TestCase):
             RecordPayload(
                 all_messages=all_messages,
                 inputs=input_variables,
-                session_id=session.session_id,
+                session_info=session.session_info,
                 prompt_info=formatted_prompt.prompt_info,
                 call_info=call_info,
                 response_info=response_info
@@ -76,6 +77,9 @@ class TestFreeplay(TestCase):
         self.assertEqual(0.7, recorded_body_dom['llm_parameters']['temperature'])
         self.assertEqual(50, recorded_body_dom['llm_parameters']['max_tokens_to_sample'])
 
+        # Custom metadata recording
+        self.assertEqual({'custom_metadata_field': 42}, recorded_body_dom['custom_metadata'])
+
     @responses.activate
     def test_record_function_call(self) -> None:
         self.__mock_freeplay_apis()
@@ -87,17 +91,19 @@ class TestFreeplay(TestCase):
                 name='function_name',
                 arguments='{"location": "San Francisco, CA", "format": "celsius"}')
         )
-        self.freeplay_thin.recordings.create(
+        record_response = self.freeplay_thin.recordings.create(
             RecordPayload(
                 # Function call has empty 'content'
                 all_messages=formatted_prompt.all_messages({'role': 'assistant'}),
                 inputs=input_variables,
-                session_id=session.session_id,
+                session_info=session.session_info,
                 prompt_info=formatted_prompt.prompt_info,
                 call_info=call_info,
                 response_info=response_info
             )
         )
+
+        self.assertIsNotNone(record_response.completion_id)
 
         record_api_request = responses.calls[1].request
         recorded_body_dom = json.loads(record_api_request.body)
@@ -112,6 +118,41 @@ class TestFreeplay(TestCase):
         self.assertEqual('', recorded_body_dom['return_content'])
         self.assertEqual({'arguments': '{"location": "San Francisco, CA", "format": "celsius"}',
                           'name': 'function_name'}, recorded_body_dom['function_call_response'])
+
+    @responses.activate
+    def test_customer_feedback(self) -> None:
+        completion_id = str(uuid4())
+
+        self.__mock_customer_feedback_api(completion_id)
+
+        self.freeplay_thin.customer_feedback.update(completion_id, {
+            'some-feedback': 'it is ok!',
+            'float': 1.2,
+            'int': 1,
+            'bool': True
+        })
+
+        customer_feedback_request = responses.calls[0].request
+        recorded_body_dom = json.loads(customer_feedback_request.body)
+        self.assertEqual('it is ok!', recorded_body_dom['some-feedback'])
+        self.assertEqual(1.2, recorded_body_dom['float'])
+        self.assertEqual(1, recorded_body_dom['int'])
+        self.assertEqual(True, recorded_body_dom['bool'])
+
+    @responses.activate
+    def test_customer_feedback__unauthorized(self) -> None:
+        completion_id = str(uuid4())
+        responses.put(
+            url=f'{self.api_base}/v1/completion_feedback/{completion_id}',
+            status=401,
+            content_type='application/json'
+        )
+
+        with self.assertRaisesRegex(FreeplayClientError, "Error updating customer feedback \\[401\\]"):
+            self.freeplay_thin.customer_feedback.update(completion_id, {
+                'some-feedback': 'it is ok!'
+            })
+
 
     @responses.activate
     def test_get_template_prompt_then_populate(self) -> None:
@@ -198,6 +239,16 @@ class TestFreeplay(TestCase):
         responses.post(
             url=self.record_url,
             status=201,
+            content_type='application/json',
+            body=json.dumps({
+                'completion_id': str(uuid4())
+            })
+        )
+
+    def __mock_customer_feedback_api(self, completion_id: str) -> None:
+        responses.put(
+            url=f'{self.api_base}/v1/completion_feedback/{completion_id}',
+            status=201,
             content_type='application/json'
         )
 
@@ -254,18 +305,16 @@ class TestFreeplay(TestCase):
         })
 
     def __llm_call_fixtures(self) -> Tuple[FormattedPrompt, CallInfo, InputVariables, Session]:
-        input_variables = {"name": "Sparkles", "question": "Why isn't my door working"}
-        session = self.freeplay_thin.sessions.create()
+        input_variables: InputVariables = {"name": "Sparkles", "question": "Why isn't my door working"}
+        session = self.freeplay_thin.sessions.create(custom_metadata={'custom_metadata_field': 42})
         formatted_prompt = self.freeplay_thin.prompts.get_formatted(
             project_id=self.project_id,
             template_name="my-chat-prompt",
             environment=self.tag,
             variables={"name": "Sparkles", "question": "Why isn't my door working"}
         )
-        self.freeplay_thin.sessions.create()
         start = time.time()
         end = start + 5
-        # No content for a function_call message.
         call_info = CallInfo(
             provider=formatted_prompt.prompt_info.provider,
             model=formatted_prompt.prompt_info.model,
@@ -274,4 +323,3 @@ class TestFreeplay(TestCase):
             model_parameters=formatted_prompt.prompt_info.model_parameters
         )
         return formatted_prompt, call_info, input_variables, session
-

@@ -66,6 +66,19 @@ class CallSupport:
                 if not isinstance(value, (str, int, float)):
                     raise FreeplayConfigurationError(f"Invalid value for key {key}: Value must be a string or number.")
 
+    def update_customer_feedback(
+            self,
+            completion_id: str,
+            feedback: Dict[str, Union[bool, str, int, float]]
+    ) -> None:
+        response = api_support.put_raw(
+            self.freeplay_api_key,
+            f'{self.api_base}/v1/completion_feedback/{completion_id}',
+            feedback
+        )
+        if response.status_code != 201:
+            raise freeplay_response_error("Error updating customer feedback", response)
+
     def get_prompt(self, project_id: str, template_name: str, environment: str) -> PromptTemplateWithMetadata:
         prompt_templates = self.get_prompts(project_id, environment)
         return self.find_template_by_name(prompt_templates, template_name)

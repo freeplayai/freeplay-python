@@ -44,6 +44,14 @@ def post(target_type: t.Type[T], api_key: str, url: str, payload: t.Optional[Dic
     return maybe_object
 
 
+def put_raw(api_key: str, url: str, payload: t.Optional[Dict[str, t.Any]] = None) -> Response:
+    return requests.put(
+        url=url,
+        headers=build_request_header(api_key),
+        json=payload
+    )
+
+
 def post_raw(api_key: str, url: str, payload: t.Optional[Dict[str, t.Any]] = None) -> Response:
     return requests.post(
         url=url,

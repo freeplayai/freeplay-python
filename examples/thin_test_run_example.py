@@ -4,7 +4,7 @@ from typing import cast
 
 from anthropic import Anthropic
 
-from freeplay.thin import Freeplay, RecordPayload, ResponseInfo
+from freeplay.thin import Freeplay, RecordPayload, ResponseInfo, CallInfo
 
 fpclient = Freeplay(
     freeplay_api_key=os.environ['FREEPLAY_API_KEY'],
@@ -40,7 +40,7 @@ for test_case in test_run.test_cases:
     )
 
     session = fpclient.sessions.create()
-    call_info = formatted_prompt.prompt_info.get_call_info(start, end)
+    call_info = CallInfo.from_prompt_info(formatted_prompt.prompt_info, start, end)
     test_run_info = test_run.get_test_run_info(test_case.id)
     # Anthropic-specific
     response_info = ResponseInfo(
@@ -51,7 +51,7 @@ for test_case in test_run.test_cases:
         RecordPayload(
             all_messages=all_messages,
             inputs=test_case.variables,
-            session_id=session.session_id,
+            session_info=session.session_info,
             prompt_info=formatted_prompt.prompt_info,
             call_info=call_info,
             response_info=response_info,

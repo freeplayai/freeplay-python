@@ -4,7 +4,7 @@ import time
 from openai import OpenAI
 
 from freeplay.completions import OpenAIFunctionCall
-from freeplay.thin import Freeplay, RecordPayload, ResponseInfo
+from freeplay.thin import Freeplay, RecordPayload, ResponseInfo, CallInfo
 
 fpclient = Freeplay(
     freeplay_api_key=os.environ['FREEPLAY_API_KEY'],
@@ -56,11 +56,15 @@ completion = client.chat.completions.create(  # type: ignore
 end = time.time()
 print("Completion: %s" % completion.choices[0].message)
 
-session = fpclient.sessions.create()
+session = fpclient.sessions.create(
+    custom_metadata={
+        'metadata_key': 'metadata_value'
+    }
+)
 all_messages = formatted_prompt.all_messages(
     new_message=dict(completion.choices[0])
 )
-call_info = formatted_prompt.prompt_info.get_call_info(start, end)
+call_info = CallInfo.from_prompt_info(formatted_prompt.prompt_info, start, end)
 
 # Get function call from completion
 function_call_response = None
@@ -78,8 +82,8 @@ response_info = ResponseInfo(
 fpclient.recordings.create(
     RecordPayload(
         all_messages=all_messages,
-        session_id=session.session_id,
         inputs=input_variables,
+        session_info=session.session_info,
         prompt_info=formatted_prompt.prompt_info,
         call_info=call_info,
         response_info=response_info

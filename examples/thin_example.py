@@ -3,7 +3,7 @@ import time
 
 from anthropic import Anthropic
 
-from freeplay.thin import Freeplay, RecordPayload, ResponseInfo
+from freeplay.thin import Freeplay, RecordPayload, ResponseInfo, CallInfo
 
 fpclient = Freeplay(
     freeplay_api_key=os.environ['FREEPLAY_API_KEY'],
@@ -36,18 +36,22 @@ session = fpclient.sessions.create()
 all_messages = formatted_prompt.all_messages(
     new_message={'role': 'Assistant', 'content': completion.completion}
 )
-call_info = formatted_prompt.prompt_info.get_call_info(start, end)
+call_info = CallInfo.from_prompt_info(formatted_prompt.prompt_info, start, end)
 response_info = ResponseInfo(
     is_complete=completion.stop_reason == 'stop_sequence'
 )
 
-fpclient.recordings.create(
+record_response = fpclient.recordings.create(
     RecordPayload(
         all_messages=all_messages,
-        session_id=session.session_id,
+        session_info=session.session_info,
         inputs=input_variables,
         prompt_info=formatted_prompt.prompt_info,
         call_info=call_info,
         response_info=response_info
     )
 )
+
+print(f"Sending customer feedback for completion id: {record_response.completion_id}")
+fpclient.customer_feedback.update(
+    record_response.completion_id, {'is_it_good': 'nah', 'count_of_interactions': 123})

@@ -1,5 +1,33 @@
+from dataclasses import dataclass
+from typing import List
+
+from freeplay.model import InputVariables
 from freeplay.support import CallSupport
-from freeplay.thin.model import TestRun, TestCase
+from freeplay.thin.resources.recordings import TestRunInfo
+
+
+@dataclass
+class TestCase:
+    def __init__(self, test_case_id: str, variables: InputVariables):
+        self.id = test_case_id
+        self.variables = variables
+
+
+@dataclass
+class TestRun:
+    def __init__(
+            self,
+            test_run_id: str,
+            test_cases: List[TestCase]
+    ):
+        self.test_run_id = test_run_id
+        self.test_cases = test_cases
+
+    def get_test_cases(self) -> List[TestCase]:
+        return self.test_cases
+
+    def get_test_run_info(self, test_case_id: str) -> TestRunInfo:
+        return TestRunInfo(self.test_run_id, test_case_id)
 
 
 class TestRuns:

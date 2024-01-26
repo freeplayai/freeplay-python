@@ -1,6 +1,7 @@
 from freeplay.errors import FreeplayConfigurationError
 from freeplay.record import DefaultRecordProcessor
 from freeplay.support import CallSupport
+from freeplay.thin.resources.customer_feedback import CustomerFeedback
 from freeplay.thin.resources.prompts import Prompts
 from freeplay.thin.resources.recordings import Recordings
 from freeplay.thin.resources.sessions import Sessions
@@ -22,7 +23,8 @@ class Freeplay:
         self.api_base = api_base
 
         # Resources ========
-        self.sessions = Sessions()
+        self.customer_feedback = CustomerFeedback(self.call_support)
         self.prompts = Prompts(self.call_support)
-        self.test_runs = TestRuns(self.call_support)
         self.recordings = Recordings(self.call_support)
+        self.sessions = Sessions()
+        self.test_runs = TestRuns(self.call_support)

@@ -1,5 +1,6 @@
 import json
 import time
+from pathlib import Path
 from typing import Tuple
 from unittest import TestCase
 from uuid import uuid4
@@ -11,8 +12,33 @@ from freeplay.errors import (FreeplayClientError,
                              FreeplayConfigurationError)
 from freeplay.model import InputVariables
 from freeplay.thin import Freeplay, CallInfo, ResponseInfo, RecordPayload
-from freeplay.thin.resources.prompts import FormattedPrompt
+from freeplay.thin.resources.prompts import FormattedPrompt, PromptInfo, TemplatePrompt
 from freeplay.thin.resources.sessions import Session
+from freeplay.thin.template_resolver import FilesystemTemplateResolver
+
+
+class PromptInfoMatcher:
+    def __init__(self, expected: PromptInfo):
+        self.expected = expected
+
+    def __eq__(self, other: PromptInfo) -> bool:  # type: ignore
+        return self.expected.prompt_template_id == other.prompt_template_id and \
+            self.expected.prompt_template_version_id == other.prompt_template_version_id and \
+            self.expected.template_name == other.template_name and \
+            self.expected.environment == other.environment and \
+            self.expected.model_parameters == other.model_parameters and \
+            self.expected.provider == other.provider and \
+            self.expected.model == other.model and \
+            self.expected.flavor_name == other.flavor_name
+
+
+class TemplatePromptMatcher:
+    def __init__(self, expected: TemplatePrompt):
+        self.expected = expected
+
+    def __eq__(self, other: TemplatePrompt) -> bool:  # type: ignore
+        return PromptInfoMatcher(self.expected.prompt_info) == other.prompt_info and \
+            self.expected.messages == other.messages
 
 
 class TestFreeplay(TestCase):
@@ -33,6 +59,13 @@ class TestFreeplay(TestCase):
             freeplay_api_key=self.freeplay_api_key,
             api_base=self.api_base
         )
+
+        self.bundle_client = Freeplay(
+            freeplay_api_key=self.freeplay_api_key,
+            api_base=self.api_base,
+            template_resolver=FilesystemTemplateResolver(Path(__file__).parent / "test_files" / "prompts")
+        )
+        self.bundle_project_id = "475516c8-7be4-4d55-9388-535cef042981"
 
     @responses.activate
     def test_single_prompt_get_and_record(self) -> None:
@@ -153,7 +186,6 @@ class TestFreeplay(TestCase):
                 'some-feedback': 'it is ok!'
             })
 
-
     @responses.activate
     def test_get_template_prompt_then_populate(self) -> None:
         self.__mock_freeplay_apis()
@@ -225,6 +257,95 @@ class TestFreeplay(TestCase):
                 template_name="invalid-template-id",
                 environment=self.tag
             )
+
+    def test_filesystem_resolver_with_params(self) -> None:
+        template_prompt = self.bundle_client.prompts.get(self.bundle_project_id, "test-prompt-with-params", "prod")
+
+        expected = TemplatePrompt(
+            prompt_info=PromptInfo(
+                prompt_template_id='a8b91d92-e063-4c3e-bb44-0d570793856b',
+                prompt_template_version_id='6fe8af2e-defe-41b8-bdf2-7b2ec23592f5',
+                template_name='test-prompt-with-params',
+                environment='prod',
+                model_parameters={'max_tokens': 56, 'temperature': 0.1},  # type: ignore
+                provider='openai',
+                model='gpt-3.5-turbo-1106',
+                flavor_name='openai_chat'
+            ),
+            messages=[{'content': 'You are a support agent', 'role': 'system'},
+                      {'content': 'How can I help you?', 'role': 'assistant'},
+                      {'content': '{{question}}', 'role': 'user'}]
+        )
+
+        self.assertEqual(TemplatePromptMatcher(expected), template_prompt)
+
+    def test_filesystem_resolver_without_params(self) -> None:
+        template_prompt = self.bundle_client.prompts.get(self.bundle_project_id, "test-prompt-no-params", "prod")
+
+        expected = TemplatePrompt(
+            prompt_info=PromptInfo(
+                prompt_template_id='5985c6bb-115c-4ca2-99bd-0ffeb917fca4',
+                prompt_template_version_id='11e12956-d8d4-448a-af92-66b1dc2155e0',
+                template_name='test-prompt-no-params',
+                environment='prod',
+                model_parameters={},  # type: ignore
+                provider='openai',
+                model='gpt-3.5-turbo-1106',
+                flavor_name='openai_chat'
+            ),
+            messages=[{'content': 'You are a support agent.', 'role': 'Human'},
+                      {'content': 'How may I help you?', 'role': 'Assistant'},
+                      {'content': '{{question}}', 'role': 'user'}]
+        )
+
+        self.assertEqual(TemplatePromptMatcher(expected), template_prompt)
+
+    def test_filesystem_resolver_other_environment(self) -> None:
+        template_prompt = self.bundle_client.prompts.get(self.bundle_project_id, "test-prompt-with-params", "qa")
+
+        # Version ID is different
+        expected = TemplatePrompt(
+            prompt_info=PromptInfo(
+                prompt_template_id='a8b91d92-e063-4c3e-bb44-0d570793856b',
+                prompt_template_version_id='188545b0-afdb-4a1c-b99c-9519bb626da2',
+                template_name='test-prompt-with-params',
+                environment='qa',
+                model_parameters={'max_tokens': 56, 'temperature': 0.1},  # type: ignore
+                provider='openai',
+                model='gpt-3.5-turbo-1106',
+                flavor_name='openai_chat'
+            ),
+            messages=[{'content': 'You are a support agent', 'role': 'system'},
+                      {'content': 'How can I help you?', 'role': 'assistant'},
+                      {'content': '{{question}}', 'role': 'user'}]
+        )
+
+        self.assertEqual(TemplatePromptMatcher(expected), template_prompt)
+
+    def test_freeplay_directory_doesnt_exist(self) -> None:
+        with self.assertRaisesRegex(FreeplayConfigurationError, "Path for prompt templates is not a valid directory"):
+            self.bundle_client = Freeplay(
+                freeplay_api_key=self.freeplay_api_key,
+                api_base=self.api_base,
+                template_resolver=FilesystemTemplateResolver(Path(__file__).parent / "does_not_exist")
+            )
+
+    def test_freeplay_directory_is_file(self) -> None:
+        with self.assertRaisesRegex(FreeplayConfigurationError, "Path for prompt templates is not a valid directory"):
+            self.bundle_client = Freeplay(
+                freeplay_api_key=self.freeplay_api_key,
+                api_base=self.api_base,
+                template_resolver=FilesystemTemplateResolver(Path(__file__))
+            )
+
+    def test_freeplay_directory_invalid_environment(self) -> None:
+        with self.assertRaisesRegex(FreeplayConfigurationError, "Could not find prompt template directory for project"):
+            self.bundle_client = Freeplay(
+                freeplay_api_key=self.freeplay_api_key,
+                api_base=self.api_base,
+                template_resolver=FilesystemTemplateResolver(Path(__file__).parent / "test_files" / "prompts")
+            )
+            self.bundle_client.prompts.get(self.bundle_project_id, "test-prompt-with-params", "not_real_environment")
 
     def __mock_freeplay_apis(self) -> None:
         responses.get(

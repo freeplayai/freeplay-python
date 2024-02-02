@@ -8,6 +8,7 @@ from freeplay.flavors import Flavor
 from freeplay.llm_parameters import LLMParameters
 from freeplay.model import InputVariables
 from freeplay.support import CallSupport
+from freeplay.thin.template_resolver import TemplateResolver
 from freeplay.utils import bind_template_variables
 
 
@@ -83,18 +84,16 @@ class TemplatePrompt:
 
 
 class Prompts:
-    def __init__(self, call_support: CallSupport) -> None:
+    def __init__(self, call_support: CallSupport, template_resolver: TemplateResolver) -> None:
         self.call_support = call_support
+        self.template_resolver = template_resolver
 
     def get_all(self, project_id: str, environment: str) -> PromptTemplates:
         return self.call_support.get_prompts(project_id=project_id, tag=environment)
 
     def get(self, project_id: str, template_name: str, environment: str) -> TemplatePrompt:
-        prompt_template = self.call_support.get_prompt(
-            project_id=project_id,
-            template_name=template_name,
-            environment=environment
-        )
+        prompt_templates = self.template_resolver.get_prompts(project_id, environment)
+        prompt_template = self.call_support.find_template_by_name(prompt_templates, template_name)
 
         messages = json.loads(prompt_template.content)
 

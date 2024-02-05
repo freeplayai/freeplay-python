@@ -12,9 +12,8 @@ from freeplay.errors import (FreeplayClientError,
                              FreeplayConfigurationError)
 from freeplay.model import InputVariables
 from freeplay.thin import Freeplay, CallInfo, ResponseInfo, RecordPayload
-from freeplay.thin.resources.prompts import FormattedPrompt, PromptInfo, TemplatePrompt
+from freeplay.thin.resources.prompts import FormattedPrompt, PromptInfo, TemplatePrompt, FilesystemTemplateResolver
 from freeplay.thin.resources.sessions import Session
-from freeplay.thin.template_resolver import FilesystemTemplateResolver
 
 
 class PromptInfoMatcher:

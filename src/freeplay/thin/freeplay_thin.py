@@ -4,11 +4,10 @@ from freeplay.errors import FreeplayConfigurationError
 from freeplay.record import DefaultRecordProcessor
 from freeplay.support import CallSupport
 from freeplay.thin.resources.customer_feedback import CustomerFeedback
-from freeplay.thin.resources.prompts import Prompts
+from freeplay.thin.resources.prompts import Prompts, APITemplateResolver, TemplateResolver
 from freeplay.thin.resources.recordings import Recordings
 from freeplay.thin.resources.sessions import Sessions
 from freeplay.thin.resources.test_runs import TestRuns
-from freeplay.thin.template_resolver import TemplateResolver, APITemplateResolver
 
 
 class Freeplay:

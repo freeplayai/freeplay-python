@@ -5,7 +5,7 @@ from pathlib import Path
 from anthropic import Anthropic
 
 from freeplay.thin import Freeplay, RecordPayload, ResponseInfo, CallInfo
-from freeplay.thin.template_resolver import FilesystemTemplateResolver
+from freeplay.thin.resources.prompts import FilesystemTemplateResolver
 
 fpclient = Freeplay(
     freeplay_api_key=os.environ['FREEPLAY_API_KEY'],

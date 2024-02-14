@@ -50,7 +50,7 @@ class Flavor(ABC):
         pass
 
     @abstractmethod
-    def to_llm_syntax(self, messages: List[ChatMessage]) -> str | List[ChatMessage]:
+    def to_llm_syntax(self, messages: List[ChatMessage]) -> Union[str, List[ChatMessage]]:
         raise NotImplementedError()
 
     @abstractmethod

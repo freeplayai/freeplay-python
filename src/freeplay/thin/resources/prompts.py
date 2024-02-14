@@ -2,7 +2,7 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, List, Union, cast
+from typing import Dict, Optional, List, Union, cast
 
 from freeplay.completions import PromptTemplates, ChatMessage, PromptTemplateWithMetadata
 from freeplay.errors import FreeplayConfigurationError
@@ -29,8 +29,8 @@ class FormattedPrompt:
     def __init__(
             self,
             prompt_info: PromptInfo,
-            messages: List[dict[str, str]],
-            formatted_prompt: Union[str, List[dict[str, str]]]
+            messages: List[Dict[str, str]],
+            formatted_prompt: Union[str, List[Dict[str, str]]]
     ):
         self.prompt_info = prompt_info
         self.messages = messages
@@ -38,8 +38,8 @@ class FormattedPrompt:
 
     def all_messages(
             self,
-            new_message: dict[str, str]
-    ) -> List[dict[str, str]]:
+            new_message: Dict[str, str]
+    ) -> List[Dict[str, str]]:
         return self.messages + [new_message]
 
 
@@ -47,7 +47,7 @@ class BoundPrompt:
     def __init__(
             self,
             prompt_info: PromptInfo,
-            messages: List[dict[str, str]]
+            messages: List[Dict[str, str]]
     ):
         self.prompt_info = prompt_info
         self.messages = messages
@@ -63,7 +63,7 @@ class BoundPrompt:
         return FormattedPrompt(
             self.prompt_info,
             self.messages,
-            cast(Union[str, List[dict[str, str]]], llm_format)
+            cast(Union[str, List[Dict[str, str]]], llm_format)
         )
 
 
@@ -71,7 +71,7 @@ class TemplatePrompt:
     def __init__(
             self,
             prompt_info: PromptInfo,
-            messages: List[dict[str, str]]
+            messages: List[Dict[str, str]]
     ):
         self.prompt_info = prompt_info
         self.messages = messages

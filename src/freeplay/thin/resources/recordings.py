@@ -1,7 +1,7 @@
 import json
 import logging
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import Dict, Optional, List
 
 from freeplay import api_support
 from freeplay.completions import PromptTemplateWithMetadata, OpenAIFunctionCall
@@ -50,7 +50,7 @@ class TestRunInfo:
 
 @dataclass
 class RecordPayload:
-    all_messages: List[dict[str, str]]
+    all_messages: List[Dict[str, str]]
     inputs: InputVariables
 
     session_info: SessionInfo

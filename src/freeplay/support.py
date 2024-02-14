@@ -28,7 +28,7 @@ class TestRunResponse:
     def __init__(
             self,
             test_run_id: str,
-            test_cases: list[JsonDom]
+            test_cases: List[JsonDom]
     ):
         self.test_cases = [
             TestCaseTestRunResponse(test_case)

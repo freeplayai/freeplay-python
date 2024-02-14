@@ -3,7 +3,7 @@ from typing import List, Union, Any, Dict, Mapping
 
 from pydantic import RootModel
 
-InputValue = Union[str, int, bool, dict[str, Any], list[Any]]
+InputValue = Union[str, int, bool, Dict[str, Any], List[Any]]
 InputVariable = RootModel[Union[Dict[str, "InputVariable"], List["InputVariable"], str, int, bool, float]]
 InputVariable.model_rebuild()
 

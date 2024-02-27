@@ -1,3 +1,4 @@
+import sys
 import unittest
 
 from freeplay.errors import FreeplayError
@@ -50,3 +51,6 @@ class MyTestCase(unittest.TestCase):
         with self.assertRaises(FreeplayError):
             bad_variables: InputVariables = {"foo": lambda s: 1}  # type: ignore
             bind_template_variables('Hello', bad_variables)
+
+    def test_python_version(self) -> None:
+        self.assertEqual((3, 8), (sys.version_info[0], sys.version_info[1]), "Tests not running in Python 3.8")

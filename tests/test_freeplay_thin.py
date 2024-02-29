@@ -1,7 +1,7 @@
 import json
 import time
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Any, Dict, List
 from unittest import TestCase
 from uuid import uuid4
 
@@ -50,6 +50,7 @@ class TestFreeplay(TestCase):
         self.project_version_id = str(uuid4())
         self.prompt_template_version_id = self.project_version_id
         self.prompt_template_id_1 = str(uuid4())
+        self.prompt_template_name = "my-prompt-anthropic"
         self.record_url = f'{self.api_base}/v1/record'
         self.tag = 'test-tag'
         self.test_run_id = str(uuid4())
@@ -68,14 +69,17 @@ class TestFreeplay(TestCase):
 
     @responses.activate
     def test_single_prompt_get_and_record(self) -> None:
-        self.__mock_freeplay_apis()
-        openai_response = 'This is the response from Anthropic'
-        (formatted_prompt, call_info, input_variables, session) = self.__llm_call_fixtures()
+        input_variables = {"name": "Sparkles", "question": "Why isn't my door working"}
+        llm_response = 'This is the response from the LLM'
 
-        all_messages = formatted_prompt.all_messages({'role': 'Assistant', 'content': ('%s' % openai_response)})
-        response_info = ResponseInfo(
-            is_complete=True
+        self.__mock_freeplay_apis(self.prompt_template_name)
+
+        all_messages: List[Dict[str, str]]
+        all_messages, call_info, formatted_prompt, response_info, session = self.__make_call(
+            input_variables,
+            llm_response
         )
+
         self.freeplay_thin.recordings.create(
             RecordPayload(
                 all_messages=all_messages,
@@ -100,11 +104,11 @@ class TestFreeplay(TestCase):
         self.assertEqual(self.tag, recorded_body_dom['tag'])
         self.assertEqual(
             '[{"role": "system", "content": "System message"}, '
-            '{"role": "Assistant", "content": "How may I help you, Sparkles?"}, '
+            '{"role": "assistant", "content": "How may I help you, Sparkles?"}, '
             '{"role": "user", "content": "Why isn\'t my door working"}]',
             recorded_body_dom['prompt_content']
         )
-        self.assertEqual(openai_response, recorded_body_dom['return_content'])
+        self.assertEqual(llm_response, recorded_body_dom['return_content'])
         self.assertEqual('anthropic', recorded_body_dom['provider'])
         self.assertEqual(0.7, recorded_body_dom['llm_parameters']['temperature'])
         self.assertEqual(50, recorded_body_dom['llm_parameters']['max_tokens_to_sample'])
@@ -114,9 +118,15 @@ class TestFreeplay(TestCase):
 
     @responses.activate
     def test_record_function_call(self) -> None:
-        self.__mock_freeplay_apis()
+        self.__mock_freeplay_apis(self.prompt_template_name)
 
-        (formatted_prompt, call_info, input_variables, session) = self.__llm_call_fixtures()
+        input_variables = {"name": "Sparkles", "question": "Why isn't my door working"}
+
+        all_messages, call_info, formatted_prompt, response_info, session = self.__make_call(
+            input_variables=input_variables,
+            llm_response='Placeholder--Not Used'
+        )
+
         response_info = ResponseInfo(
             is_complete=True,
             function_call_response=OpenAIFunctionCall(
@@ -142,14 +152,18 @@ class TestFreeplay(TestCase):
 
         self.assertEqual(
             '[{"role": "system", "content": "System message"}, '
-            '{"role": "Assistant", "content": "How may I help you, Sparkles?"}, '
+            '{"role": "assistant", "content": "How may I help you, Sparkles?"}, '
             '{"role": "user", "content": "Why isn\'t my door working"}]',
             recorded_body_dom['prompt_content']
         )
         # Empty body since we have a function call
         self.assertEqual('', recorded_body_dom['return_content'])
-        self.assertEqual({'arguments': '{"location": "San Francisco, CA", "format": "celsius"}',
-                          'name': 'function_name'}, recorded_body_dom['function_call_response'])
+        self.assertEqual(
+            {
+                'arguments': '{"location": "San Francisco, CA", "format": "celsius"}', 'name': 'function_name'
+            },
+            recorded_body_dom['function_call_response']
+        )
 
     @responses.activate
     def test_customer_feedback(self) -> None:
@@ -187,13 +201,13 @@ class TestFreeplay(TestCase):
 
     @responses.activate
     def test_get_template_prompt_then_populate(self) -> None:
-        self.__mock_freeplay_apis()
+        self.__mock_freeplay_apis(self.prompt_template_name)
 
         input_variables = {"name": "Sparkles", "question": "Why isn't my door working"}
 
         template_prompt = self.freeplay_thin.prompts.get(
             project_id=self.project_id,
-            template_name="my-chat-prompt",
+            template_name=self.prompt_template_name,
             environment=self.tag
         )
 
@@ -209,16 +223,16 @@ class TestFreeplay(TestCase):
 
         self.assertTrue(str(formatted_prompt.llm_prompt).startswith("\n\nHuman: System message"))
 
-        openai_response = 'This is the response from Anthropic'
-        all_messages = formatted_prompt.all_messages({'role': 'Assistant', 'content': ('%s' % openai_response)})
+        llm_response = 'This is the response from Anthropic'
+        all_messages = formatted_prompt.all_messages({'role': 'Assistant', 'content': ('%s' % llm_response)})
 
         self.assertTrue(input_variables.get('name') in formatted_prompt.llm_prompt)  # type: ignore
         self.assertTrue(input_variables.get('question') in formatted_prompt.llm_prompt)  # type: ignore
-        self.assertTrue(openai_response in all_messages[3]['content'])
+        self.assertTrue(llm_response in all_messages[3]['content'])
 
     @responses.activate
     def test_create_test_run(self) -> None:
-        self.__mock_freeplay_apis()
+        self.__mock_freeplay_apis(self.prompt_template_name)
 
         test_run = self.freeplay_thin.test_runs.create(self.project_id, testlist='good stuff')
 
@@ -227,7 +241,7 @@ class TestFreeplay(TestCase):
     @responses.activate
     def test_auth_error(self) -> None:
         responses.get(
-            url=f'{self.api_base}/projects/{self.project_id}/templates/all/{self.tag}',
+            url=f'{self.api_base}/v2/projects/{self.project_id}/prompt-templates/name/{self.prompt_template_name}',
             status=401,
             body=self.__get_templates_response()
         )
@@ -237,19 +251,22 @@ class TestFreeplay(TestCase):
             api_base=self.api_base,
         )
 
-        with self.assertRaisesRegex(FreeplayClientError, "Error getting prompt templates \\[401\\]"):
+        with self.assertRaisesRegex(
+                FreeplayClientError,
+                f"Error getting prompt template my-prompt-anthropic in project {self.project_id} and environment test-tag \[401\]"
+        ):
             freeplay_thin.prompts.get(
                 project_id=self.project_id,
-                template_name="my-chat-prompt",
+                template_name=self.prompt_template_name,
                 environment=self.tag
             )
 
     @responses.activate
     def test_template_not_found(self) -> None:
-        self.__mock_freeplay_apis()
+        self.__mock_freeplay_apis(self.prompt_template_name)
         with self.assertRaisesRegex(
-                FreeplayConfigurationError,
-                'Could not find template with name "invalid-template-id"'
+                FreeplayClientError,
+                f"Error getting prompt template invalid-template-id in project {self.project_id} and environment test-tag \[404\]"
         ):
             self.freeplay_thin.prompts.get(
                 project_id=self.project_id,
@@ -292,8 +309,8 @@ class TestFreeplay(TestCase):
                 model='gpt-3.5-turbo-1106',
                 flavor_name='openai_chat'
             ),
-            messages=[{'content': 'You are a support agent.', 'role': 'Human'},
-                      {'content': 'How may I help you?', 'role': 'Assistant'},
+            messages=[{'content': 'You are a support agent.', 'role': 'user'},
+                      {'content': 'How may I help you?', 'role': 'assistant'},
                       {'content': '{{question}}', 'role': 'user'}]
         )
 
@@ -329,6 +346,13 @@ class TestFreeplay(TestCase):
                 template_resolver=FilesystemTemplateResolver(Path(__file__).parent / "does_not_exist")
             )
 
+    def test_prompt_file_does_not_exist(self) -> None:
+        with self.assertRaisesRegex(
+                FreeplayClientError,
+                f"Could not find prompt with name not-a-prompt for project {self.bundle_project_id} in environment prod"
+        ):
+            self.bundle_client.prompts.get(self.bundle_project_id, "not-a-prompt", "prod")
+
     def test_freeplay_directory_is_file(self) -> None:
         with self.assertRaisesRegex(FreeplayConfigurationError, "Path for prompt templates is not a valid directory"):
             self.bundle_client = Freeplay(
@@ -346,11 +370,31 @@ class TestFreeplay(TestCase):
             )
             self.bundle_client.prompts.get(self.bundle_project_id, "test-prompt-with-params", "not_real_environment")
 
-    def __mock_freeplay_apis(self) -> None:
+    def test_prompt_invalid_flavor(self) -> None:
+        with self.assertRaisesRegex(
+                FreeplayConfigurationError,
+                'Configured flavor \\(not_a_flavor\\) not found in SDK. Please update your SDK version or configure '
+                'a different model in the Freeplay UI.'
+        ):
+            self.bundle_client.prompts.get(self.bundle_project_id, "test-prompt-invalid-flavor", "prod")
+
+    def test_prompt_no_model(self) -> None:
+        with self.assertRaisesRegex(
+                FreeplayConfigurationError,
+                'Model must be configured in the Freeplay UI. Unable to fulfill request.'
+        ):
+            self.bundle_client.prompts.get(self.bundle_project_id, "test-prompt-no-model", "prod")
+
+    def __mock_freeplay_apis(self, template_name: str) -> None:
         responses.get(
-            url=f'{self.api_base}/projects/{self.project_id}/templates/all/{self.tag}',
+            url=f'{self.api_base}/v2/projects/{self.project_id}/prompt-templates/name/{template_name}',
             status=200,
-            body=self.__get_templates_response()
+            body=self.__get_prompt_response(template_name)
+        )
+        responses.get(
+            url=f'{self.api_base}/v2/projects/{self.project_id}/prompt-templates/name/invalid-template-id',
+            status=404,
+            body=json.dumps({'message': 'Could not find template with name "invalid-template-id"'})
         )
         self.__mock_test_run_api()
         self.__mock_record_api()
@@ -408,6 +452,37 @@ class TestFreeplay(TestCase):
             ]
         })
 
+    def __get_prompt_response(self, template_name: str) -> str:
+        return json.dumps({
+            "content": [
+                {
+                    "role": "system",
+                    "content": "System message"
+                },
+                {
+                    "role": "assistant",
+                    "content": "How may I help you, {{name}}?"
+                },
+                {
+                    "role": "user",
+                    "content": "{{question}}"
+                }
+            ],
+            "format_version": 2,
+            "metadata": {
+                "flavor": "anthropic_chat",
+                "model": "claude-2.1",
+                "params": {
+                    "max_tokens_to_sample": 50,
+                    "temperature": 0.7
+                },
+                "provider": "anthropic"
+            },
+            "prompt_template_id": self.prompt_template_id_1,
+            "prompt_template_name": template_name,
+            "prompt_template_version_id": self.prompt_template_version_id
+        })
+
     @staticmethod
     def __create_test_run_response(test_run_id: str) -> str:
         return json.dumps({
@@ -424,14 +499,17 @@ class TestFreeplay(TestCase):
             ]
         })
 
-    def __llm_call_fixtures(self) -> Tuple[FormattedPrompt, CallInfo, InputVariables, Session]:
-        input_variables: InputVariables = {"name": "Sparkles", "question": "Why isn't my door working"}
+    def __make_call(
+            self,
+            input_variables: Dict[str, Any],
+            llm_response: str
+    ) -> Tuple[List[Dict[str, str]], CallInfo, FormattedPrompt, ResponseInfo, Session]:
         session = self.freeplay_thin.sessions.create(custom_metadata={'custom_metadata_field': 42})
         formatted_prompt = self.freeplay_thin.prompts.get_formatted(
             project_id=self.project_id,
-            template_name="my-chat-prompt",
+            template_name=self.prompt_template_name,
             environment=self.tag,
-            variables={"name": "Sparkles", "question": "Why isn't my door working"}
+            variables=input_variables
         )
         start = time.time()
         end = start + 5
@@ -442,4 +520,6 @@ class TestFreeplay(TestCase):
             end_time=end,
             model_parameters=formatted_prompt.prompt_info.model_parameters
         )
-        return formatted_prompt, call_info, input_variables, session
+        all_messages = formatted_prompt.all_messages({'role': 'Assistant', 'content': ('%s' % llm_response)})
+        response_info = ResponseInfo(is_complete=True)
+        return all_messages, call_info, formatted_prompt, response_info, session

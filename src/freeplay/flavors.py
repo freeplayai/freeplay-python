@@ -28,7 +28,7 @@ class Flavor(ABC):
             return AnthropicClaudeChat()
         else:
             raise FreeplayConfigurationError(
-                'Configured flavor not found in SDK. Please update your SDK version or configure '
+                f'Configured flavor ({flavor_name}) not found in SDK. Please update your SDK version or configure '
                 'a different model in the Freeplay UI.')
 
     @property

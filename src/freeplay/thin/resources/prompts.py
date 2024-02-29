@@ -5,14 +5,15 @@ from pathlib import Path
 from typing import Dict, Optional, List, Union, cast
 
 from freeplay.completions import PromptTemplates, ChatMessage, PromptTemplateWithMetadata
-from freeplay.errors import FreeplayConfigurationError
+from freeplay.errors import FreeplayConfigurationError, FreeplayClientError
 from freeplay.flavors import Flavor
 from freeplay.llm_parameters import LLMParameters
 from freeplay.model import InputVariables
-from freeplay.support import CallSupport
+from freeplay.support import CallSupport, PromptTemplate, PromptTemplateMetadata
 from freeplay.utils import bind_template_variables
 
 
+# SDK-Exposed Classes
 @dataclass
 class PromptInfo:
     prompt_template_id: str
@@ -89,8 +90,21 @@ class TemplateResolver(ABC):
     def get_prompts(self, project_id: str, environment: str) -> PromptTemplates:
         pass
 
+    @abstractmethod
+    def get_prompt(self, project_id: str, template_name: str, environment: str) -> PromptTemplate:
+        pass
+
 
 class FilesystemTemplateResolver(TemplateResolver):
+    # If you think you need a change here, be sure to check the server as the translations must match. Once we have
+    # all the SDKs and all customers on the new common format, this translation can go away.
+    __role_translations = {
+        'system': 'system',
+        'user': 'user',
+        'assistant': 'assistant',
+        'Assistant': 'assistant',
+        'Human': 'user'  # Don't think we ever store this, but in case...
+    }
 
     def __init__(self, freeplay_directory: Path):
         FilesystemTemplateResolver.__validate_freeplay_directory(freeplay_directory)
@@ -116,6 +130,52 @@ class FilesystemTemplateResolver(TemplateResolver):
             ))
 
         return PromptTemplates(prompt_list)
+
+    def get_prompt(self, project_id: str, template_name: str, environment: str) -> PromptTemplate:
+        self.__validate_prompt_directory(project_id, environment)
+
+        expected_file: Path = self.prompts_directory / project_id / environment / f"{template_name}.json"
+
+        if not expected_file.exists():
+            raise FreeplayClientError(
+                f"Could not find prompt with name {template_name} for project "
+                f"{project_id} in environment {environment}"
+            )
+
+        json_dom = json.loads(expected_file.read_text())
+
+        format_version = json_dom.get('format_version')
+
+        if format_version == 2:
+            raise NotImplementedError("Cannot yet handle new format bundled prompts")
+
+        flavor_name = json_dom.get('metadata').get('flavor_name')
+        flavor = Flavor.get_by_name(flavor_name)
+
+        params = json_dom.get('metadata').get('params')
+        model = params.pop('model') if 'model' in params else None
+
+        return PromptTemplate(
+            format_version=2,
+            prompt_template_id=json_dom.get('prompt_template_id'),
+            prompt_template_version_id=json_dom.get('prompt_template_version_id'),
+            prompt_template_name=json_dom.get('name'),
+            content=FilesystemTemplateResolver.__normalize_roles(json.loads(json_dom.get('content'))),  # type: ignore
+            metadata=PromptTemplateMetadata(
+                provider=flavor.provider,
+                flavor=flavor_name,
+                model=model,
+                params=params
+            )
+        )
+
+    @staticmethod
+    def __normalize_roles(messages: List[ChatMessage]) -> List[ChatMessage]:
+        normalized = []
+        for message in messages:
+            role = FilesystemTemplateResolver.__role_translations.get(message['role']) or message['role']
+            normalized.append(ChatMessage(role=role, content=message['content']))
+        return normalized
 
     @staticmethod
     def __validate_freeplay_directory(freeplay_directory: Path) -> None:
@@ -151,6 +211,13 @@ class APITemplateResolver(TemplateResolver):
             tag=environment
         )
 
+    def get_prompt(self, project_id: str, template_name: str, environment: str) -> PromptTemplate:
+        return self.call_support.get_prompt(
+            project_id=project_id,
+            template_name=template_name,
+            environment=environment
+        )
+
 
 class Prompts:
     def __init__(self, call_support: CallSupport, template_resolver: TemplateResolver) -> None:
@@ -161,32 +228,33 @@ class Prompts:
         return self.call_support.get_prompts(project_id=project_id, tag=environment)
 
     def get(self, project_id: str, template_name: str, environment: str) -> TemplatePrompt:
-        prompt_templates = self.template_resolver.get_prompts(project_id, environment)
-        prompt_template = self.call_support.find_template_by_name(prompt_templates, template_name)
+        prompt = self.template_resolver.get_prompt(project_id, template_name, environment)
 
-        messages = json.loads(prompt_template.content)
+        params = prompt.metadata.params
+        model = prompt.metadata.model
 
-        params = prompt_template.get_params()
-        model = params.pop('model')
+        if not model:
+            raise FreeplayConfigurationError(
+                "Model must be configured in the Freeplay UI. Unable to fulfill request.")
 
-        if not prompt_template.flavor_name:
+        if not prompt.metadata.flavor:
             raise FreeplayConfigurationError(
                 "Flavor must be configured in the Freeplay UI. Unable to fulfill request.")
 
-        flavor = Flavor.get_by_name(prompt_template.flavor_name)
+        flavor = Flavor.get_by_name(prompt.metadata.flavor)
 
         prompt_info = PromptInfo(
-            prompt_template_id=prompt_template.prompt_template_id,
-            prompt_template_version_id=prompt_template.prompt_template_version_id,
-            template_name=prompt_template.name,
+            prompt_template_id=prompt.prompt_template_id,
+            prompt_template_version_id=prompt.prompt_template_version_id,
+            template_name=prompt.prompt_template_name,
             environment=environment,
-            model_parameters=params,
+            model_parameters=cast(LLMParameters, params) or LLMParameters({}),
             provider=flavor.provider,
             model=model,
-            flavor_name=prompt_template.flavor_name
+            flavor_name=prompt.metadata.flavor
         )
 
-        return TemplatePrompt(prompt_info, messages)
+        return TemplatePrompt(prompt_info, prompt.content)
 
     def get_formatted(
             self,

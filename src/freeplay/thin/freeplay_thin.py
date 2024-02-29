@@ -20,8 +20,11 @@ class Freeplay:
         if not freeplay_api_key or not freeplay_api_key.strip():
             raise FreeplayConfigurationError("Freeplay API key not set. It must be set to the Freeplay API.")
 
-        self.call_support = CallSupport(freeplay_api_key, api_base,
-                                        DefaultRecordProcessor(freeplay_api_key, api_base))
+        self.call_support = CallSupport(
+            freeplay_api_key,
+            api_base,
+            DefaultRecordProcessor(freeplay_api_key, api_base)
+        )
         self.freeplay_api_key = freeplay_api_key
         self.api_base = api_base
 

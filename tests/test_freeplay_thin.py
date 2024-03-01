@@ -10,7 +10,6 @@ import responses
 from freeplay.completions import OpenAIFunctionCall
 from freeplay.errors import (FreeplayClientError,
                              FreeplayConfigurationError)
-from freeplay.model import InputVariables
 from freeplay.thin import Freeplay, CallInfo, ResponseInfo, RecordPayload
 from freeplay.thin.resources.prompts import FormattedPrompt, PromptInfo, TemplatePrompt, FilesystemTemplateResolver
 from freeplay.thin.resources.sessions import Session
@@ -285,6 +284,7 @@ class TestFreeplay(TestCase):
                 environment='prod',
                 model_parameters={'max_tokens': 56, 'temperature': 0.1},  # type: ignore
                 provider='openai',
+                provider_info=None,
                 model='gpt-3.5-turbo-1106',
                 flavor_name='openai_chat'
             ),
@@ -306,6 +306,7 @@ class TestFreeplay(TestCase):
                 environment='prod',
                 model_parameters={},  # type: ignore
                 provider='openai',
+                provider_info=None,
                 model='gpt-3.5-turbo-1106',
                 flavor_name='openai_chat'
             ),
@@ -328,6 +329,7 @@ class TestFreeplay(TestCase):
                 environment='qa',
                 model_parameters={'max_tokens': 56, 'temperature': 0.1},  # type: ignore
                 provider='openai',
+                provider_info=None,
                 model='gpt-3.5-turbo-1106',
                 flavor_name='openai_chat'
             ),
@@ -476,7 +478,10 @@ class TestFreeplay(TestCase):
                     "max_tokens_to_sample": 50,
                     "temperature": 0.7
                 },
-                "provider": "anthropic"
+                "provider": "anthropic",
+                "provider_info": {
+                    "anthropic_endpoint": "https://example.com/anthropic"
+                }
             },
             "prompt_template_id": self.prompt_template_id_1,
             "prompt_template_name": template_name,

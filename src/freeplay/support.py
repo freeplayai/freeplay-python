@@ -44,6 +44,7 @@ class PromptTemplateMetadata:
     flavor: Optional[str]
     model: Optional[str]
     params: Optional[Dict[str, Any]] = None
+    provider_info: Optional[Dict[str, Any]] = None
 
 
 @dataclass

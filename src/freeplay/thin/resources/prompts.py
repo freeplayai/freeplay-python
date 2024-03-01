@@ -2,7 +2,7 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional, List, Union, cast
+from typing import Dict, Optional, List, Union, cast, Any
 
 from freeplay.completions import PromptTemplates, ChatMessage, PromptTemplateWithMetadata
 from freeplay.errors import FreeplayConfigurationError, FreeplayClientError
@@ -21,6 +21,7 @@ class PromptInfo:
     template_name: str
     environment: str
     model_parameters: LLMParameters
+    provider_info: Optional[Dict[str, Any]]
     provider: str
     model: str
     flavor_name: str
@@ -251,7 +252,8 @@ class Prompts:
             model_parameters=cast(LLMParameters, params) or LLMParameters({}),
             provider=flavor.provider,
             model=model,
-            flavor_name=prompt.metadata.flavor
+            flavor_name=prompt.metadata.flavor,
+            provider_info=prompt.metadata.provider_info
         )
 
         return TemplatePrompt(prompt_info, prompt.content)

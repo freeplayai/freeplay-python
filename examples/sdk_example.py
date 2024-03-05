@@ -305,119 +305,6 @@ def run_anthropic_chat(fp: Freeplay) -> None:
         print("Chunk: %s" % chunk.text.strip())
 
 
-# ===========================================================================
-# Azure OpenAI Chat =========================================================
-# ===========================================================================
-
-# ===================================================
-# Single Prompt Session
-# - Creates an implicit session with a single prompt
-# ===================================================
-def run_azure_openai_chat_single_prompt_session(freeplay_chat: Freeplay) -> None:
-    chat_completion = freeplay_chat.get_completion(
-        project_id=freeplay_project_id,
-        template_name="my-chat-template",
-        variables={"initial_user_input": "Why isn't my internet working?"}
-    )
-
-    print(
-        "Single-prompt completion (complete? %s): %s" % (chat_completion.is_complete, chat_completion.content.strip()))
-
-
-# ===================================================
-# Multi-prompt Text session
-# - Create a session then get multiple completions
-# ===================================================
-def run_azure_openai_chat_multi_prompt_session(freeplay_chat: Freeplay) -> None:
-    chat_session = freeplay_chat.create_session(freeplay_project_id)
-
-    first_chat_completion = chat_session.get_completion(
-        template_name="my-chat-prompt",
-        variables={"user_input": "Why isn't my internet working?"}
-    )
-    print("\tFirst completion: %s" % first_chat_completion.content.strip())
-
-    second_chat_completion = chat_session.get_completion(
-        template_name="my-chat-prompt-2",
-        variables={"user_input": "Why isn't my internet working?"}
-    )
-    print("\tSecond completion: %s" % second_chat_completion.content.strip())
-
-
-# # ===================================================
-# # Single Prompt Session - Streaming
-# # ===================================================
-def run_azure_openai_chat_streaming(freeplay_chat: Freeplay) -> None:
-    chat_stream = freeplay_chat.get_completion_stream(
-        project_id=freeplay_project_id,
-        template_name="my-chat-prompt",
-        variables={"user_input": "Why isn't my internet working?"}
-    )
-
-    for chunk in chat_stream:
-        print("Chunk: %s" % chunk.text.strip())
-
-
-# ===================================================
-# Continuous chat session
-# - Create a session then get incremental completions as in a live chat UX.
-# ===================================================
-def run_azure_openai_chat_ux_session(freeplay_chat: Freeplay) -> None:
-    session, initial_completion = freeplay_chat.start_chat(
-        project_id=freeplay_project_id,
-        template_name="my-chat-prompt",
-        variables={"user_input": "Why isn't my internet working?"},
-        tag='latest',
-        max_tokens=10
-    )
-    print('Initial chat completion is', initial_completion)
-
-    second_chat_completion = session.continue_chat(
-        new_messages=[{'role': 'user', 'content': 'Tell me more!'}],
-        max_tokens=10,
-    )
-    print('second chat completion is', second_chat_completion.content)
-
-    third_chat_completion = session.continue_chat(
-        new_messages=[{'role': 'user', 'content': 'Now in spanish!'}],
-        max_tokens=10,
-    )
-    print('third chat completion is', third_chat_completion.content)
-
-    fourth_chat_completion = session.continue_chat(
-        new_messages=[{'role': 'user', 'content': 'Now in JSON!'}],
-        max_tokens=50,
-    )
-    print('fourth chat completion is', fourth_chat_completion.content)
-    print("Final message chain", fourth_chat_completion.message_history)
-
-
-def run_azure_openai_chat_ux_session_streaming(freeplay_chat: Freeplay) -> None:
-    session, initial_completion_stream = freeplay_chat.start_chat_stream(
-        project_id=freeplay_project_id,
-        template_name="my-chat-prompt",
-        variables={"user_input": "Why isn't my internet working?"},
-        tag='latest',
-        max_tokens=10
-    )
-
-    __message_from_streamed_response(initial_completion_stream)
-
-    first_user_message: ChatMessage = {'role': 'user', 'content': 'Tell me more!'}
-    first_chat_stream = session.continue_chat_stream(
-        new_messages=[first_user_message],
-        max_tokens=10
-    )
-    __message_from_streamed_response(first_chat_stream)
-
-    user_message_2: ChatMessage = {'role': 'user', 'content': 'Now in JSON!'}
-    second_chat_stream = session.continue_chat_stream(
-        new_messages=[user_message_2],
-        max_tokens=10
-    )
-    __message_from_streamed_response(second_chat_stream)
-
-
 # Run config ==========================================
 _freeplay_chat = Freeplay(
     flavor=OpenAIChat(),
@@ -447,13 +334,6 @@ anthropic_chat = Freeplay(
     api_base=api_base,
     max_tokens_to_sample=100)
 
-_azure_chat = Freeplay(
-    flavor=AzureOpenAIChat(),
-    provider_config=provider_config,
-    freeplay_api_key=freeplay_api_key,
-    api_base=api_base,
-)
-
 run_openai_chat_single_prompt_session_not_record_session(_freeplay_chat_no_record)
 
 run_openai_chat_single_prompt_session(_freeplay_chat)
@@ -469,9 +349,3 @@ run_anthropic_text_single_prompt_session(_freeplay_anthropic)
 run_anthropic_text_multi_prompt_session(_freeplay_anthropic)
 run_anthropic_text_stream(_freeplay_anthropic)
 run_anthropic_chat(anthropic_chat)
-
-run_azure_openai_chat_single_prompt_session(_azure_chat)
-run_azure_openai_chat_multi_prompt_session(_azure_chat)
-run_azure_openai_chat_streaming(_azure_chat)
-run_azure_openai_chat_ux_session(_azure_chat)
-run_azure_openai_chat_ux_session_streaming(_azure_chat)

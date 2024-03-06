@@ -3,6 +3,8 @@ import logging
 from dataclasses import dataclass
 from typing import Dict, Optional, List
 
+from requests import HTTPError
+
 from freeplay import api_support
 from freeplay.completions import PromptTemplateWithMetadata, OpenAIFunctionCall
 from freeplay.errors import FreeplayClientError, FreeplayError
@@ -125,12 +127,29 @@ class Recordings:
             recorded_response.raise_for_status()
             json_dom = recorded_response.json()
             return RecordResponse(completion_id=str(json_dom['completion_id']))
+        except HTTPError as e:
+            message = f'There was an error recording to Freeplay. Call will not be logged. ' \
+                      f'Status: {e.response.status_code}. '
+
+            if e.response.content:
+                try:
+                    content = e.response.content
+                    json_body = json.loads(content)
+                    if 'message' in json_body:
+                        message += json_body['message']
+                except:
+                    pass
+            else:
+                message += f'{e.__class__}'
+
+            raise FreeplayError(message) from e
+
         except Exception as e:
             status_code = -1
             if hasattr(e, 'response') and hasattr(e.response, 'status_code'):
                 status_code = e.response.status_code
-            logger.warning(
-                f'There was an error recording to Freeplay. Call will not be logged. '
-                f'Status: {status_code}. {e.__class__}'
-            )
-            raise FreeplayError from e
+
+            message = f'There was an error recording to Freeplay. Call will not be logged. ' \
+                      f'Status: {status_code}. {e.__class__}'
+
+            raise FreeplayError(message) from e

@@ -21,8 +21,9 @@ JsonDom = Dict[str, Any]
 
 class TestCaseTestRunResponse:
     def __init__(self, test_case: JsonDom):
-        self.variables: InputVariables = test_case['variables']
         self.id: str = test_case['id']
+        self.variables: InputVariables = test_case['variables']
+        self.output: Optional[str] = test_case.get('output')
 
 
 class TestRunResponse:
@@ -138,11 +139,19 @@ class CallSupport:
 
         return maybe_prompts
 
-    def create_test_run(self, project_id: str, testlist: str) -> TestRunResponse:
+    def create_test_run(
+            self,
+            project_id: str,
+            testlist: str,
+            include_test_case_outputs: bool = False
+    ) -> TestRunResponse:
         response = api_support.post_raw(
             api_key=self.freeplay_api_key,
             url=f'{self.api_base}/projects/{project_id}/test-runs-cases',
-            payload={'testlist_name': testlist},
+            payload={
+                'testlist_name': testlist,
+                'include_test_case_outputs': include_test_case_outputs,
+            },
         )
 
         if response.status_code != 201:

@@ -235,7 +235,23 @@ class TestFreeplay(TestCase):
 
         test_run = self.freeplay_thin.test_runs.create(self.project_id, testlist='good stuff')
 
-        self.assertEqual(2, len(test_run.get_test_cases()))
+        test_cases = test_run.get_test_cases()
+        self.assertEqual(2, len(test_cases))
+        self.assertTrue(all(test_case.output is None for test_case in test_cases))
+
+    @responses.activate
+    def test_create_test_run_with_outputs(self) -> None:
+        self.__mock_freeplay_apis(self.prompt_template_name)
+
+        test_run = self.freeplay_thin.test_runs.create(
+            self.project_id,
+            testlist='good stuff',
+            include_outputs=True,
+        )
+
+        test_cases = test_run.get_test_cases()
+        self.assertEqual(2, len(test_cases))
+        self.assertTrue(all(test_case.output is not None for test_case in test_cases))
 
     @responses.activate
     def test_auth_error(self) -> None:
@@ -419,11 +435,21 @@ class TestFreeplay(TestCase):
         )
 
     def __mock_test_run_api(self) -> None:
-        responses.post(
-            url=f'{self.api_base}/projects/{self.project_id}/test-runs-cases',
-            status=201,
-            body=self.__create_test_run_response(self.test_run_id),
-            content_type='application/json'
+        def request_callback(request):
+            payload = json.loads(request.body)
+            return (
+                201,
+                {},
+                self.__create_test_run_response(
+                    self.test_run_id,
+                    payload['include_test_case_outputs']
+                )
+            )
+
+        responses.add_callback(
+            responses.POST, f'{self.api_base}/projects/{self.project_id}/test-runs-cases',
+            callback=request_callback,
+            content_type='application/json',
         )
 
     def __get_templates_response(self) -> str:
@@ -489,17 +515,19 @@ class TestFreeplay(TestCase):
         })
 
     @staticmethod
-    def __create_test_run_response(test_run_id: str) -> str:
+    def __create_test_run_response(test_run_id: str, include_outputs: bool = False) -> str:
         return json.dumps({
             'test_run_id': test_run_id,
             'test_cases': [
                 {
                     'id': str(uuid4()),
-                    'variables': {'question': "Why isn't my internet working?"}
+                    'variables': {'question': "Why isn't my internet working?"},
+                    'output': 'It requested PTO this week.' if include_outputs else None,
                 },
                 {
                     'id': str(uuid4()),
-                    'variables': {'question': "What does blue look like?"}
+                    'variables': {'question': "What does blue look like?"},
+                    'output': 'It\'s a magical synergy between ocean and sky.' if include_outputs else None,
                 }
             ]
         })

@@ -6,6 +6,8 @@ from unittest import TestCase
 from uuid import uuid4
 
 import responses
+from requests import PreparedRequest
+from responses import matchers
 
 from freeplay.completions import OpenAIFunctionCall
 from freeplay.errors import (FreeplayClientError,
@@ -71,7 +73,7 @@ class TestFreeplay(TestCase):
         input_variables = {"name": "Sparkles", "question": "Why isn't my door working"}
         llm_response = 'This is the response from the LLM'
 
-        self.__mock_freeplay_apis(self.prompt_template_name)
+        self.__mock_freeplay_apis(self.prompt_template_name, self.tag)
 
         all_messages: List[Dict[str, str]]
         all_messages, call_info, formatted_prompt, response_info, session = self.__make_call(
@@ -117,7 +119,7 @@ class TestFreeplay(TestCase):
 
     @responses.activate
     def test_record_function_call(self) -> None:
-        self.__mock_freeplay_apis(self.prompt_template_name)
+        self.__mock_freeplay_apis(self.prompt_template_name, self.tag)
 
         input_variables = {"name": "Sparkles", "question": "Why isn't my door working"}
 
@@ -200,7 +202,7 @@ class TestFreeplay(TestCase):
 
     @responses.activate
     def test_get_template_prompt_then_populate(self) -> None:
-        self.__mock_freeplay_apis(self.prompt_template_name)
+        self.__mock_freeplay_apis(self.prompt_template_name, self.tag)
 
         input_variables = {"name": "Sparkles", "question": "Why isn't my door working"}
 
@@ -403,10 +405,13 @@ class TestFreeplay(TestCase):
         ):
             self.bundle_client.prompts.get(self.bundle_project_id, "test-prompt-no-model", "prod")
 
-    def __mock_freeplay_apis(self, template_name: str) -> None:
+    def __mock_freeplay_apis(self, template_name: str, environment: str = 'latest') -> None:
         responses.get(
-            url=f'{self.api_base}/v2/projects/{self.project_id}/prompt-templates/name/{template_name}',
+            url=f'{self.api_base}/v2/projects/{self.project_id}/prompt-templates/name/'
+                f'{template_name}?environment={environment}',
             status=200,
+            # Only match if query string on query string to ensure environment is passed.
+            match=[matchers.query_param_matcher({'environment': environment})],
             body=self.__get_prompt_response(template_name)
         )
         responses.get(
@@ -435,14 +440,14 @@ class TestFreeplay(TestCase):
         )
 
     def __mock_test_run_api(self) -> None:
-        def request_callback(request):
-            payload = json.loads(request.body)
+        def request_callback(request: PreparedRequest) -> Tuple[int, Dict[str, str], str]:
+            payload = json.loads(request.body) if request.body else None
             return (
                 201,
                 {},
                 self.__create_test_run_response(
                     self.test_run_id,
-                    payload['include_test_case_outputs']
+                    payload['include_test_case_outputs'] if payload else None
                 )
             )
 

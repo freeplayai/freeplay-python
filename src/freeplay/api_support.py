@@ -76,8 +76,13 @@ def get(target_type: t.Type[T], api_key: str, url: str) -> T:
     return maybe_object
 
 
-def get_raw(api_key: str, url: str) -> Response:
+def get_raw(
+        api_key: str,
+        url: str,
+        params: t.Optional[Dict[str, str]] = None
+) -> Response:
     return requests.get(
         url=url,
         headers=build_request_header(api_key),
+        params=params
     )

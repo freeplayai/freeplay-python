@@ -105,7 +105,10 @@ class CallSupport:
     def get_prompt(self, project_id: str, template_name: str, environment: str) -> PromptTemplate:
         response = api_support.get_raw(
             api_key=self.freeplay_api_key,
-            url=f'{self.api_base}/v2/projects/{project_id}/prompt-templates/name/{template_name}'
+            url=f'{self.api_base}/v2/projects/{project_id}/prompt-templates/name/{template_name}',
+            params={
+                'environment': environment
+            }
         )
 
         if response.status_code != 200:

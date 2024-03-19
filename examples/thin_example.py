@@ -16,7 +16,7 @@ client = Anthropic(
 input_variables = {'question': "Why isn't my door working?"}
 formatted_prompt = fpclient.prompts.get_formatted(
     project_id=os.environ['FREEPLAY_PROJECT_ID'],
-    template_name='my-prompt-anthropic',
+    template_name='my-anthropic-prompt',
     environment='latest',
     variables=input_variables
 )

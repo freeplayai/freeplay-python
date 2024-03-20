@@ -5,7 +5,7 @@ from typing import cast, List
 import openai
 from openai.types.chat import ChatCompletionMessageParam
 
-from examples.customer_utils import get_freeplay_thin_client, record_results
+from customer_utils import get_freeplay_thin_client, record_results
 
 API_VERSION_STRING = '2024-02-15-preview'
 

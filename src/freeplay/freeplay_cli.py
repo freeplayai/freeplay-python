@@ -6,9 +6,9 @@ from stat import S_IREAD, S_IRGRP, S_IROTH, S_IWUSR
 
 import click
 
-from .errors import FreeplayClientError, FreeplayServerError
-from .thin import Freeplay
-from .thin.support import PromptTemplates, PromptTemplate, PromptTemplateEncoder
+from freeplay.errors import FreeplayClientError, FreeplayServerError
+from freeplay import Freeplay
+from freeplay.support import PromptTemplates, PromptTemplate, PromptTemplateEncoder
 
 
 @click.group()

@@ -3,10 +3,10 @@
 import os
 from typing import Optional, Dict
 
-from freeplay.thin import Freeplay, CallInfo, ResponseInfo, RecordPayload
-from freeplay.thin.resources.prompts import FormattedPrompt
-from freeplay.thin.resources.recordings import RecordResponse, TestRunInfo
-from freeplay.thin.resources.sessions import Session
+from freeplay import Freeplay, CallInfo, ResponseInfo, RecordPayload
+from freeplay.resources.prompts import FormattedPrompt
+from freeplay.resources.recordings import RecordResponse, TestRunInfo
+from freeplay.resources.sessions import Session
 
 
 def get_freeplay_thin_client() -> Freeplay:

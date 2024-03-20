@@ -3,8 +3,8 @@ import time
 
 from openai import OpenAI
 
-from freeplay.completions import OpenAIFunctionCall
-from freeplay.thin import Freeplay, RecordPayload, ResponseInfo, CallInfo
+from freeplay.model import OpenAIFunctionCall
+from freeplay import Freeplay, RecordPayload, ResponseInfo, CallInfo
 
 fpclient = Freeplay(
     freeplay_api_key=os.environ['FREEPLAY_API_KEY'],

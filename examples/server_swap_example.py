@@ -6,7 +6,7 @@ from anthropic import Anthropic
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
 
-from examples.customer_utils import record_results, get_freeplay_thin_client
+from customer_utils import record_results, get_freeplay_thin_client
 
 fp_client = get_freeplay_thin_client()
 anthropic_client = Anthropic(

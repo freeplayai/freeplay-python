@@ -3,7 +3,7 @@ import time
 
 from anthropic.lib.bedrock import AnthropicBedrock
 
-from examples.customer_utils import get_freeplay_thin_client, record_results
+from customer_utils import get_freeplay_thin_client, record_results
 
 # Setup guide (including AWS credentials): https://docs.anthropic.com/claude/reference/claude-on-amazon-bedrock
 

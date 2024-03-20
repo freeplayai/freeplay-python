@@ -6,13 +6,12 @@ from typing import Dict, Optional, List
 from requests import HTTPError
 
 from freeplay import api_support
-from freeplay.completions import OpenAIFunctionCall
 from freeplay.errors import FreeplayClientError, FreeplayError
 from freeplay.llm_parameters import LLMParameters
-from freeplay.model import InputVariables
-from freeplay.thin.resources.prompts import PromptInfo
-from freeplay.thin.resources.sessions import SessionInfo
-from freeplay.thin.support import ThinCallSupport
+from freeplay.model import InputVariables, OpenAIFunctionCall
+from freeplay.resources.prompts import PromptInfo
+from freeplay.resources.sessions import SessionInfo
+from freeplay.support import CallSupport
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +67,7 @@ class RecordResponse:
 
 
 class Recordings:
-    def __init__(self, call_support: ThinCallSupport):
+    def __init__(self, call_support: CallSupport):
         self.call_support = call_support
 
     def create(self, record_payload: RecordPayload) -> RecordResponse:

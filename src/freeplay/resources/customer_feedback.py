@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Dict, Union
 
-from freeplay.thin.support import ThinCallSupport
+from freeplay.support import CallSupport
 
 
 @dataclass
@@ -10,7 +10,7 @@ class CustomerFeedbackResponse:
 
 
 class CustomerFeedback:
-    def __init__(self, call_support: ThinCallSupport) -> None:
+    def __init__(self, call_support: CallSupport) -> None:
         self.call_support = call_support
 
     def update(self, completion_id: str, feedback: Dict[str, Union[bool, str, int, float]]) -> CustomerFeedbackResponse:

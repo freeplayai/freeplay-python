@@ -4,9 +4,9 @@ from pathlib import Path
 
 from anthropic import Anthropic
 
-from examples.customer_utils import record_results
-from freeplay.thin import Freeplay
-from freeplay.thin.resources.prompts import FilesystemTemplateResolver
+from customer_utils import record_results
+from freeplay import Freeplay
+from freeplay.resources.prompts import FilesystemTemplateResolver
 
 fp_client = Freeplay(
     freeplay_api_key=os.environ['FREEPLAY_API_KEY'],

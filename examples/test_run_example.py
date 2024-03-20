@@ -4,7 +4,7 @@ from typing import cast
 
 from anthropic import Anthropic
 
-from examples.customer_utils import get_freeplay_thin_client, record_results
+from customer_utils import get_freeplay_thin_client, record_results
 
 fp_client = get_freeplay_thin_client()
 anthropic_client = Anthropic(
@@ -27,7 +27,8 @@ for test_case in test_run.test_cases:
     completion = anthropic_client.completions.create(
         model=formatted_prompt.prompt_info.model,
         prompt=cast(str, formatted_prompt.llm_prompt),
-        **formatted_prompt.prompt_info.model_parameters
+        # **formatted_prompt.prompt_info.model_parameters
+        max_tokens_to_sample=100,
     )
     end = time.time()
     print("Completion: %s" % completion.completion)

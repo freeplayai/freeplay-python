@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Union, Any, Dict, Mapping
+from typing import List, Union, Any, Dict, Mapping, TypedDict
 
 from pydantic import RootModel
 
@@ -18,3 +18,8 @@ TestRunInput = Mapping[str, InputValue]
 class TestRun:
     id: str
     inputs: List[TestRunInput]
+
+
+class OpenAIFunctionCall(TypedDict):
+    name: str
+    arguments: str

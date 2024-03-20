@@ -3,7 +3,7 @@ import unittest
 
 from freeplay.errors import FreeplayError
 from freeplay.model import InputVariables
-from freeplay.utils import bind_template_variables
+from freeplay.utils import bind_template_variables, all_valid
 
 
 class MyTestCase(unittest.TestCase):
@@ -54,3 +54,19 @@ class MyTestCase(unittest.TestCase):
 
     def test_python_version(self) -> None:
         self.assertEqual((3, 8), (sys.version_info[0], sys.version_info[1]), "Tests not running in Python 3.8")
+
+    def test_all_valid(self) -> None:
+        self.assertFalse(
+            all_valid({'foo': None}))
+        self.assertFalse(
+            all_valid({1: 2}))
+        self.assertFalse(
+            all_valid({'foo': [1, None]}))
+        self.assertTrue(
+            all_valid({'foo': 1}))
+        self.assertTrue(
+            all_valid({'foo': 'bar'}))
+        self.assertTrue(
+            all_valid({'foo': [1, 2, 3]}))
+        self.assertTrue(
+            all_valid({'foo': {'a': False}}))

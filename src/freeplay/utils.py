@@ -1,19 +1,27 @@
-from typing import Dict, Union, Optional
+from typing import Dict, Union, Optional, Any
 import importlib.metadata
 import platform
 
 import pystache  # type: ignore
-from pydantic import ValidationError
 
 from .errors import FreeplayError, FreeplayConfigurationError
-from .model import PydanticInputVariables, InputVariables
+from .model import InputVariables
+
+
+# Validate that the variables are of the correct type, and do not include functions, dates, classes or None values.
+def all_valid(obj: Any) -> bool:
+    if isinstance(obj, (int, str, bool)):
+        return True
+    elif isinstance(obj, list):
+        return all(all_valid(item) for item in obj)
+    elif isinstance(obj, dict):
+        return all(isinstance(key, str) and all_valid(value) for key, value in obj.items())
+    else:
+        return False
 
 
 def bind_template_variables(template: str, variables: InputVariables) -> str:
-    # Validate that the variables are of the correct type, and do not include functions or None values.
-    try:
-        PydanticInputVariables.model_validate(variables)
-    except ValidationError as err:
+    if not all_valid(variables):
         raise FreeplayError(
             'Variables must be a string, number, bool, or a possibly nested'
             ' list or dict of strings, numbers and booleans.'

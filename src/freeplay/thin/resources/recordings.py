@@ -6,13 +6,13 @@ from typing import Dict, Optional, List
 from requests import HTTPError
 
 from freeplay import api_support
-from freeplay.completions import PromptTemplateWithMetadata, OpenAIFunctionCall
+from freeplay.completions import OpenAIFunctionCall
 from freeplay.errors import FreeplayClientError, FreeplayError
 from freeplay.llm_parameters import LLMParameters
 from freeplay.model import InputVariables
-from freeplay.support import CallSupport
 from freeplay.thin.resources.prompts import PromptInfo
 from freeplay.thin.resources.sessions import SessionInfo
+from freeplay.thin.support import ThinCallSupport
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ class RecordResponse:
 
 
 class Recordings:
-    def __init__(self, call_support: CallSupport):
+    def __init__(self, call_support: ThinCallSupport):
         self.call_support = call_support
 
     def create(self, record_payload: RecordPayload) -> RecordResponse:
@@ -79,19 +79,10 @@ class Recordings:
         completion = record_payload.all_messages[-1]
         history_as_string = json.dumps(record_payload.all_messages[0:-1])
 
-        template = PromptTemplateWithMetadata(
-            prompt_template_id=record_payload.prompt_info.prompt_template_id,
-            prompt_template_version_id=record_payload.prompt_info.prompt_template_version_id,
-            name=record_payload.prompt_info.template_name,
-            content=history_as_string,
-            flavor_name=record_payload.prompt_info.flavor_name,
-            params=record_payload.prompt_info.model_parameters
-        )
-
         record_api_payload = {
             "session_id": record_payload.session_info.session_id,
-            "project_version_id": template.prompt_template_version_id,
-            "prompt_template_id": template.prompt_template_id,
+            "prompt_template_id": record_payload.prompt_info.prompt_template_id,
+            "project_version_id": record_payload.prompt_info.prompt_template_version_id,
             "start_time": record_payload.call_info.start_time,
             "end_time": record_payload.call_info.end_time,
             "tag": record_payload.prompt_info.environment,

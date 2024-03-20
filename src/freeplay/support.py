@@ -1,11 +1,10 @@
 import json
 import time
 from copy import copy
-from dataclasses import dataclass
 from typing import Dict, Any, Optional, Union, List, Generator
 from uuid import uuid4
 
-from freeplay import api_support
+from freeplay import api_support, completions
 from freeplay.api_support import try_decode
 from freeplay.completions import PromptTemplates, PromptTemplateWithMetadata, ChatMessage, ChatCompletionResponse, \
     CompletionChunk, CompletionResponse
@@ -39,25 +38,6 @@ class TestRunResponse:
         self.test_run_id = test_run_id
 
 
-@dataclass
-class PromptTemplateMetadata:
-    provider: Optional[str]
-    flavor: Optional[str]
-    model: Optional[str]
-    params: Optional[Dict[str, Any]] = None
-    provider_info: Optional[Dict[str, Any]] = None
-
-
-@dataclass
-class PromptTemplate:
-    prompt_template_id: str
-    prompt_template_version_id: str
-    prompt_template_name: str
-    content: List[Dict[str, str]]
-    metadata: PromptTemplateMetadata
-    format_version: int
-
-
 class CallSupport:
     def __init__(
             self,
@@ -72,7 +52,7 @@ class CallSupport:
         self.record_processor = record_processor
 
     @staticmethod
-    def find_template_by_name(prompts: PromptTemplates, template_name: str) -> PromptTemplateWithMetadata:
+    def find_template_by_name(prompts: completions.PromptTemplates, template_name: str) -> PromptTemplateWithMetadata:
         templates = [t for t in prompts.templates if t.name == template_name]
         if len(templates) == 0:
             raise FreeplayConfigurationError(f'Could not find template with name "{template_name}"')
@@ -101,31 +81,6 @@ class CallSupport:
         )
         if response.status_code != 201:
             raise freeplay_response_error("Error updating customer feedback", response)
-
-    def get_prompt(self, project_id: str, template_name: str, environment: str) -> PromptTemplate:
-        response = api_support.get_raw(
-            api_key=self.freeplay_api_key,
-            url=f'{self.api_base}/v2/projects/{project_id}/prompt-templates/name/{template_name}',
-            params={
-                'environment': environment
-            }
-        )
-
-        if response.status_code != 200:
-            raise freeplay_response_error(
-                f"Error getting prompt template {template_name} in project {project_id} "
-                f"and environment {environment}",
-                response
-            )
-
-        maybe_prompt = try_decode(PromptTemplate, response.content)
-        if maybe_prompt is None:
-            raise FreeplayServerError(
-                f"Error handling prompt {template_name} in project {project_id} "
-                f"and environment {environment}"
-            )
-
-        return maybe_prompt
 
     def get_prompts(self, project_id: str, tag: str) -> PromptTemplates:
         response = api_support.get_raw(

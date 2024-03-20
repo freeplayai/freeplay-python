@@ -1,4 +1,3 @@
-import dataclasses
 import json
 import os
 import os.path
@@ -11,7 +10,6 @@ from uuid import uuid4
 import responses
 from click.testing import CliRunner
 
-from freeplay.completions import PromptTemplateWithMetadata, PromptTemplates
 from freeplay.freeplay_cli import cli
 
 
@@ -56,10 +54,10 @@ class TestFreeplayCLI(TestCase):
                 json_dom = json.load(file)
                 self.assertEqual(self.prompt_template_id_1, json_dom['prompt_template_id'])
                 self.assertEqual(self.prompt_template_version_id_1, json_dom['prompt_template_version_id'])
-                self.assertEqual('my-prompt', json_dom['name'])
+                self.assertEqual('my-prompt', json_dom['prompt_template_name'])
                 self.assertEqual(0, len(json_dom['metadata']['params']))
                 self.assertEqual(
-                    '[{"role": "system", "content": "Answer this question: {{question}}"}]',
+                    [{"role": "system", "content": "Answer this question: {{question}}"}],
                     json_dom['content']
                 )
 
@@ -70,15 +68,18 @@ class TestFreeplayCLI(TestCase):
                 json_dom = json.load(file)
                 self.assertEqual(self.prompt_template_id_2, json_dom['prompt_template_id'])
                 self.assertEqual(self.prompt_template_version_id_2, json_dom['prompt_template_version_id'])
-                self.assertEqual('my-second-prompt', json_dom['name'])
+                self.assertEqual('my-second-prompt', json_dom['prompt_template_name'])
                 self.assertEqual('claude-2', json_dom['metadata']['params']['model'])
                 self.assertEqual(0.1, json_dom['metadata']['params']['temperature'])
                 self.assertEqual(25, json_dom['metadata']['params']['max_tokens_to_sample'])
                 self.assertEqual(
-                    "[{\"role\": \"system\", \"content\": \"You're a tech support agent\"}, "
-                    "{\"role\": \"assistant\", \"content\": \"How may I help you?\"}, "
-                    "{\"role\": \"user\", \"content\": \"Answer this question: {{question}}\"}]",
-                    json_dom['content'])
+                    [
+                        {"role": "system", "content": "You're a tech support agent"},
+                        {"role": "assistant", "content": "How may I help you?"},
+                        {"role": "user", "content": "Answer this question: {{question}}"}
+                    ],
+                    json_dom['content']
+                )
 
     @responses.activate
     def test_download_invalid_project(self) -> None:
@@ -101,14 +102,14 @@ class TestFreeplayCLI(TestCase):
 
     def __mock_freeplay_api_success(self) -> None:
         responses.get(
-            url=f'{self.api_url}/projects/{self.project_id}/templates/all/{self.environment}',
+            url=f'{self.api_url}/v2/projects/{self.project_id}/prompt-templates/all/{self.environment}',
             status=200,
             body=self.__get_templates_response()
         )
 
     def __mock_freeplay_api_invalid_project(self) -> None:
         responses.get(
-            url=f'{self.api_url}/projects/not-a-project/templates/all/{self.environment}',
+            url=f'{self.api_url}/v2/projects/not-a-project/prompt-templates/all/{self.environment}',
             status=404,
             body='{"message": "Project not found"}'
         )
@@ -117,43 +118,56 @@ class TestFreeplayCLI(TestCase):
         return json.dumps(self.__templates_as_dict())
 
     def __templates_as_dict(self) -> Dict[str, Any]:
-        return dataclasses.asdict(
-            PromptTemplates([
-                PromptTemplateWithMetadata(
-                    prompt_template_id=self.prompt_template_id_1,
-                    prompt_template_version_id=self.prompt_template_version_id_1,
-                    name='my-prompt',
-                    content=json.dumps([{
+        return {
+            "prompt_templates": [{
+                "content": [{
+                    "role": "system",
+                    "content": "Answer this question: {{question}}"
+                }],
+                "format_version": 2,
+                "metadata": {
+                    "flavor": "anthropic_chat",
+                    "model": "claude-2.1",
+                    "params": {},
+                    "provider": "anthropic",
+                    "provider_info": {
+                        "anthropic_endpoint": "https://example.com/anthropic"
+                    }
+                },
+                "prompt_template_id": self.prompt_template_id_1,
+                "prompt_template_name": 'my-prompt',
+                "prompt_template_version_id": self.prompt_template_version_id_1
+            }, {
+                "content": [
+                    {
                         "role": "system",
-                        "content": "Answer this question: {{question}}"
-                    }]),
-                    params={},
-                    flavor_name=None
-                ),
-                PromptTemplateWithMetadata(
-                    prompt_template_id=self.prompt_template_id_2,
-                    prompt_template_version_id=self.prompt_template_version_id_2,
-                    name='my-second-prompt',
-                    content=json.dumps([
-                        {
-                            "role": "system",
-                            "content": self.system_message
-                        },
-                        {
-                            "role": "assistant",
-                            "content": self.assistant_message
-                        },
-                        {
-                            "role": "user",
-                            "content": self.user_message
-                        }
-                    ]),
-                    params={
+                        "content": self.system_message
+                    },
+                    {
+                        "role": "assistant",
+                        "content": self.assistant_message
+                    },
+                    {
+                        "role": "user",
+                        "content": self.user_message
+                    }
+                ],
+                "format_version": 2,
+                "metadata": {
+                    "flavor": "anthropic_chat",
+                    "model": "claude-2.1",
+                    "params": {
                         'model': 'claude-2',
                         'max_tokens_to_sample': 25,
-                        'temperature': 0.1
+                        'temperature': 0.1,
                     },
-                    flavor_name='anthropic_chat'
-                )
-            ])
-        )
+                    "provider": "anthropic",
+                    "provider_info": {
+                        "anthropic_endpoint": "https://example.com/anthropic"
+                    }
+                },
+                "prompt_template_id": self.prompt_template_id_2,
+                "prompt_template_name": 'my-second-prompt',
+                "prompt_template_version_id": self.prompt_template_version_id_2
+            }]
+        }

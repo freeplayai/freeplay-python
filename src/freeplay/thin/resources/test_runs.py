@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from freeplay.model import InputVariables
-from freeplay.support import CallSupport
 from freeplay.thin.resources.recordings import TestRunInfo
+from freeplay.thin.support import ThinCallSupport
 
 
 @dataclass
@@ -37,7 +37,7 @@ class TestRun:
 
 
 class TestRuns:
-    def __init__(self, call_support: CallSupport) -> None:
+    def __init__(self, call_support: ThinCallSupport) -> None:
         self.call_support = call_support
 
     def create(self, project_id: str, testlist: str, include_outputs: bool = False) -> TestRun:

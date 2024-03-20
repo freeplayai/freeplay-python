@@ -1,4 +1,3 @@
-import dataclasses
 import json
 import os
 import sys
@@ -7,9 +6,9 @@ from stat import S_IREAD, S_IRGRP, S_IROTH, S_IWUSR
 
 import click
 
-from .completions import PromptTemplates, PromptTemplateWithMetadata
 from .errors import FreeplayClientError, FreeplayServerError
 from .thin import Freeplay
+from .thin.support import PromptTemplates, PromptTemplate, PromptTemplateEncoder
 
 
 @click.group()
@@ -37,8 +36,9 @@ def download(project_id: str, environment: str, output_dir: str) -> None:
         freeplay_api_url = f'{os.environ["FREEPLAY_API_URL"]}/api'
         click.echo("Using URL override for Freeplay specified in the FREEPLAY_API_URL environment variable")
 
-    click.echo("Downloading prompts for project %s, environment %s, to directory %s from %s" %
-               (project_id, environment, output_dir, freeplay_api_url))
+    click.echo(
+        f"Downloading prompts for project {project_id}, environment {environment}, "
+        f"to directory {output_dir} from {freeplay_api_url}")
 
     fp_client = Freeplay(
         freeplay_api_key=FREEPLAY_API_KEY,
@@ -47,19 +47,19 @@ def download(project_id: str, environment: str, output_dir: str) -> None:
 
     try:
         prompts: PromptTemplates = fp_client.prompts.get_all(project_id, environment=environment)
-        click.echo("Found %s prompt templates" % len(prompts.templates))
+        click.echo(f"Found {len(prompts.prompt_templates)} prompt templates")
 
-        for prompt in prompts.templates:
+        for prompt in prompts.prompt_templates:
             __write_single_file(environment, output_dir, project_id, prompt)
     except FreeplayClientError as e:
-        print("Error downloading templates: %s.\nIs your project ID correct?" % e, file=sys.stderr)
+        print(f"Error downloading templates: {e}.\nIs your project ID correct?", file=sys.stderr)
         exit(1)
     except FreeplayServerError as e:
-        print("Error on Freeplay's servers downloading templates: %s.\nTry again after a short wait." % e,
+        print(f"Error on Freeplay's servers downloading templates: {e}.\nTry again after a short wait.",
               file=sys.stderr)
         exit(2)
     except Exception as e:
-        print("Error downloading templates: %s" % e, file=sys.stderr)
+        print(f"Error downloading templates: {e}", file=sys.stderr)
         exit(3)
 
 
@@ -67,33 +67,19 @@ def __write_single_file(
         environment: str,
         output_dir: str,
         project_id: str,
-        prompt: PromptTemplateWithMetadata
+        prompt: PromptTemplate
 ) -> None:
     directory = __root_dir(environment, output_dir, project_id)
-    basename = f'{prompt.name}'
+    basename = f'{prompt.prompt_template_name}'
     prompt_path = directory / f'{basename}.json'
     click.echo("Writing prompt file: %s" % prompt_path)
-
-    full_dict = dataclasses.asdict(prompt)
-    del full_dict['prompt_template_id']
-    del full_dict['prompt_template_version_id']
-    del full_dict['name']
-    del full_dict['content']
-
-    output_dict = {
-        'prompt_template_id': prompt.prompt_template_id,
-        'prompt_template_version_id': prompt.prompt_template_version_id,
-        'name': prompt.name,
-        'content': prompt.content,
-        'metadata': full_dict
-    }
 
     # Make sure it's owner writable if it already exists
     if prompt_path.is_file():
         os.chmod(prompt_path, S_IWUSR | S_IREAD)
 
     with prompt_path.open(mode='w') as f:
-        f.write(json.dumps(output_dict, sort_keys=True, indent=4))
+        f.write(json.dumps(prompt, sort_keys=True, indent=4, cls=PromptTemplateEncoder))
         f.write('\n')
 
     # Make the file read-only to discourage local changes

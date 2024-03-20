@@ -1,0 +1,29 @@
+{
+  "format_version": 2,
+  "content": [
+    {
+      "role": "system",
+      "content": "You are a support agent"
+    },
+    {
+      "role": "assistant",
+      "content": "How can I help you?"
+    },
+    {
+      "role": "user",
+      "content": "{{question}}"
+    }
+  ],
+  "metadata": {
+    "model": "gpt-3.5-turbo-1106",
+    "flavor": "openai_chat",
+    "params": {
+    },
+    "provider_info": {
+      "anthropic_endpoint": "https://example2.com/anthropic"
+    }
+  },
+  "prompt_template_name": "test-prompt-no-params",
+  "prompt_template_id": "a8b91d92-e063-4c3e-bb44-0d570793856b",
+  "prompt_template_version_id": "6fe8af2e-defe-41b8-bdf2-7b2ec23592f5"
+}

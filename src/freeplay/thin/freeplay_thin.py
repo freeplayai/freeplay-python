@@ -1,13 +1,12 @@
 from typing import Optional
 
 from freeplay.errors import FreeplayConfigurationError
-from freeplay.record import DefaultRecordProcessor
-from freeplay.support import CallSupport
 from freeplay.thin.resources.customer_feedback import CustomerFeedback
 from freeplay.thin.resources.prompts import Prompts, APITemplateResolver, TemplateResolver
 from freeplay.thin.resources.recordings import Recordings
 from freeplay.thin.resources.sessions import Sessions
 from freeplay.thin.resources.test_runs import TestRuns
+from freeplay.thin.support import ThinCallSupport
 
 
 class Freeplay:
@@ -20,10 +19,9 @@ class Freeplay:
         if not freeplay_api_key or not freeplay_api_key.strip():
             raise FreeplayConfigurationError("Freeplay API key not set. It must be set to the Freeplay API.")
 
-        self.call_support = CallSupport(
+        self.call_support = ThinCallSupport(
             freeplay_api_key,
-            api_base,
-            DefaultRecordProcessor(freeplay_api_key, api_base)
+            api_base
         )
         self.freeplay_api_key = freeplay_api_key
         self.api_base = api_base

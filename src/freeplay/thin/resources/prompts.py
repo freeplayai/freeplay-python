@@ -4,12 +4,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional, List, Union, cast, Any
 
-from freeplay.completions import PromptTemplates, ChatMessage, PromptTemplateWithMetadata
 from freeplay.errors import FreeplayConfigurationError, FreeplayClientError
 from freeplay.flavors import Flavor
 from freeplay.llm_parameters import LLMParameters
 from freeplay.model import InputVariables
-from freeplay.support import CallSupport, PromptTemplate, PromptTemplateMetadata
+from freeplay.thin.support import PromptTemplate, PromptTemplates, PromptTemplateMetadata
+from freeplay.thin.support import ThinCallSupport
 from freeplay.utils import bind_template_variables
 
 
@@ -60,7 +60,7 @@ class BoundPrompt:
     ) -> FormattedPrompt:
         final_flavor = flavor_name or self.prompt_info.flavor_name
         flavor = Flavor.get_by_name(final_flavor)
-        llm_format = flavor.to_llm_syntax(cast(List[ChatMessage], self.messages))
+        llm_format = flavor.to_llm_syntax(self.messages)  # type: ignore
 
         return FormattedPrompt(
             self.prompt_info,
@@ -120,15 +120,7 @@ class FilesystemTemplateResolver(TemplateResolver):
         prompt_list = []
         for prompt_file_path in prompt_file_paths:
             json_dom = json.loads(prompt_file_path.read_text())
-
-            prompt_list.append(PromptTemplateWithMetadata(
-                prompt_template_id=json_dom.get('prompt_template_id'),
-                prompt_template_version_id=json_dom.get('prompt_template_version_id'),
-                name=json_dom.get('name'),
-                content=json_dom.get('content'),
-                flavor_name=json_dom.get('metadata').get('flavor_name'),
-                params=json_dom.get('metadata').get('params')
-            ))
+            prompt_list.append(self.__render_into_v2(json_dom))
 
         return PromptTemplates(prompt_list)
 
@@ -144,38 +136,61 @@ class FilesystemTemplateResolver(TemplateResolver):
             )
 
         json_dom = json.loads(expected_file.read_text())
+        return self.__render_into_v2(json_dom)
 
+    @staticmethod
+    def __render_into_v2(json_dom: Dict[str, Any]) -> PromptTemplate:
         format_version = json_dom.get('format_version')
 
         if format_version == 2:
-            raise NotImplementedError("Cannot yet handle new format bundled prompts")
+            flavor_name = json_dom['metadata'].get('flavor')
+            flavor = Flavor.get_by_name(flavor_name)
+            metadata = json_dom['metadata']
 
-        flavor_name = json_dom.get('metadata').get('flavor_name')
-        flavor = Flavor.get_by_name(flavor_name)
+            model = metadata.get('model')
 
-        params = json_dom.get('metadata').get('params')
-        model = params.pop('model') if 'model' in params else None
-
-        return PromptTemplate(
-            format_version=2,
-            prompt_template_id=json_dom.get('prompt_template_id'),
-            prompt_template_version_id=json_dom.get('prompt_template_version_id'),
-            prompt_template_name=json_dom.get('name'),
-            content=FilesystemTemplateResolver.__normalize_roles(json.loads(json_dom.get('content'))),  # type: ignore
-            metadata=PromptTemplateMetadata(
-                provider=flavor.provider,
-                flavor=flavor_name,
-                model=model,
-                params=params
+            return PromptTemplate(
+                format_version=2,
+                prompt_template_id=json_dom.get('prompt_template_id'),  # type: ignore
+                prompt_template_version_id=json_dom.get('prompt_template_version_id'),  # type: ignore
+                prompt_template_name=json_dom.get('prompt_template_name'),  # type: ignore
+                content=FilesystemTemplateResolver.__normalize_roles(json_dom['content']),
+                metadata=PromptTemplateMetadata(
+                    provider=flavor.provider,
+                    flavor=flavor_name,
+                    model=model,
+                    params=metadata.get('params'),
+                    provider_info=metadata.get('provider_info')
+                )
             )
-        )
+        else:
+            flavor_name = json_dom['metadata'].get('flavor_name')
+            flavor = Flavor.get_by_name(flavor_name)
+
+            params = json_dom['metadata'].get('params')
+            model = params.pop('model') if 'model' in params else None
+
+            return PromptTemplate(
+                format_version=2,
+                prompt_template_id=json_dom.get('prompt_template_id'),  # type: ignore
+                prompt_template_version_id=json_dom.get('prompt_template_version_id'),  # type: ignore
+                prompt_template_name=json_dom.get('name'),  # type: ignore
+                content=FilesystemTemplateResolver.__normalize_roles(json.loads(str(json_dom['content']))),
+                metadata=PromptTemplateMetadata(
+                    provider=flavor.provider,
+                    flavor=flavor_name,
+                    model=model,
+                    params=params,
+                    provider_info=None
+                )
+            )
 
     @staticmethod
-    def __normalize_roles(messages: List[ChatMessage]) -> List[ChatMessage]:
+    def __normalize_roles(messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
         normalized = []
         for message in messages:
             role = FilesystemTemplateResolver.__role_translations.get(message['role']) or message['role']
-            normalized.append(ChatMessage(role=role, content=message['content']))
+            normalized.append({'role': role, 'content': message['content']})
         return normalized
 
     @staticmethod
@@ -203,13 +218,13 @@ class FilesystemTemplateResolver(TemplateResolver):
 
 class APITemplateResolver(TemplateResolver):
 
-    def __init__(self, call_support: CallSupport):
+    def __init__(self, call_support: ThinCallSupport):
         self.call_support = call_support
 
     def get_prompts(self, project_id: str, environment: str) -> PromptTemplates:
         return self.call_support.get_prompts(
             project_id=project_id,
-            tag=environment
+            environment=environment
         )
 
     def get_prompt(self, project_id: str, template_name: str, environment: str) -> PromptTemplate:
@@ -221,12 +236,12 @@ class APITemplateResolver(TemplateResolver):
 
 
 class Prompts:
-    def __init__(self, call_support: CallSupport, template_resolver: TemplateResolver) -> None:
+    def __init__(self, call_support: ThinCallSupport, template_resolver: TemplateResolver) -> None:
         self.call_support = call_support
         self.template_resolver = template_resolver
 
     def get_all(self, project_id: str, environment: str) -> PromptTemplates:
-        return self.call_support.get_prompts(project_id=project_id, tag=environment)
+        return self.call_support.get_prompts(project_id=project_id, environment=environment)
 
     def get(self, project_id: str, template_name: str, environment: str) -> TemplatePrompt:
         prompt = self.template_resolver.get_prompt(project_id, template_name, environment)

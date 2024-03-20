@@ -29,7 +29,8 @@ class PromptInfoMatcher:
             self.expected.model_parameters == other.model_parameters and \
             self.expected.provider == other.provider and \
             self.expected.model == other.model and \
-            self.expected.flavor_name == other.flavor_name
+            self.expected.flavor_name == other.flavor_name and \
+            self.expected.provider_info == other.provider_info
 
 
 class TemplatePromptMatcher:
@@ -66,6 +67,11 @@ class TestFreeplay(TestCase):
             api_base=self.api_base,
             template_resolver=FilesystemTemplateResolver(Path(__file__).parent / "test_files" / "prompts")
         )
+        self.bundle_client_v2 = Freeplay(
+            freeplay_api_key=self.freeplay_api_key,
+            api_base=self.api_base,
+            template_resolver=FilesystemTemplateResolver(Path(__file__).parent / "test_files" / "prompts_v2_format")
+        )
         self.bundle_project_id = "475516c8-7be4-4d55-9388-535cef042981"
 
     @responses.activate
@@ -93,6 +99,9 @@ class TestFreeplay(TestCase):
         )
 
         self.assertTrue(str(formatted_prompt.llm_prompt).startswith("\n\nHuman: System message"))
+
+        self.assertEqual({"anthropic_endpoint": "https://example.com/anthropic"},
+                         formatted_prompt.prompt_info.provider_info)
 
         record_api_request = responses.calls[1].request
         recorded_body_dom = json.loads(record_api_request.body)
@@ -348,6 +357,50 @@ class TestFreeplay(TestCase):
                 model_parameters={'max_tokens': 56, 'temperature': 0.1},  # type: ignore
                 provider='openai',
                 provider_info=None,
+                model='gpt-3.5-turbo-1106',
+                flavor_name='openai_chat'
+            ),
+            messages=[{'content': 'You are a support agent', 'role': 'system'},
+                      {'content': 'How can I help you?', 'role': 'assistant'},
+                      {'content': '{{question}}', 'role': 'user'}]
+        )
+
+        self.assertEqual(TemplatePromptMatcher(expected), template_prompt)
+
+    def test_filesystem_resolver_with_params_v2(self) -> None:
+        template_prompt = self.bundle_client_v2.prompts.get(self.bundle_project_id, "test-prompt-with-params", "prod")
+
+        expected = TemplatePrompt(
+            prompt_info=PromptInfo(
+                prompt_template_id='a8b91d92-e063-4c3e-bb44-0d570793856b',
+                prompt_template_version_id='6fe8af2e-defe-41b8-bdf2-7b2ec23592f5',
+                template_name='test-prompt-with-params',
+                environment='prod',
+                model_parameters={'max_tokens': 56, 'temperature': 0.1},  # type: ignore
+                provider='openai',
+                provider_info={"anthropic_endpoint": "https://example2.com/anthropic"},
+                model='gpt-3.5-turbo-1106',
+                flavor_name='openai_chat'
+            ),
+            messages=[{'content': 'You are a support agent', 'role': 'system'},
+                      {'content': 'How can I help you?', 'role': 'assistant'},
+                      {'content': '{{question}}', 'role': 'user'}]
+        )
+
+        self.assertEqual(TemplatePromptMatcher(expected), template_prompt)
+
+    def test_filesystem_resolver_without_params_v2(self) -> None:
+        template_prompt = self.bundle_client_v2.prompts.get(self.bundle_project_id, "test-prompt-no-params", "prod")
+
+        expected = TemplatePrompt(
+            prompt_info=PromptInfo(
+                prompt_template_id='a8b91d92-e063-4c3e-bb44-0d570793856b',
+                prompt_template_version_id='6fe8af2e-defe-41b8-bdf2-7b2ec23592f5',
+                template_name='test-prompt-no-params',
+                environment='prod',
+                model_parameters={},  # type: ignore
+                provider='openai',
+                provider_info={"anthropic_endpoint": "https://example2.com/anthropic"},
                 model='gpt-3.5-turbo-1106',
                 flavor_name='openai_chat'
             ),

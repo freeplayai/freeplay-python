@@ -34,7 +34,7 @@ start = time.time()
 response = client.messages.create(
     model=bedrock_claude_model_name,
     messages=formatted_prompt.messages,
-    max_tokens=100  # Messages require max_tokens instead of max_tokens_to_sample
+    **formatted_prompt.prompt_info.model_parameters
 )
 end = time.time()
 

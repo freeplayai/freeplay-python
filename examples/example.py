@@ -3,6 +3,7 @@ import time
 
 from anthropic import Anthropic
 
+from customer_utils import format_anthropic_messages
 from freeplay import Freeplay, RecordPayload, ResponseInfo, CallInfo
 
 fpclient = Freeplay(
@@ -23,18 +24,21 @@ formatted_prompt = fpclient.prompts.get_formatted(
 
 print(f"Ready for LLM: {formatted_prompt.llm_prompt}")
 
+system_message_content, other_messages = format_anthropic_messages(formatted_prompt)
+
 start = time.time()
-completion = client.completions.create(
+completion = client.messages.create(
+    system=system_message_content,
+    messages=other_messages,
     model=formatted_prompt.prompt_info.model,
-    prompt=str(formatted_prompt.llm_prompt),
     **formatted_prompt.prompt_info.model_parameters
 )
 end = time.time()
-print("Completion: %s" % completion.completion)
+print("Completion: %s" % completion.content[0].text)
 
 session = fpclient.sessions.create()
 all_messages = formatted_prompt.all_messages(
-    new_message={'role': 'Assistant', 'content': completion.completion}
+    new_message={'role': 'Assistant', 'content': completion.content[0].text}
 )
 call_info = CallInfo.from_prompt_info(formatted_prompt.prompt_info, start, end)
 response_info = ResponseInfo(

@@ -1,7 +1,9 @@
 # This file is for re-usable utils an example customer might write to re-use their code.
 # These are not part of the Freeplay SDK.
 import os
-from typing import Optional, Dict
+from typing import Optional, Dict, Tuple, List, Union
+
+from anthropic import NotGiven
 
 from freeplay import Freeplay, CallInfo, ResponseInfo, RecordPayload
 from freeplay.resources.prompts import FormattedPrompt
@@ -51,3 +53,10 @@ def record_results(
             test_run_info=test_run_info
         )
     )
+
+
+def format_anthropic_messages(formatted_prompt: FormattedPrompt) -> Tuple[Union[str, NotGiven], List[Dict[str, str]]]:
+    system_message = next((message for message in formatted_prompt.messages if message['role'] == 'system'), None)
+    system_message_content = system_message['content'] if system_message else NotGiven()
+    other_messages = [message for message in formatted_prompt.messages if message['role'] != 'system']
+    return system_message_content, other_messages

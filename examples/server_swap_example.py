@@ -6,7 +6,7 @@ from anthropic import Anthropic
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
 
-from customer_utils import record_results, get_freeplay_thin_client
+from customer_utils import record_results, get_freeplay_thin_client, format_anthropic_messages
 
 fp_client = get_freeplay_thin_client()
 anthropic_client = Anthropic(
@@ -28,12 +28,14 @@ print(f"Ready for LLM: {formatted_prompt.llm_prompt}")
 
 start = time.time()
 if formatted_prompt.prompt_info.provider == 'anthropic':
-    completion = anthropic_client.completions.create(
+    system_message_content, other_messages = format_anthropic_messages(formatted_prompt)
+    completion = anthropic_client.messages.create(
+        system=system_message_content,
+        messages=other_messages,
         model=formatted_prompt.prompt_info.model,
-        prompt=str(formatted_prompt.llm_prompt),
         **formatted_prompt.prompt_info.model_parameters
     )
-    completion_text = completion.completion
+    completion_text = completion.content[0].text
     is_complete = completion.stop_reason == 'stop_sequence'
 elif formatted_prompt.prompt_info.provider == 'openai':
     chat_completion = openai_client.chat.completions.create(

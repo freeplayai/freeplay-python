@@ -4,7 +4,7 @@ from pathlib import Path
 
 from anthropic import Anthropic
 
-from customer_utils import record_results
+from customer_utils import record_results, format_anthropic_messages
 from freeplay import Freeplay
 from freeplay.resources.prompts import FilesystemTemplateResolver
 
@@ -28,20 +28,22 @@ formatted_prompt = fp_client.prompts.get_formatted(
 print(f"Ready for LLM: {formatted_prompt.llm_prompt}")
 
 start = time.time()
-completion = client.completions.create(
+system_message_content, other_messages = format_anthropic_messages(formatted_prompt)
+completion = client.messages.create(
+    system=system_message_content,
+    messages=other_messages,
     model=formatted_prompt.prompt_info.model,
-    prompt=str(formatted_prompt.llm_prompt),
     **formatted_prompt.prompt_info.model_parameters
 )
 end = time.time()
-print("Completion: %s" % completion.completion)
+print("Completion: %s" % completion.content[0].text)
 
 session = fp_client.sessions.create()
 
 record_results(
     fp_client,
     formatted_prompt,
-    completion.completion,
+    completion.content[0].text,
     input_variables,
     session,
     start,

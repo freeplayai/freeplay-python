@@ -1,9 +1,8 @@
 import os
 import time
 
-from anthropic import Anthropic
+from anthropic import Anthropic, NotGiven
 
-from customer_utils import format_anthropic_messages
 from freeplay import Freeplay, RecordPayload, ResponseInfo, CallInfo
 
 fpclient = Freeplay(
@@ -14,7 +13,7 @@ client = Anthropic(
     api_key=os.environ.get("ANTHROPIC_API_KEY")
 )
 
-input_variables = {'question': "Why isn't my door working?"}
+input_variables = {'question': "why is the sky blue?"}
 formatted_prompt = fpclient.prompts.get_formatted(
     project_id=os.environ['FREEPLAY_PROJECT_ID'],
     template_name='my-anthropic-prompt',
@@ -24,12 +23,10 @@ formatted_prompt = fpclient.prompts.get_formatted(
 
 print(f"Ready for LLM: {formatted_prompt.llm_prompt}")
 
-system_message_content, other_messages = format_anthropic_messages(formatted_prompt)
-
 start = time.time()
 completion = client.messages.create(
-    system=system_message_content,
-    messages=other_messages,
+    system=formatted_prompt.system_content or NotGiven(),
+    messages=formatted_prompt.llm_prompt,
     model=formatted_prompt.prompt_info.model,
     **formatted_prompt.prompt_info.model_parameters
 )
@@ -38,7 +35,7 @@ print("Completion: %s" % completion.content[0].text)
 
 session = fpclient.sessions.create()
 all_messages = formatted_prompt.all_messages(
-    new_message={'role': 'Assistant', 'content': completion.content[0].text}
+    new_message={'role': 'assistant', 'content': completion.content[0].text}
 )
 call_info = CallInfo.from_prompt_info(formatted_prompt.prompt_info, start, end)
 response_info = ResponseInfo(

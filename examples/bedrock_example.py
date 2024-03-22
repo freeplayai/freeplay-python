@@ -1,6 +1,7 @@
 import os
 import time
 
+from anthropic import NotGiven
 from anthropic.lib.bedrock import AnthropicBedrock
 
 from customer_utils import get_freeplay_thin_client, record_results
@@ -33,7 +34,8 @@ bedrock_claude_model_name = "anthropic.claude-v2:1"
 start = time.time()
 response = client.messages.create(
     model=bedrock_claude_model_name,
-    messages=formatted_prompt.messages,
+    system=formatted_prompt.system_content or NotGiven(),
+    messages=formatted_prompt.llm_prompt,
     **formatted_prompt.prompt_info.model_parameters
 )
 end = time.time()

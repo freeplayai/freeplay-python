@@ -2,13 +2,13 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional, List, Union, cast, Any
+from typing import Dict, Optional, List, cast, Any
 
 from freeplay.errors import FreeplayConfigurationError, FreeplayClientError
 from freeplay.llm_parameters import LLMParameters
 from freeplay.model import InputVariables
-from freeplay.support import PromptTemplate, PromptTemplates, PromptTemplateMetadata
 from freeplay.support import CallSupport
+from freeplay.support import PromptTemplate, PromptTemplates, PromptTemplateMetadata
 from freeplay.utils import bind_template_variables
 
 
@@ -39,11 +39,17 @@ class FormattedPrompt:
             self,
             prompt_info: PromptInfo,
             messages: List[Dict[str, str]],
-            formatted_prompt: Union[str, List[Dict[str, str]]]
+            formatted_prompt: List[Dict[str, str]]
     ):
         self.prompt_info = prompt_info
-        self.messages = messages
         self.llm_prompt = formatted_prompt
+
+        maybe_system_content = next(
+            (message['content'] for message in messages if message['role'] == 'system'), None)
+        self.system_content = maybe_system_content
+
+        # Note: messages are **not formatted** for the provider.
+        self.messages = messages
 
     def all_messages(
             self,
@@ -62,26 +68,15 @@ class BoundPrompt:
         self.messages = messages
 
     @staticmethod
-    def __to_anthropic_role(role: str) -> str:
-        if role == 'assistant' or role == 'Assistant':
-            return 'Assistant'
-        else:
-            # Anthropic does not support system role for now.
-            return 'Human'
-
-    @staticmethod
-    def __format_messages_for_flavor(flavor_name: str, messages: List[Dict[str, str]]) -> Union[
-        str, List[Dict[str, str]]]:
+    def __format_messages_for_flavor(
+            flavor_name: str,
+            messages: List[Dict[str, str]]
+    ) -> List[Dict[str, str]]:
         if flavor_name == 'azure_openai_chat' or flavor_name == 'openai_chat':
             return messages
         elif flavor_name == 'anthropic_chat':
-            formatted_messages = []
-            for message in messages:
-                role = BoundPrompt.__to_anthropic_role(message['role'])
-                formatted_messages.append(f"{role}: {message['content']}")
-            formatted_messages.append('Assistant:')
-
-            return "\n\n" + "\n\n".join(formatted_messages)
+            messages_without_system = [message for message in messages if message['role'] != 'system']
+            return messages_without_system
         raise MissingFlavorError(flavor_name)
 
     def format(
@@ -89,12 +84,12 @@ class BoundPrompt:
             flavor_name: Optional[str] = None
     ) -> FormattedPrompt:
         final_flavor = flavor_name or self.prompt_info.flavor_name
-        llm_format = BoundPrompt.__format_messages_for_flavor(final_flavor, self.messages)
+        formatted_prompt = BoundPrompt.__format_messages_for_flavor(final_flavor, self.messages)
 
         return FormattedPrompt(
             self.prompt_info,
             self.messages,
-            llm_format,
+            formatted_prompt
         )
 
 

@@ -1,7 +1,7 @@
 import os
 import time
 
-from anthropic import Anthropic
+from anthropic import Anthropic, NotGiven
 
 from customer_utils import get_freeplay_thin_client, record_results, format_anthropic_messages
 
@@ -25,8 +25,8 @@ for test_case in test_run.test_cases:
     system_message_content, other_messages = format_anthropic_messages(formatted_prompt)
     start = time.time()
     completion = anthropic_client.messages.create(
-        system=system_message_content,
-        messages=other_messages,
+        system=formatted_prompt.system_content or NotGiven(),
+        messages=formatted_prompt.llm_prompt,
         model=formatted_prompt.prompt_info.model,
         **formatted_prompt.prompt_info.model_parameters
     )

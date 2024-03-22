@@ -1,5 +1,6 @@
 import json
 import time
+import uuid
 from pathlib import Path
 from typing import Tuple, Any, Dict, List
 from unittest import TestCase
@@ -10,10 +11,12 @@ from requests import PreparedRequest
 from responses import matchers
 
 from freeplay import Freeplay
-from freeplay.model import OpenAIFunctionCall
 from freeplay.errors import (FreeplayClientError,
                              FreeplayConfigurationError)
-from freeplay.resources.prompts import FormattedPrompt, PromptInfo, TemplatePrompt, FilesystemTemplateResolver
+from freeplay.llm_parameters import LLMParameters
+from freeplay.model import OpenAIFunctionCall
+from freeplay.resources.prompts import FormattedPrompt, PromptInfo, TemplatePrompt, FilesystemTemplateResolver, \
+    BoundPrompt
 from freeplay.resources.recordings import RecordPayload, ResponseInfo, CallInfo
 from freeplay.resources.sessions import Session
 
@@ -74,6 +77,17 @@ class TestFreeplay(TestCase):
             template_resolver=FilesystemTemplateResolver(Path(__file__).parent / "test_files" / "prompts_v2_format")
         )
         self.bundle_project_id = "475516c8-7be4-4d55-9388-535cef042981"
+        self.anthropic_prompt_info = PromptInfo(
+            prompt_template_id=str(uuid.uuid4()),
+            prompt_template_version_id=str(uuid.uuid4()),
+            template_name='template-name',
+            environment='environment',
+            model_parameters=LLMParameters({}),
+            provider_info=None,
+            provider='anthropic',
+            model='model-name',
+            flavor_name='anthropic_chat'
+        )
 
     @responses.activate
     def test_single_prompt_get_and_record(self) -> None:
@@ -99,7 +113,7 @@ class TestFreeplay(TestCase):
             )
         )
 
-        self.assertTrue(str(formatted_prompt.llm_prompt).startswith("\n\nHuman: System message"))
+        self.assertEqual(2, len(formatted_prompt.llm_prompt))
 
         self.assertEqual({"anthropic_endpoint": "https://example.com/anthropic"},
                          formatted_prompt.prompt_info.provider_info)
@@ -232,14 +246,60 @@ class TestFreeplay(TestCase):
 
         formatted_prompt = bound_prompt.format()
 
-        self.assertTrue(str(formatted_prompt.llm_prompt).startswith("\n\nHuman: System message"))
+        self.assertEqual([
+            {'content': 'How may I help you, Sparkles?', 'role': 'assistant'},
+            {'content': "Why isn't my door working", 'role': 'user'}
+        ], formatted_prompt.llm_prompt)
+        self.assertEqual('System message', formatted_prompt.system_content)
 
         llm_response = 'This is the response from Anthropic'
-        all_messages = formatted_prompt.all_messages({'role': 'Assistant', 'content': ('%s' % llm_response)})
+        all_messages = formatted_prompt.all_messages({'role': 'assistant', 'content': ('%s' % llm_response)})
 
-        self.assertTrue(input_variables.get('name') in formatted_prompt.llm_prompt)  # type: ignore
-        self.assertTrue(input_variables.get('question') in formatted_prompt.llm_prompt)  # type: ignore
+        self.assertTrue(input_variables.get('name') in formatted_prompt.llm_prompt[0]['content'])  # type: ignore
+        self.assertTrue(input_variables.get('question') in formatted_prompt.llm_prompt[1]['content'])  # type: ignore
         self.assertTrue(llm_response in all_messages[3]['content'])
+
+    @responses.activate
+    def test_anthropic_system_prompt_formatting__multiple_system_messages(self) -> None:
+        bound_prompt = BoundPrompt(self.anthropic_prompt_info, messages=[{
+            'role': 'system',
+            'content': 'System message 1',
+        }, {
+            'role': 'user',
+            'content': 'User message 1',
+        }, {
+            'role': 'system',
+            'content': 'System message 2',
+        }, {
+            'role': 'user',
+            'content': 'User message 2',
+        }])
+
+        formatted_prompt = bound_prompt.format()
+
+        self.assertEqual([
+            {'content': 'User message 1', 'role': 'user'},
+            {'content': "User message 2", 'role': 'user'}
+        ], formatted_prompt.llm_prompt)
+        self.assertEqual('System message 1', formatted_prompt.system_content)
+
+    @responses.activate
+    def test_anthropic_system_prompt_formatting__no_system_message(self) -> None:
+        bound_prompt = BoundPrompt(self.anthropic_prompt_info, messages=[{
+            'role': 'user',
+            'content': 'User message 1',
+        }, {
+            'role': 'user',
+            'content': 'User message 2',
+        }])
+
+        formatted_prompt = bound_prompt.format()
+
+        self.assertEqual([
+            {'content': 'User message 1', 'role': 'user'},
+            {'content': 'User message 2', 'role': 'user'}
+        ], formatted_prompt.llm_prompt)
+        self.assertEqual(None, formatted_prompt.system_content)
 
     @responses.activate
     def test_create_test_run(self) -> None:

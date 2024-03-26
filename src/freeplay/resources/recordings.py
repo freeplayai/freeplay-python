@@ -1,7 +1,7 @@
 import json
 import logging
 from dataclasses import dataclass
-from typing import Dict, Optional, List
+from typing import Any, Dict, List, Optional
 
 from requests import HTTPError
 
@@ -23,15 +23,17 @@ class CallInfo:
     start_time: float
     end_time: float
     model_parameters: LLMParameters
+    provider_info: Optional[Dict[str, Any]] = None
 
     @staticmethod
     def from_prompt_info(prompt_info: PromptInfo, start_time: float, end_time: float) -> 'CallInfo':
         return CallInfo(
-            prompt_info.provider,
-            prompt_info.model,
-            start_time,
-            end_time,
-            prompt_info.model_parameters
+            provider=prompt_info.provider,
+            model=prompt_info.model,
+            start_time=start_time,
+            end_time=end_time,
+            model_parameters=prompt_info.model_parameters,
+            provider_info=prompt_info.provider_info,
         )
 
 
@@ -94,6 +96,7 @@ class Recordings:
             "model": record_payload.call_info.model,
             "provider": record_payload.call_info.provider,
             "llm_parameters": record_payload.call_info.model_parameters,
+            "provider_info": record_payload.call_info.provider_info,
         }
 
         if record_payload.session_info.custom_metadata is not None:

@@ -2,7 +2,7 @@ import json
 import time
 import uuid
 from pathlib import Path
-from typing import Tuple, Any, Dict, List
+from typing import Tuple, Any, Dict, List, Optional
 from unittest import TestCase
 from uuid import uuid4
 
@@ -137,6 +137,10 @@ class TestFreeplay(TestCase):
         self.assertEqual('anthropic', recorded_body_dom['provider'])
         self.assertEqual(0.7, recorded_body_dom['llm_parameters']['temperature'])
         self.assertEqual(50, recorded_body_dom['llm_parameters']['max_tokens_to_sample'])
+        self.assertEqual(
+            {"anthropic_endpoint": "https://example.com/anthropic"},
+            recorded_body_dom['provider_info']
+        )
 
         # Custom metadata recording
         self.assertEqual({'custom_metadata_field': 42}, recorded_body_dom['custom_metadata'])
@@ -670,7 +674,8 @@ class TestFreeplay(TestCase):
             model=formatted_prompt.prompt_info.model,
             start_time=start,
             end_time=end,
-            model_parameters=formatted_prompt.prompt_info.model_parameters
+            model_parameters=formatted_prompt.prompt_info.model_parameters,
+            provider_info=formatted_prompt.prompt_info.provider_info,
         )
         all_messages = formatted_prompt.all_messages({'role': 'Assistant', 'content': ('%s' % llm_response)})
         response_info = ResponseInfo(is_complete=True)

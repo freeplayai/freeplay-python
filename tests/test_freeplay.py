@@ -2,7 +2,7 @@ import json
 import time
 import uuid
 from pathlib import Path
-from typing import Tuple, Any, Dict, List, Optional
+from typing import Tuple, Any, Dict, List
 from unittest import TestCase
 from uuid import uuid4
 

@@ -1,3 +1,4 @@
+import copy
 import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -73,7 +74,8 @@ class BoundPrompt:
             messages: List[Dict[str, str]]
     ) -> List[Dict[str, str]]:
         if flavor_name == 'azure_openai_chat' or flavor_name == 'openai_chat':
-            return messages
+            # We need a deepcopy here to avoid referential equality with the llm_prompt
+            return copy.deepcopy(messages)
         elif flavor_name == 'anthropic_chat':
             messages_without_system = [message for message in messages if message['role'] != 'system']
             return messages_without_system

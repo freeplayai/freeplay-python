@@ -6,11 +6,15 @@ from anthropic.lib.bedrock import AnthropicBedrock
 
 from customer_utils import get_freeplay_thin_client, record_results
 
+# ** NOTE **
+# The keys used below MUST be for a service account, not a regular user account. Otherwise you need a session token,
+# which is temporary. You should see this account in AWS's 'IAM' section of the console, not 'IAM Identity Center'.
+
 # Setup guide (including AWS credentials): https://docs.anthropic.com/claude/reference/claude-on-amazon-bedrock
 
 # These live at ~/.aws/credentials or the "AWS_SECRET_ACCESS_KEY" and "AWS_ACCESS_KEY_ID" environment variables.
-AWS_ACCESS_KEY = os.environ['AWS_ACCESS_KEY']
-AWS_SECRET_KEY = os.environ['AWS_SECRET_KEY']
+AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
+AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
 
 fp_client = get_freeplay_thin_client()
 
@@ -25,8 +29,8 @@ formatted_prompt = fp_client.prompts.get_formatted(
 print(f"Ready for LLM: {formatted_prompt.llm_prompt}")
 
 client = AnthropicBedrock(
-    aws_access_key=AWS_ACCESS_KEY,
-    aws_secret_key=AWS_SECRET_KEY,
+    aws_access_key=AWS_ACCESS_KEY_ID,
+    aws_secret_key=AWS_SECRET_ACCESS_KEY,
     aws_region="us-east-1",
 )
 bedrock_claude_model_name = "anthropic.claude-v2:1"

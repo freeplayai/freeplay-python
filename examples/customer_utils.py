@@ -6,7 +6,7 @@ from typing import Optional, Dict, Tuple, List, Union
 from anthropic import NotGiven
 
 from freeplay import Freeplay, CallInfo, ResponseInfo, RecordPayload
-from freeplay.resources.prompts import FormattedPrompt
+from freeplay.resources.prompts import FormattedPrompt, PromptInfo
 from freeplay.resources.recordings import RecordResponse, TestRunInfo
 from freeplay.resources.sessions import Session
 
@@ -48,6 +48,43 @@ def record_results(
             session_info=session.session_info,
             inputs=variables,
             prompt_info=formatted_prompt.prompt_info,
+            call_info=call_info,
+            response_info=response_info,
+            test_run_info=test_run_info
+        )
+    )
+
+
+def record_results_from_bound(
+        client: Freeplay,
+        prompt_info: PromptInfo,
+        prompt_messages: List[Dict[str, str]],
+        completion_content: str,
+        variables: Dict[str, str],
+        session: Session,
+        start: float,
+        end: float,
+        test_run_info: Optional[TestRunInfo] = None
+) -> RecordResponse:
+    all_messages = prompt_messages + [{'role': 'Assistant', 'content': completion_content}]
+
+    call_info = CallInfo(
+        prompt_info.provider,
+        model=prompt_info.model,
+        start_time=start,
+        end_time=end,
+        model_parameters=prompt_info.model_parameters)
+
+    response_info = ResponseInfo(
+        is_complete=True
+    )
+
+    return client.recordings.create(
+        RecordPayload(
+            all_messages=all_messages,
+            session_info=session.session_info,
+            inputs=variables,
+            prompt_info=prompt_info,
             call_info=call_info,
             response_info=response_info,
             test_run_info=test_run_info

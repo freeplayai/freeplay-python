@@ -14,7 +14,9 @@ else
   pyenv install 3.8
 fi
 
-poetry env use 3.8
+pyenv local
+
+poetry env use $(pyenv which python)
 
 echo
 echo "Poetry Environment"

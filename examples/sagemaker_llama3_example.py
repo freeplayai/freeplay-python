@@ -44,7 +44,8 @@ client = boto3.client(
 )
 
 custom_attributes = ""  # An example of a trace ID.
-endpoint_name = "jumpstart-dft-meta-textgeneration-l-20240502-215204"  # Your endpoint name.
+endpoint_name = bound_prompt.prompt_info.provider_info['endpoint_name']
+inference_component_name = bound_prompt.prompt_info.provider_info['inference_component_name']
 content_type = "application/json"  # The MIME type of the input data in the request body.
 accept = "application/json"  # The desired MIME type of the inference in the response.
 payload = {
@@ -61,7 +62,7 @@ payload_str = json.dumps(payload)
 start = time.time()
 response = client.invoke_endpoint(
     EndpointName=endpoint_name,
-    InferenceComponentName='meta-textgeneration-llama-3-8b-instruct-20240502-215205',
+    InferenceComponentName=inference_component_name,
     CustomAttributes=custom_attributes,
     ContentType=content_type,
     Accept=accept,

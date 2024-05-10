@@ -3,7 +3,7 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional, List, cast, Any
+from typing import Dict, Optional, List, cast, Any, Union
 
 from freeplay.errors import FreeplayConfigurationError, FreeplayClientError
 from freeplay.llm_parameters import LLMParameters
@@ -40,10 +40,13 @@ class FormattedPrompt:
             self,
             prompt_info: PromptInfo,
             messages: List[Dict[str, str]],
-            formatted_prompt: List[Dict[str, str]]
+            formatted_prompt: Optional[List[Dict[str, str]]] = None,
+            formatted_prompt_text: Optional[str] = None
     ):
         self.prompt_info = prompt_info
         self.llm_prompt = formatted_prompt
+        if formatted_prompt_text:
+            self.llm_prompt_text = formatted_prompt_text
 
         maybe_system_content = next(
             (message['content'] for message in messages if message['role'] == 'system'), None)
@@ -72,13 +75,24 @@ class BoundPrompt:
     def __format_messages_for_flavor(
             flavor_name: str,
             messages: List[Dict[str, str]]
-    ) -> List[Dict[str, str]]:
+    ) -> Union[str, List[Dict[str, str]]]:
         if flavor_name == 'azure_openai_chat' or flavor_name == 'openai_chat':
             # We need a deepcopy here to avoid referential equality with the llm_prompt
             return copy.deepcopy(messages)
         elif flavor_name == 'anthropic_chat':
             messages_without_system = [message for message in messages if message['role'] != 'system']
             return messages_without_system
+        elif flavor_name == 'llama_3_chat':
+            if len(messages) < 1:
+                raise ValueError("Must have at least one message to format")
+
+            formatted = "<|begin_of_text|>"
+            for message in messages:
+                formatted += f"<|start_header_id|>{message['role']}<|end_header_id|>\n{message['content']}<|eot_id|>"
+            formatted += "<|start_header_id|>assistant<|end_header_id|>"
+
+            return formatted
+
         raise MissingFlavorError(flavor_name)
 
     def format(
@@ -88,11 +102,18 @@ class BoundPrompt:
         final_flavor = flavor_name or self.prompt_info.flavor_name
         formatted_prompt = BoundPrompt.__format_messages_for_flavor(final_flavor, self.messages)
 
-        return FormattedPrompt(
-            self.prompt_info,
-            self.messages,
-            formatted_prompt
-        )
+        if isinstance(formatted_prompt, str):
+            return FormattedPrompt(
+                prompt_info=self.prompt_info,
+                messages=self.messages,
+                formatted_prompt_text=formatted_prompt
+            )
+        else:
+            return FormattedPrompt(
+                prompt_info=self.prompt_info,
+                messages=self.messages,
+                formatted_prompt=formatted_prompt
+            )
 
 
 class TemplatePrompt:

@@ -2,7 +2,7 @@ import json
 import time
 import uuid
 from pathlib import Path
-from typing import Tuple, Any, Dict, List
+from typing import Tuple, Any, Dict, List, cast
 from unittest import TestCase
 from uuid import uuid4
 
@@ -88,6 +88,17 @@ class TestFreeplay(TestCase):
             model='model-name',
             flavor_name='anthropic_chat'
         )
+        self.sagemaker_llama_3_prompt_info = PromptInfo(
+            prompt_template_id=str(uuid.uuid4()),
+            prompt_template_version_id=str(uuid.uuid4()),
+            template_name='sagemaker-llama-3-template-name',
+            environment='environment',
+            model_parameters=LLMParameters({}),
+            provider_info=None,
+            provider='sagemaker',
+            model='sagemaker-llama-3-model-name',
+            flavor_name='llama_3_chat'
+        )
 
     @responses.activate
     def test_single_prompt_get_and_record(self) -> None:
@@ -113,7 +124,7 @@ class TestFreeplay(TestCase):
             )
         )
 
-        self.assertEqual(2, len(formatted_prompt.llm_prompt))
+        self.assertEqual(2, len(cast(List[Dict[str, str]], formatted_prompt.llm_prompt)))
 
         self.assertEqual({"anthropic_endpoint": "https://example.com/anthropic"},
                          formatted_prompt.prompt_info.provider_info)
@@ -263,7 +274,6 @@ class TestFreeplay(TestCase):
         self.assertTrue(input_variables.get('question') in formatted_prompt.llm_prompt[1]['content'])  # type: ignore
         self.assertTrue(llm_response in all_messages[3]['content'])
 
-    @responses.activate
     def test_anthropic_system_prompt_formatting__multiple_system_messages(self) -> None:
         bound_prompt = BoundPrompt(self.anthropic_prompt_info, messages=[{
             'role': 'system',
@@ -287,7 +297,6 @@ class TestFreeplay(TestCase):
         ], formatted_prompt.llm_prompt)
         self.assertEqual('System message 1', formatted_prompt.system_content)
 
-    @responses.activate
     def test_anthropic_system_prompt_formatting__no_system_message(self) -> None:
         bound_prompt = BoundPrompt(self.anthropic_prompt_info, messages=[{
             'role': 'user',
@@ -304,6 +313,65 @@ class TestFreeplay(TestCase):
             {'content': 'User message 2', 'role': 'user'}
         ], formatted_prompt.llm_prompt)
         self.assertEqual(None, formatted_prompt.system_content)
+
+    def test_sagemaker_llama_3_prompt_formatting__no_system_message(self) -> None:
+        bound_prompt = BoundPrompt(self.sagemaker_llama_3_prompt_info, messages=[{
+            'role': 'user',
+            'content': 'User message 1',
+        }, {
+            'role': 'user',
+            'content': 'User message 2',
+        }])
+
+        formatted_prompt = bound_prompt.format()
+
+        self.assertEqual(
+            "<|begin_of_text|>"
+            "<|start_header_id|>user<|end_header_id|>\nUser message 1<|eot_id|>"
+            "<|start_header_id|>user<|end_header_id|>\nUser message 2<|eot_id|>"
+            "<|start_header_id|>assistant<|end_header_id|>",
+            formatted_prompt.llm_prompt_text
+        )
+        self.assertEqual([
+            {'content': 'User message 1', 'role': 'user'},
+            {'content': 'User message 2', 'role': 'user'}
+        ], formatted_prompt.messages)
+        self.assertEqual(None, formatted_prompt.system_content)
+
+    def test_sagemaker_llama_3_prompt_formatting__with_system_message(self) -> None:
+        bound_prompt = BoundPrompt(
+            self.sagemaker_llama_3_prompt_info,
+            messages=[
+                {
+                    'role': 'system',
+                    'content': 'System message 1',
+                },
+                {
+                    'role': 'user',
+                    'content': 'User message 1',
+                }, {
+                    'role': 'user',
+                    'content': 'User message 2',
+                }
+            ]
+        )
+
+        formatted_prompt = bound_prompt.format()
+
+        self.assertEqual(
+            "<|begin_of_text|>"
+            "<|start_header_id|>system<|end_header_id|>\nSystem message 1<|eot_id|>"
+            "<|start_header_id|>user<|end_header_id|>\nUser message 1<|eot_id|>"
+            "<|start_header_id|>user<|end_header_id|>\nUser message 2<|eot_id|>"
+            "<|start_header_id|>assistant<|end_header_id|>",
+            formatted_prompt.llm_prompt_text
+        )
+        self.assertEqual([
+            {'content': 'System message 1', 'role': 'system'},
+            {'content': 'User message 1', 'role': 'user'},
+            {'content': 'User message 2', 'role': 'user'}
+        ], formatted_prompt.messages)
+        self.assertEqual("System message 1", formatted_prompt.system_content)
 
     @responses.activate
     def test_create_test_run(self) -> None:

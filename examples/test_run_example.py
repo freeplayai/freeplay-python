@@ -1,5 +1,6 @@
 import os
 import time
+from uuid import uuid4
 
 from anthropic import Anthropic, NotGiven
 
@@ -17,7 +18,8 @@ template_prompt = fp_client.prompts.get(
     environment='prod'
 )
 
-test_run = fp_client.test_runs.create(project_id, "core-tests")
+test_run = fp_client.test_runs.create(
+    project_id, "core-tests", name=f'Test run: {uuid4()}', description='Run from Python examples')
 for test_case in test_run.test_cases:
     formatted_prompt = template_prompt.bind(test_case.variables).format()
     print(f"Ready for LLM: {formatted_prompt.llm_prompt}")
@@ -43,5 +45,9 @@ for test_case in test_run.test_cases:
         session,
         start,
         end,
-        test_run_info
+        test_run_info,
+        {
+            'f1-score': 0.48,
+            'is_non_empty': True
+        }
     )

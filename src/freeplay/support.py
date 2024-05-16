@@ -123,7 +123,9 @@ class CallSupport:
             self,
             project_id: str,
             testlist: str,
-            include_test_case_outputs: bool = False
+            include_test_case_outputs: bool = False,
+            name: Optional[str] = None,
+            description: Optional[str] = None
     ) -> TestRunResponse:
         response = api_support.post_raw(
             api_key=self.freeplay_api_key,
@@ -131,6 +133,8 @@ class CallSupport:
             payload={
                 'testlist_name': testlist,
                 'include_test_case_outputs': include_test_case_outputs,
+                'name': name,
+                'description': description
             },
         )
 

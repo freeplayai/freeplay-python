@@ -26,7 +26,8 @@ def record_results(
         session: Session,
         start: float,
         end: float,
-        test_run_info: Optional[TestRunInfo] = None
+        test_run_info: Optional[TestRunInfo] = None,
+        eval_results: Optional[Dict[str, Union[bool, float]]] = None
 ) -> RecordResponse:
     all_messages = formatted_prompt.all_messages(
         new_message={'role': 'Assistant', 'content': completion_content}
@@ -50,7 +51,8 @@ def record_results(
             prompt_info=formatted_prompt.prompt_info,
             call_info=call_info,
             response_info=response_info,
-            test_run_info=test_run_info
+            test_run_info=test_run_info,
+            eval_results=eval_results
         )
     )
 

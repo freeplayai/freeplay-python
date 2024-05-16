@@ -120,7 +120,11 @@ class TestFreeplay(TestCase):
                 session_info=session.session_info,
                 prompt_info=formatted_prompt.prompt_info,
                 call_info=call_info,
-                response_info=response_info
+                response_info=response_info,
+                eval_results={
+                    'client_eval_field_bool': True,
+                    'client_eval_field_float': 0.23
+                }
             )
         )
 
@@ -155,6 +159,12 @@ class TestFreeplay(TestCase):
 
         # Custom metadata recording
         self.assertEqual({'custom_metadata_field': 42}, recorded_body_dom['custom_metadata'])
+
+        # Custom metadata recording
+        self.assertEqual({
+            'client_eval_field_bool': True,
+            'client_eval_field_float': 0.23
+        }, recorded_body_dom['eval_results'])
 
     @responses.activate
     def test_record_function_call(self) -> None:
@@ -377,7 +387,8 @@ class TestFreeplay(TestCase):
     def test_create_test_run(self) -> None:
         self.__mock_freeplay_apis(self.prompt_template_name)
 
-        test_run = self.freeplay_thin.test_runs.create(self.project_id, testlist='good stuff')
+        test_run = self.freeplay_thin.test_runs.create(
+            self.project_id, testlist='good stuff', name='test-run-name', description='test-run-description')
 
         test_cases = test_run.get_test_cases()
         self.assertEqual(2, len(test_cases))

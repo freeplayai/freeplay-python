@@ -40,8 +40,15 @@ class TestRuns:
     def __init__(self, call_support: CallSupport) -> None:
         self.call_support = call_support
 
-    def create(self, project_id: str, testlist: str, include_outputs: bool = False) -> TestRun:
-        test_run = self.call_support.create_test_run(project_id, testlist, include_outputs)
+    def create(
+            self,
+            project_id: str,
+            testlist: str,
+            include_outputs: bool = False,
+            name: Optional[str] = None,
+            description: Optional[str] = None
+    ) -> TestRun:
+        test_run = self.call_support.create_test_run(project_id, testlist, include_outputs, name, description)
         test_cases = [
             TestCase(test_case_id=test_case.id, variables=test_case.variables, output=test_case.output)
             for test_case in test_run.test_cases

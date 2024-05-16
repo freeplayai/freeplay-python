@@ -1,7 +1,7 @@
 import json
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from requests import HTTPError
 
@@ -61,6 +61,7 @@ class RecordPayload:
     call_info: CallInfo
     response_info: ResponseInfo
     test_run_info: Optional[TestRunInfo] = None
+    eval_results: Optional[Dict[str, Union[bool, float]]] = None
 
 
 @dataclass
@@ -110,6 +111,9 @@ class Recordings:
 
         if record_payload.test_run_info is not None:
             record_api_payload['test_case_id'] = record_payload.test_run_info.test_case_id
+
+        if record_payload.eval_results is not None:
+            record_api_payload['eval_results'] = record_payload.eval_results
 
         try:
             recorded_response = api_support.post_raw(

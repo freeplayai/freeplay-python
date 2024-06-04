@@ -134,6 +134,7 @@ class TestFreeplayCLI(TestCase):
                         "anthropic_endpoint": "https://example.com/anthropic"
                     }
                 },
+                "project_id": self.project_id,
                 "prompt_template_id": self.prompt_template_id_1,
                 "prompt_template_name": 'my-prompt',
                 "prompt_template_version_id": self.prompt_template_version_id_1
@@ -166,6 +167,7 @@ class TestFreeplayCLI(TestCase):
                         "anthropic_endpoint": "https://example.com/anthropic"
                     }
                 },
+                "project_id": self.project_id,
                 "prompt_template_id": self.prompt_template_id_2,
                 "prompt_template_name": 'my-second-prompt',
                 "prompt_template_version_id": self.prompt_template_version_id_2

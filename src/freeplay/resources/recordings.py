@@ -88,6 +88,7 @@ class Recordings:
             "start_time": record_payload.call_info.start_time,
             "end_time": record_payload.call_info.end_time,
             "tag": record_payload.prompt_info.environment,
+            "project_id": record_payload.prompt_info.project_id,
             "inputs": record_payload.inputs,
             "prompt_content": history_as_string,
             # Content may not be set for function calls, but it is required in the record API payload.
@@ -118,7 +119,7 @@ class Recordings:
         try:
             recorded_response = api_support.post_raw(
                 api_key=self.call_support.freeplay_api_key,
-                url=f'{self.call_support.api_base}/v1/record',
+                url=f'{self.call_support.api_base}/v2/projects/{record_api_payload.get("project_id")}/sessions/{record_payload.session_info.session_id}/completions',
                 payload=record_api_payload
             )
             recorded_response.raise_for_status()

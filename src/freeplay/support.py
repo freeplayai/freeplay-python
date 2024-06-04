@@ -24,12 +24,19 @@ class PromptTemplate:
     prompt_template_name: str
     content: List[Dict[str, str]]
     metadata: PromptTemplateMetadata
+    project_id: str
     format_version: int
+    environment: Optional[str] = None
 
 
 @dataclass
 class PromptTemplates:
     prompt_templates: List[PromptTemplate]
+
+@dataclass
+class SummaryStatistics:
+    auto_evaluation: Dict[str, Any]
+    human_evaluation: Dict[str, Any]
 
 
 class PromptTemplateEncoder(JSONEncoder):
@@ -55,6 +62,23 @@ class TestRunResponse:
             for test_case in test_cases
         ]
         self.test_run_id = test_run_id
+
+
+class TestRunRetrievalResponse:
+    def __init__(
+            self,
+            name: str,
+            description: str,
+            test_run_id: str,
+            summary_statistics: Dict[str, Any],
+    ):
+        self.name = name
+        self.description = description
+        self.test_run_id = test_run_id
+        self.summary_statistics = SummaryStatistics(
+            auto_evaluation=summary_statistics['auto_evaluation'],
+            human_evaluation=summary_statistics['human_evaluation']
+        )
 
 
 class CallSupport:
@@ -106,6 +130,26 @@ class CallSupport:
 
         return maybe_prompt
 
+    def get_prompt_version_id(self, project_id: str, template_id: str, version_id: str) -> PromptTemplate:
+        response = api_support.get_raw(
+            api_key=self.freeplay_api_key,
+            url=f'{self.api_base}/v2/projects/{project_id}/prompt-templates/id/{template_id}/versions/{version_id}'
+        )
+
+        if response.status_code != 200:
+            raise freeplay_response_error(
+                f"Error getting version id {version_id} for template {template_id} in project {project_id}",
+                response
+            )
+
+        maybe_prompt = try_decode(PromptTemplate, response.content)
+        if maybe_prompt is None:
+            raise FreeplayServerError(
+                f"Error handling version id {version_id} for template {template_id} in project {project_id}"
+            )
+
+        return maybe_prompt
+
     def update_customer_feedback(
             self,
             completion_id: str,
@@ -129,7 +173,7 @@ class CallSupport:
     ) -> TestRunResponse:
         response = api_support.post_raw(
             api_key=self.freeplay_api_key,
-            url=f'{self.api_base}/projects/{project_id}/test-runs-cases',
+            url=f'{self.api_base}/v2/projects/{project_id}/test-runs',
             payload={
                 'testlist_name': testlist,
                 'include_test_case_outputs': include_test_case_outputs,
@@ -144,3 +188,25 @@ class CallSupport:
         json_dom = response.json()
 
         return TestRunResponse(json_dom['test_run_id'], json_dom['test_cases'])
+
+    def get_test_run_results(
+            self,
+            project_id: str,
+            test_run_id: str,
+    ) -> TestRunRetrievalResponse:
+        response = api_support.get_raw(
+            api_key=self.freeplay_api_key,
+            url=f'{self.api_base}/v2/projects/{project_id}/test-runs/id/{test_run_id}'
+        )
+        if response.status_code != 201:
+            raise freeplay_response_error('Error while retrieving test run results.', response)
+
+        json_dom = response.json()
+
+        return TestRunRetrievalResponse(
+            name=json_dom['name'],
+            description=json_dom['description'],
+            test_run_id=json_dom['id'],
+            summary_statistics=json_dom['summary_statistics']
+        )
+

@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from freeplay.model import InputVariables
 from freeplay.resources.recordings import TestRunInfo
-from freeplay.support import CallSupport
+from freeplay.support import CallSupport, SummaryStatistics
 
 
 @dataclass
@@ -35,6 +35,20 @@ class TestRun:
     def get_test_run_info(self, test_case_id: str) -> TestRunInfo:
         return TestRunInfo(self.test_run_id, test_case_id)
 
+@dataclass
+class TestRunResults:
+    def __init__(
+            self,
+            name: str,
+            description: str,
+            test_run_id: str,
+            summary_statistics: SummaryStatistics,
+    ):
+        self.name = name
+        self.description = description
+        self.test_run_id = test_run_id
+        self.summary_statistics = summary_statistics
+
 
 class TestRuns:
     def __init__(self, call_support: CallSupport) -> None:
@@ -55,3 +69,12 @@ class TestRuns:
         ]
 
         return TestRun(test_run.test_run_id, test_cases)
+
+    def get(self, project_id: str, test_run_id: str) -> TestRunResults:
+        test_run_results = self.call_support.get_test_run_results(project_id, test_run_id)
+        return TestRunResults(
+            test_run_results.name,
+            test_run_results.description,
+            test_run_results.test_run_id,
+            test_run_results.summary_statistics
+        )

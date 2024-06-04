@@ -18,7 +18,7 @@ from freeplay.model import OpenAIFunctionCall
 from freeplay.resources.prompts import FormattedPrompt, PromptInfo, TemplatePrompt, FilesystemTemplateResolver, \
     BoundPrompt
 from freeplay.resources.recordings import RecordPayload, ResponseInfo, CallInfo
-from freeplay.resources.sessions import Session
+from freeplay.resources.sessions import Session, SessionInfo, CustomMetadata
 
 
 class PromptInfoMatcher:
@@ -57,7 +57,10 @@ class TestFreeplay(TestCase):
         self.prompt_template_version_id = self.project_version_id
         self.prompt_template_id_1 = str(uuid4())
         self.prompt_template_name = "my-prompt-anthropic"
-        self.record_url = f'{self.api_base}/v1/record'
+        self.session_id = str(uuid4())
+        self.custom_metadata: CustomMetadata = {'custom_metadata_field': 42}
+        self.session_info = SessionInfo(session_id=self.session_id, custom_metadata=self.custom_metadata)
+        self.record_url = f'{self.api_base}/v2/projects/{self.project_id}/sessions/{self.session_id}/completions'
         self.tag = 'test-tag'
         self.test_run_id = str(uuid4())
 
@@ -86,7 +89,8 @@ class TestFreeplay(TestCase):
             provider_info=None,
             provider='anthropic',
             model='model-name',
-            flavor_name='anthropic_chat'
+            flavor_name='anthropic_chat',
+            project_id=self.project_id
         )
         self.sagemaker_llama_3_prompt_info = PromptInfo(
             prompt_template_id=str(uuid.uuid4()),
@@ -97,7 +101,8 @@ class TestFreeplay(TestCase):
             provider_info=None,
             provider='sagemaker',
             model='sagemaker-llama-3-model-name',
-            flavor_name='llama_3_chat'
+            flavor_name='llama_3_chat',
+            project_id=self.project_id
         )
 
     @responses.activate
@@ -117,7 +122,7 @@ class TestFreeplay(TestCase):
             RecordPayload(
                 all_messages=all_messages,
                 inputs=input_variables,
-                session_info=session.session_info,
+                session_info=self.session_info,
                 prompt_info=formatted_prompt.prompt_info,
                 call_info=call_info,
                 response_info=response_info,
@@ -188,7 +193,7 @@ class TestFreeplay(TestCase):
                 # Function call has empty 'content'
                 all_messages=formatted_prompt.all_messages({'role': 'assistant'}),
                 inputs=input_variables,
-                session_info=session.session_info,
+                session_info=self.session_info,
                 prompt_info=formatted_prompt.prompt_info,
                 call_info=call_info,
                 response_info=response_info
@@ -409,6 +414,19 @@ class TestFreeplay(TestCase):
         self.assertTrue(all(test_case.output is not None for test_case in test_cases))
 
     @responses.activate
+    def test_get_test_run_results(self) -> None:
+        self.__mock_freeplay_apis(self.prompt_template_name, self.tag)
+
+        test_run_results = self.freeplay_thin.test_runs.get(self.project_id, self.test_run_id)
+
+        self.assertEqual('Test Test', test_run_results.name)
+        self.assertEqual('This is a test!', test_run_results.description)
+        self.assertEqual(self.test_run_id, test_run_results.test_run_id)
+        self.assertIsNotNone(test_run_results.summary_statistics)
+        self.assertIsNotNone(test_run_results.summary_statistics.auto_evaluation)
+        self.assertIsNotNone(test_run_results.summary_statistics.human_evaluation)
+
+    @responses.activate
     def test_auth_error(self) -> None:
         responses.get(
             url=f'{self.api_base}/v2/projects/{self.project_id}/prompt-templates/name/{self.prompt_template_name}',
@@ -457,7 +475,8 @@ class TestFreeplay(TestCase):
                 provider='openai',
                 provider_info=None,
                 model='gpt-3.5-turbo-1106',
-                flavor_name='openai_chat'
+                flavor_name='openai_chat',
+                project_id=self.bundle_project_id
             ),
             messages=[{'content': 'You are a support agent', 'role': 'system'},
                       {'content': 'How can I help you?', 'role': 'assistant'},
@@ -479,7 +498,8 @@ class TestFreeplay(TestCase):
                 provider='openai',
                 provider_info=None,
                 model='gpt-3.5-turbo-1106',
-                flavor_name='openai_chat'
+                flavor_name='openai_chat',
+                project_id=self.bundle_project_id
             ),
             messages=[{'content': 'You are a support agent.', 'role': 'user'},
                       {'content': 'How may I help you?', 'role': 'assistant'},
@@ -502,7 +522,8 @@ class TestFreeplay(TestCase):
                 provider='openai',
                 provider_info=None,
                 model='gpt-3.5-turbo-1106',
-                flavor_name='openai_chat'
+                flavor_name='openai_chat',
+                project_id=self.bundle_project_id
             ),
             messages=[{'content': 'You are a support agent', 'role': 'system'},
                       {'content': 'How can I help you?', 'role': 'assistant'},
@@ -524,7 +545,8 @@ class TestFreeplay(TestCase):
                 provider='openai',
                 provider_info={"anthropic_endpoint": "https://example2.com/anthropic"},
                 model='gpt-3.5-turbo-1106',
-                flavor_name='openai_chat'
+                flavor_name='openai_chat',
+                project_id=self.bundle_project_id
             ),
             messages=[{'content': 'You are a support agent', 'role': 'system'},
                       {'content': 'How can I help you?', 'role': 'assistant'},
@@ -546,7 +568,8 @@ class TestFreeplay(TestCase):
                 provider='openai',
                 provider_info={"anthropic_endpoint": "https://example2.com/anthropic"},
                 model='gpt-3.5-turbo-1106',
-                flavor_name='openai_chat'
+                flavor_name='openai_chat',
+                project_id=self.bundle_project_id
             ),
             messages=[{'content': 'You are a support agent', 'role': 'system'},
                       {'content': 'How can I help you?', 'role': 'assistant'},
@@ -554,6 +577,61 @@ class TestFreeplay(TestCase):
         )
 
         self.assertEqual(TemplatePromptMatcher(expected), template_prompt)
+
+    def test_filesystem_resolver_get_version_id(self) -> None:
+        expected = TemplatePrompt(
+            prompt_info=PromptInfo(
+                prompt_template_id='a8b91d92-e063-4c3e-bb44-0d570793856b',
+                prompt_template_version_id='6fe8af2e-defe-41b8-bdf2-7b2ec23592f5',
+                template_name='test-prompt-no-params',
+                environment='prod',
+                model_parameters={},  # type: ignore
+                provider='openai',
+                provider_info={"anthropic_endpoint": "https://example2.com/anthropic"},
+                model='gpt-3.5-turbo-1106',
+                flavor_name='openai_chat',
+                project_id=self.bundle_project_id
+            ),
+            messages=[{'content': 'You are a support agent', 'role': 'system'},
+                      {'content': 'How can I help you?', 'role': 'assistant'},
+                      {'content': '{{question}}', 'role': 'user'}]
+        )
+        template_prompt = self.bundle_client_v2.prompts.get_version_id(self.bundle_project_id,
+                                                                       expected.prompt_info.prompt_template_id,
+                                                                       expected.prompt_info.prompt_template_version_id
+                                                                       )
+        self.assertEqual(expected.prompt_info.prompt_template_version_id,
+                         template_prompt.prompt_info.prompt_template_version_id)
+        self.assertEqual(expected.messages, template_prompt.messages)
+
+    def test_filesystem_resolver_get_formatted_version_id(self) -> None:
+        question = "Why isn't my door working"
+        expected = FormattedPrompt(
+            prompt_info=PromptInfo(
+                prompt_template_id='a8b91d92-e063-4c3e-bb44-0d570793856b',
+                prompt_template_version_id='6fe8af2e-defe-41b8-bdf2-7b2ec23592f5',
+                template_name='test-prompt-no-params',
+                environment='prod',
+                model_parameters={},  # type: ignore
+                provider='openai',
+                provider_info={"anthropic_endpoint": "https://example2.com/anthropic"},
+                model='gpt-3.5-turbo-1106',
+                flavor_name='openai_chat',
+                project_id=self.bundle_project_id
+            ),
+            messages=[{'content': 'You are a support agent', 'role': 'system'},
+                      {'content': 'How can I help you?', 'role': 'assistant'},
+                      {'content': f'{question}', 'role': 'user'}]
+        )
+        formatted_prompt = self.bundle_client_v2.prompts.get_formatted_version_id(
+            self.bundle_project_id,
+            expected.prompt_info.prompt_template_id,
+            expected.prompt_info.prompt_template_version_id,
+            {'question': question}
+        )
+        self.assertEqual(expected.prompt_info.prompt_template_version_id,
+                         formatted_prompt.prompt_info.prompt_template_version_id)
+        self.assertEqual(expected.messages, formatted_prompt.messages)
 
     def test_freeplay_directory_doesnt_exist(self) -> None:
         with self.assertRaisesRegex(FreeplayConfigurationError, "Path for prompt templates is not a valid directory"):
@@ -602,6 +680,40 @@ class TestFreeplay(TestCase):
         ):
             self.bundle_client.prompts.get(self.bundle_project_id, "test-prompt-no-model", "prod")
 
+    @responses.activate
+    def test_get_prompt_version_id(self) -> None:
+        self.__mock_freeplay_apis(self.prompt_template_name, self.tag)
+        prompt_template = self.freeplay_thin.prompts.get_version_id(
+            self.project_id,
+            self.prompt_template_id_1,
+            self.prompt_template_version_id
+        )
+        expected = json.loads(self.__get_prompt_response(self.prompt_template_name))
+        self.assertEqual(expected.get("content"), prompt_template.messages)
+        self.assertEqual(expected.get("prompt_template_version_id"),
+                         prompt_template.prompt_info.prompt_template_version_id)
+        self.assertEqual(expected.get("prompt_template_name"), prompt_template.prompt_info.template_name)
+        self.assertEqual(expected.get("metadata").get("provider"), prompt_template.prompt_info.provider)
+
+    @responses.activate
+    def test_get_formatted_version_id(self) -> None:
+        self.__mock_freeplay_apis(self.prompt_template_name, self.tag)
+        input_variables = {"name": "Sparkles", "question": "Why isn't my door working"}
+        formatted_prompt = self.freeplay_thin.prompts.get_formatted_version_id(
+            self.project_id,
+            self.prompt_template_id_1,
+            self.prompt_template_version_id,
+            input_variables
+        )
+        expected = json.loads(self.__get_prompt_response(self.prompt_template_name))
+        self.assertNotEqual(expected.get("content"), formatted_prompt.messages)
+        self.assertEqual(expected.get("content")[-1].get("content").replace("{{question}}", "Why isn't my door working"),
+                         formatted_prompt.messages[-1].get("content"))
+        self.assertEqual(expected.get("prompt_template_version_id"),
+                         formatted_prompt.prompt_info.prompt_template_version_id)
+        self.assertEqual(expected.get("prompt_template_name"), formatted_prompt.prompt_info.template_name)
+        self.assertEqual(expected.get("metadata").get("provider"), formatted_prompt.prompt_info.provider)
+
     def __mock_freeplay_apis(self, template_name: str, environment: str = 'latest') -> None:
         responses.get(
             url=f'{self.api_base}/v2/projects/{self.project_id}/prompt-templates/name/'
@@ -616,7 +728,13 @@ class TestFreeplay(TestCase):
             status=404,
             body=json.dumps({'message': 'Could not find template with name "invalid-template-id"'})
         )
+        responses.get(
+            url=f'{self.api_base}/v2/projects/{self.project_id}/prompt-templates/id/{self.prompt_template_id_1}/versions/{self.prompt_template_version_id}',
+            status=200,
+            body=self.__get_prompt_response(template_name)
+        )
         self.__mock_test_run_api()
+        self.__mock_test_run_retrieval_api()
         self.__mock_record_api()
 
     def __mock_record_api(self) -> None:
@@ -649,9 +767,51 @@ class TestFreeplay(TestCase):
             )
 
         responses.add_callback(
-            responses.POST, f'{self.api_base}/projects/{self.project_id}/test-runs-cases',
+            responses.POST, f'{self.api_base}/v2/projects/{self.project_id}/test-runs',
             callback=request_callback,
             content_type='application/json',
+        )
+
+    def __mock_test_run_retrieval_api(self) -> None:
+        body = json.dumps({
+            "description": "This is a test!",
+            "id": self.test_run_id,
+            "name": "Test Test",
+            "summary_statistics": {
+                "auto_evaluation": {
+                    "Answer Accuracy": {
+                        "4": 2,
+                        "5": 6
+                    },
+                    "Context Relevance": {
+                        "4": 4,
+                        "5": 4
+                    },
+                    "Faithfulness": {
+                        "no": 1,
+                        "yes": 7
+                    }
+                },
+                "human_evaluation": {
+                    "Answer Accuracy": {
+                        "4": 1,
+                        "5": 7
+                    },
+                    "Context Relevance": {
+                        "4": 5,
+                        "5": 3
+                    },
+                    "Faithfulness": {
+                        "no": 1,
+                        "yes": 7
+                    }
+                }
+            }
+        })
+        responses.get(
+            url=f'{self.api_base}/v2/projects/{self.project_id}/test-runs/id/{self.test_run_id}',
+            status=201,
+            body=body
         )
 
     def __get_templates_response(self) -> str:
@@ -711,6 +871,7 @@ class TestFreeplay(TestCase):
                     "anthropic_endpoint": "https://example.com/anthropic"
                 }
             },
+            "project_id": self.project_id,
             "prompt_template_id": self.prompt_template_id_1,
             "prompt_template_name": template_name,
             "prompt_template_version_id": self.prompt_template_version_id

@@ -33,6 +33,7 @@ class PromptInfo:
     provider: str
     model: str
     flavor_name: str
+    project_id: str
 
 
 class FormattedPrompt:
@@ -142,6 +143,10 @@ class TemplateResolver(ABC):
     def get_prompt(self, project_id: str, template_name: str, environment: str) -> PromptTemplate:
         pass
 
+    @abstractmethod
+    def get_prompt_version_id(self, project_id: str, template_id: str, version_id: str) -> PromptTemplate:
+        pass
+
 
 class FilesystemTemplateResolver(TemplateResolver):
     # If you think you need a change here, be sure to check the server as the translations must match. Once we have
@@ -185,6 +190,27 @@ class FilesystemTemplateResolver(TemplateResolver):
         json_dom = json.loads(expected_file.read_text())
         return self.__render_into_v2(json_dom)
 
+    def get_prompt_version_id(self, project_id: str, template_id: str, version_id: str) -> PromptTemplate:
+
+        expected_file: Path = self.prompts_directory / project_id
+
+        if not expected_file.exists():
+            raise FreeplayClientError(
+                f"Could not find project id {project_id}"
+            )
+
+        # read all files in the project directory
+        prompt_file_paths = expected_file.glob("**/*.json")
+        # find the file with the matching version id
+        for prompt_file_path in prompt_file_paths:
+            json_dom = json.loads(prompt_file_path.read_text())
+            if json_dom.get('prompt_template_version_id') == version_id:
+                return self.__render_into_v2(json_dom)
+
+        raise FreeplayClientError(
+            f"Could not find prompt with version id {version_id} for project {project_id}"
+        )
+
     @staticmethod
     def __render_into_v2(json_dom: Dict[str, Any]) -> PromptTemplate:
         format_version = json_dom.get('format_version')
@@ -206,7 +232,8 @@ class FilesystemTemplateResolver(TemplateResolver):
                     model=model,
                     params=metadata.get('params'),
                     provider_info=metadata.get('provider_info')
-                )
+                ),
+                project_id=str(json_dom.get('project_id'))
             )
         else:
             metadata = json_dom['metadata']
@@ -227,7 +254,8 @@ class FilesystemTemplateResolver(TemplateResolver):
                     model=model,
                     params=params,
                     provider_info=None
-                )
+                ),
+                project_id=str(json_dom.get('project_id'))
             )
 
     @staticmethod
@@ -291,6 +319,13 @@ class APITemplateResolver(TemplateResolver):
             environment=environment
         )
 
+    def get_prompt_version_id(self, project_id: str, template_id: str, version_id: str) -> PromptTemplate:
+        return self.call_support.get_prompt_version_id(
+            project_id=project_id,
+            template_id=template_id,
+            version_id=version_id
+        )
+
 
 class Prompts:
     def __init__(self, call_support: CallSupport, template_resolver: TemplateResolver) -> None:
@@ -327,7 +362,41 @@ class Prompts:
             provider=prompt.metadata.provider,
             model=model,
             flavor_name=prompt.metadata.flavor,
-            provider_info=prompt.metadata.provider_info
+            provider_info=prompt.metadata.provider_info,
+            project_id=prompt.project_id
+        )
+
+        return TemplatePrompt(prompt_info, prompt.content)
+
+    def get_version_id(self, project_id: str, template_id: str, version_id: str) -> TemplatePrompt:
+        prompt = self.template_resolver.get_prompt_version_id(project_id, template_id, version_id)
+
+        params = prompt.metadata.params
+        model = prompt.metadata.model
+
+        if not model:
+            raise FreeplayConfigurationError(
+                "Model must be configured in the Freeplay UI. Unable to fulfill request.")
+
+        if not prompt.metadata.flavor:
+            raise FreeplayConfigurationError(
+                "Flavor must be configured in the Freeplay UI. Unable to fulfill request.")
+
+        if not prompt.metadata.provider:
+            raise FreeplayConfigurationError(
+                "Provider must be configured in the Freeplay UI. Unable to fulfill request.")
+
+        prompt_info = PromptInfo(
+            prompt_template_id=prompt.prompt_template_id,
+            prompt_template_version_id=prompt.prompt_template_version_id,
+            template_name=prompt.prompt_template_name,
+            environment=prompt.environment if prompt.environment else '',
+            model_parameters=cast(LLMParameters, params) or LLMParameters({}),
+            provider=prompt.metadata.provider,
+            model=model,
+            flavor_name=prompt.metadata.flavor,
+            provider_info=prompt.metadata.provider_info,
+            project_id=prompt.project_id
         )
 
         return TemplatePrompt(prompt_info, prompt.content)
@@ -344,6 +413,22 @@ class Prompts:
             project_id=project_id,
             template_name=template_name,
             environment=environment
+        ).bind(variables=variables)
+
+        return bound_prompt.format(flavor_name)
+
+    def get_formatted_version_id(
+            self,
+            project_id: str,
+            template_id: str,
+            version_id: str,
+            variables: InputVariables,
+            flavor_name: Optional[str] = None,
+    ) -> FormattedPrompt:
+        bound_prompt = self.get_version_id(
+            project_id=project_id,
+            template_id=template_id,
+            version_id=version_id
         ).bind(variables=variables)
 
         return bound_prompt.format(flavor_name)

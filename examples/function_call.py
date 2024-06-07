@@ -62,7 +62,7 @@ session = fpclient.sessions.create(
     }
 )
 all_messages = formatted_prompt.all_messages(
-    new_message=dict(completion.choices[0])
+    new_message={'role': 'assistant', 'content': ""}
 )
 call_info = CallInfo.from_prompt_info(formatted_prompt.prompt_info, start, end)
 

@@ -141,29 +141,24 @@ class TestFreeplay(TestCase):
         record_api_request = responses.calls[1].request
         recorded_body_dom = json.loads(record_api_request.body)
 
-        self.assertEqual(True, recorded_body_dom['is_complete'])
-        self.assertEqual(self.project_version_id, recorded_body_dom['project_version_id'])
-        self.assertEqual(self.prompt_template_id_1, recorded_body_dom['prompt_template_id'])
-        self.assertIsNotNone(recorded_body_dom['start_time'])
-        self.assertIsNotNone(recorded_body_dom['end_time'])
-        self.assertEqual(self.tag, recorded_body_dom['tag'])
+        self.assertEqual(self.project_version_id, recorded_body_dom['prompt_info']['prompt_template_version_id'])
+        self.assertIsNotNone(recorded_body_dom["call_info"]["start_time"])
+        self.assertIsNotNone(recorded_body_dom["call_info"]["end_time"])
+        self.assertEqual(self.tag, recorded_body_dom["prompt_info"]['environment'])
         self.assertEqual(
-            '[{"role": "system", "content": "System message"}, '
-            '{"role": "assistant", "content": "How may I help you, Sparkles?"}, '
-            '{"role": "user", "content": "Why isn\'t my door working"}]',
-            recorded_body_dom['prompt_content']
+            all_messages,
+            recorded_body_dom['messages']
         )
-        self.assertEqual(llm_response, recorded_body_dom['return_content'])
-        self.assertEqual('anthropic', recorded_body_dom['provider'])
-        self.assertEqual(0.7, recorded_body_dom['llm_parameters']['temperature'])
-        self.assertEqual(50, recorded_body_dom['llm_parameters']['max_tokens_to_sample'])
+        self.assertEqual('anthropic', recorded_body_dom["call_info"]['provider'])
+        self.assertEqual(0.7, recorded_body_dom["call_info"]['llm_parameters']['temperature'])
+        self.assertEqual(50, recorded_body_dom["call_info"]['llm_parameters']['max_tokens_to_sample'])
         self.assertEqual(
             {"anthropic_endpoint": "https://example.com/anthropic"},
-            recorded_body_dom['provider_info']
+            recorded_body_dom["call_info"]['provider_info']
         )
 
         # Custom metadata recording
-        self.assertEqual({'custom_metadata_field': 42}, recorded_body_dom['custom_metadata'])
+        self.assertEqual({'custom_metadata_field': 42}, recorded_body_dom["session_info"]['custom_metadata'])
 
         # Custom metadata recording
         self.assertEqual({
@@ -206,18 +201,14 @@ class TestFreeplay(TestCase):
         recorded_body_dom = json.loads(record_api_request.body)
 
         self.assertEqual(
-            '[{"role": "system", "content": "System message"}, '
-            '{"role": "assistant", "content": "How may I help you, Sparkles?"}, '
-            '{"role": "user", "content": "Why isn\'t my door working"}]',
-            recorded_body_dom['prompt_content']
+            formatted_prompt.all_messages({'role': 'assistant'}),
+            recorded_body_dom['messages']
         )
-        # Empty body since we have a function call
-        self.assertEqual('', recorded_body_dom['return_content'])
         self.assertEqual(
             {
                 'arguments': '{"location": "San Francisco, CA", "format": "celsius"}', 'name': 'function_name'
             },
-            recorded_body_dom['function_call_response']
+            recorded_body_dom["response_info"]['function_call_response']
         )
 
     @responses.activate
@@ -596,10 +587,11 @@ class TestFreeplay(TestCase):
                       {'content': 'How can I help you?', 'role': 'assistant'},
                       {'content': '{{question}}', 'role': 'user'}]
         )
-        template_prompt = self.bundle_client_v2.prompts.get_version_id(self.bundle_project_id,
-                                                                       expected.prompt_info.prompt_template_id,
-                                                                       expected.prompt_info.prompt_template_version_id
-                                                                       )
+        template_prompt = self.bundle_client_v2.prompts.get_by_version_id(
+            self.bundle_project_id,
+            expected.prompt_info.prompt_template_id,
+            expected.prompt_info.prompt_template_version_id
+        )
         self.assertEqual(expected.prompt_info.prompt_template_version_id,
                          template_prompt.prompt_info.prompt_template_version_id)
         self.assertEqual(expected.messages, template_prompt.messages)
@@ -623,7 +615,7 @@ class TestFreeplay(TestCase):
                       {'content': 'How can I help you?', 'role': 'assistant'},
                       {'content': f'{question}', 'role': 'user'}]
         )
-        formatted_prompt = self.bundle_client_v2.prompts.get_formatted_version_id(
+        formatted_prompt = self.bundle_client_v2.prompts.get_formatted_by_version_id(
             self.bundle_project_id,
             expected.prompt_info.prompt_template_id,
             expected.prompt_info.prompt_template_version_id,
@@ -683,7 +675,7 @@ class TestFreeplay(TestCase):
     @responses.activate
     def test_get_prompt_version_id(self) -> None:
         self.__mock_freeplay_apis(self.prompt_template_name, self.tag)
-        prompt_template = self.freeplay_thin.prompts.get_version_id(
+        prompt_template = self.freeplay_thin.prompts.get_by_version_id(
             self.project_id,
             self.prompt_template_id_1,
             self.prompt_template_version_id
@@ -699,7 +691,7 @@ class TestFreeplay(TestCase):
     def test_get_formatted_version_id(self) -> None:
         self.__mock_freeplay_apis(self.prompt_template_name, self.tag)
         input_variables = {"name": "Sparkles", "question": "Why isn't my door working"}
-        formatted_prompt = self.freeplay_thin.prompts.get_formatted_version_id(
+        formatted_prompt = self.freeplay_thin.prompts.get_formatted_by_version_id(
             self.project_id,
             self.prompt_template_id_1,
             self.prompt_template_version_id,
@@ -707,8 +699,9 @@ class TestFreeplay(TestCase):
         )
         expected = json.loads(self.__get_prompt_response(self.prompt_template_name))
         self.assertNotEqual(expected.get("content"), formatted_prompt.messages)
-        self.assertEqual(expected.get("content")[-1].get("content").replace("{{question}}", "Why isn't my door working"),
-                         formatted_prompt.messages[-1].get("content"))
+        self.assertEqual(
+            expected.get("content")[-1].get("content").replace("{{question}}", "Why isn't my door working"),
+            formatted_prompt.messages[-1].get("content"))
         self.assertEqual(expected.get("prompt_template_version_id"),
                          formatted_prompt.prompt_info.prompt_template_version_id)
         self.assertEqual(expected.get("prompt_template_name"), formatted_prompt.prompt_info.template_name)

@@ -27,7 +27,7 @@ class PromptInfo:
     prompt_template_id: str
     prompt_template_version_id: str
     template_name: str
-    environment: str
+    environment: Optional[str]
     model_parameters: LLMParameters
     provider_info: Optional[Dict[str, Any]]
     provider: str
@@ -368,7 +368,7 @@ class Prompts:
 
         return TemplatePrompt(prompt_info, prompt.content)
 
-    def get_version_id(self, project_id: str, template_id: str, version_id: str) -> TemplatePrompt:
+    def get_by_version_id(self, project_id: str, template_id: str, version_id: str) -> TemplatePrompt:
         prompt = self.template_resolver.get_prompt_version_id(project_id, template_id, version_id)
 
         params = prompt.metadata.params
@@ -417,7 +417,7 @@ class Prompts:
 
         return bound_prompt.format(flavor_name)
 
-    def get_formatted_version_id(
+    def get_formatted_by_version_id(
             self,
             project_id: str,
             template_id: str,
@@ -425,7 +425,7 @@ class Prompts:
             variables: InputVariables,
             flavor_name: Optional[str] = None,
     ) -> FormattedPrompt:
-        bound_prompt = self.get_version_id(
+        bound_prompt = self.get_by_version_id(
             project_id=project_id,
             template_id=template_id,
             version_id=version_id

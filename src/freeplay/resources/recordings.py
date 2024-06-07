@@ -109,10 +109,10 @@ class Recordings:
                 }
 
         if record_payload.test_run_info is not None:
-            record_api_payload['test_run_id'] = record_payload.test_run_info.test_run_id
-
-        if record_payload.test_run_info is not None:
-            record_api_payload['test_case_id'] = record_payload.test_run_info.test_case_id
+            record_api_payload['test_run_info'] = {
+                "test_run_id": record_payload.test_run_info.test_run_id,
+                "test_case_id": record_payload.test_run_info.test_case_id
+            }
 
         if record_payload.eval_results is not None:
             record_api_payload['eval_results'] = record_payload.eval_results

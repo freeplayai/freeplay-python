@@ -47,7 +47,7 @@ class PromptTemplateEncoder(JSONEncoder):
 class TestCaseTestRunResponse:
     def __init__(self, test_case: Dict[str, Any]):
         self.variables: InputVariables = test_case['variables']
-        self.id: str = test_case['id']
+        self.id: str = test_case['test_case_id']
         self.output: Optional[str] = test_case.get('output')
 
 
@@ -175,7 +175,7 @@ class CallSupport:
             api_key=self.freeplay_api_key,
             url=f'{self.api_base}/v2/projects/{project_id}/test-runs',
             payload={
-                'testlist_name': testlist,
+                'dataset_name': testlist,
                 'include_test_case_outputs': include_test_case_outputs,
                 'name': name,
                 'description': description

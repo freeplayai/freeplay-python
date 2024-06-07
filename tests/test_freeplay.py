@@ -17,7 +17,7 @@ from freeplay.llm_parameters import LLMParameters
 from freeplay.model import OpenAIFunctionCall
 from freeplay.resources.prompts import FormattedPrompt, PromptInfo, TemplatePrompt, FilesystemTemplateResolver, \
     BoundPrompt
-from freeplay.resources.recordings import RecordPayload, ResponseInfo, CallInfo
+from freeplay.resources.recordings import RecordPayload, ResponseInfo, CallInfo, TestRunInfo
 from freeplay.resources.sessions import Session, SessionInfo, CustomMetadata
 
 
@@ -118,6 +118,8 @@ class TestFreeplay(TestCase):
             llm_response
         )
 
+        test_case_id = str(uuid4())
+
         self.freeplay_thin.recordings.create(
             RecordPayload(
                 all_messages=all_messages,
@@ -129,7 +131,8 @@ class TestFreeplay(TestCase):
                 eval_results={
                     'client_eval_field_bool': True,
                     'client_eval_field_float': 0.23
-                }
+                },
+                test_run_info=TestRunInfo(self.test_run_id, test_case_id)
             )
         )
 
@@ -159,6 +162,10 @@ class TestFreeplay(TestCase):
 
         # Custom metadata recording
         self.assertEqual({'custom_metadata_field': 42}, recorded_body_dom["session_info"]['custom_metadata'])
+
+        self.assertEqual({"test_run_id": self.test_run_id, "test_case_id": test_case_id},
+                         recorded_body_dom['test_run_info']
+                         )
 
         # Custom metadata recording
         self.assertEqual({
@@ -876,12 +883,12 @@ class TestFreeplay(TestCase):
             'test_run_id': test_run_id,
             'test_cases': [
                 {
-                    'id': str(uuid4()),
+                    'test_case_id': str(uuid4()),
                     'variables': {'question': "Why isn't my internet working?"},
                     'output': 'It requested PTO this week.' if include_outputs else None,
                 },
                 {
-                    'id': str(uuid4()),
+                    'test_case_id': str(uuid4()),
                     'variables': {'question': "What does blue look like?"},
                     'output': 'It\'s a magical synergy between ocean and sky.' if include_outputs else None,
                 }

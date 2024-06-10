@@ -104,6 +104,18 @@ class TestFreeplay(TestCase):
             flavor_name='llama_3_chat',
             project_id=self.project_id
         )
+        self.baseten_mistral_prompt_info = PromptInfo(
+            prompt_template_id=str(uuid.uuid4()),
+            prompt_template_version_id=str(uuid.uuid4()),
+            template_name='baseten-mistral-template-name',
+            environment='environment',
+            model_parameters=LLMParameters({'max_tokens': 512, 'temperature': 0.12}),
+            provider_info=None,
+            provider='baseten',
+            model='baseten-mistral-model-name',
+            flavor_name='baseten_mistral_chat',
+            project_id=self.project_id
+        )
 
     @responses.activate
     def test_single_prompt_get_and_record(self) -> None:
@@ -288,19 +300,27 @@ class TestFreeplay(TestCase):
         self.assertTrue(llm_response in all_messages[3]['content'])
 
     def test_anthropic_system_prompt_formatting__multiple_system_messages(self) -> None:
-        bound_prompt = BoundPrompt(self.anthropic_prompt_info, messages=[{
-            'role': 'system',
-            'content': 'System message 1',
-        }, {
-            'role': 'user',
-            'content': 'User message 1',
-        }, {
-            'role': 'system',
-            'content': 'System message 2',
-        }, {
-            'role': 'user',
-            'content': 'User message 2',
-        }])
+        bound_prompt = BoundPrompt(
+            self.anthropic_prompt_info,
+            messages=[
+                {
+                    'role': 'system',
+                    'content': 'System message 1',
+                },
+                {
+                    'role': 'user',
+                    'content': 'User message 1',
+                },
+                {
+                    'role': 'system',
+                    'content': 'System message 2',
+                },
+                {
+                    'role': 'user',
+                    'content': 'User message 2',
+                }
+            ]
+        )
 
         formatted_prompt = bound_prompt.format()
 
@@ -355,17 +375,9 @@ class TestFreeplay(TestCase):
         bound_prompt = BoundPrompt(
             self.sagemaker_llama_3_prompt_info,
             messages=[
-                {
-                    'role': 'system',
-                    'content': 'System message 1',
-                },
-                {
-                    'role': 'user',
-                    'content': 'User message 1',
-                }, {
-                    'role': 'user',
-                    'content': 'User message 2',
-                }
+                {'role': 'system', 'content': 'System message 1'},
+                {'role': 'user', 'content': 'User message 1'},
+                {'role': 'user', 'content': 'User message 2'}
             ]
         )
 
@@ -385,6 +397,25 @@ class TestFreeplay(TestCase):
             {'content': 'User message 2', 'role': 'user'}
         ], formatted_prompt.messages)
         self.assertEqual("System message 1", formatted_prompt.system_content)
+
+    def test_baseten_mistral_system_prompt_formatting(self) -> None:
+        bound_prompt = BoundPrompt(
+            self.baseten_mistral_prompt_info,
+            messages=[
+                {'role': 'system', 'content': 'System message 1'},
+                {'role': 'user', 'content': 'User message 1'},
+                {'role': 'user', 'content': 'User message 2'}
+            ]
+        )
+
+        formatted_prompt = bound_prompt.format()
+
+        self.assertEqual([
+            {'role': 'system', 'content': 'System message 1'},
+            {'content': 'User message 1', 'role': 'user'},
+            {'content': "User message 2", 'role': 'user'}
+        ], formatted_prompt.llm_prompt)
+        self.assertEqual('System message 1', formatted_prompt.system_content)
 
     @responses.activate
     def test_create_test_run(self) -> None:

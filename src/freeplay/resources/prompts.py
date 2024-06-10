@@ -77,7 +77,7 @@ class BoundPrompt:
             flavor_name: str,
             messages: List[Dict[str, str]]
     ) -> Union[str, List[Dict[str, str]]]:
-        if flavor_name == 'azure_openai_chat' or flavor_name == 'openai_chat':
+        if flavor_name == 'azure_openai_chat' or flavor_name == 'openai_chat' or flavor_name == 'baseten_mistral_chat':
             # We need a deepcopy here to avoid referential equality with the llm_prompt
             return copy.deepcopy(messages)
         elif flavor_name == 'anthropic_chat':
@@ -91,6 +91,24 @@ class BoundPrompt:
             for message in messages:
                 formatted += f"<|start_header_id|>{message['role']}<|end_header_id|>\n{message['content']}<|eot_id|>"
             formatted += "<|start_header_id|>assistant<|end_header_id|>"
+
+            return formatted
+        elif flavor_name == 'gemini_chat':
+            if len(messages) < 1:
+                raise ValueError("Must have at least one message to format")
+
+            def translate_role(role: str) -> str:
+                if role == "user":
+                    return "user"
+                elif role == "assistant":
+                    return "model"
+                else:
+                    raise ValueError(f"Gemini formatting found unexpected role {role}")
+
+            formatted = [  # type: ignore
+                {'role': translate_role(message['role']), 'parts': [{'text': message['content']}]}
+                for message in messages if message['role'] != 'system'
+            ]
 
             return formatted
 

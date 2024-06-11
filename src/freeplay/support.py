@@ -177,8 +177,8 @@ class CallSupport:
             payload={
                 'dataset_name': testlist,
                 'include_test_case_outputs': include_test_case_outputs,
-                'name': name,
-                'description': description
+                'test_run_name': name,
+                'test_run_description': description
             },
         )
 

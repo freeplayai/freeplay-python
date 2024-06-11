@@ -116,6 +116,18 @@ class TestFreeplay(TestCase):
             flavor_name='baseten_mistral_chat',
             project_id=self.project_id
         )
+        self.mistral_prompt_info = PromptInfo(
+            prompt_template_id=str(uuid.uuid4()),
+            prompt_template_version_id=str(uuid.uuid4()),
+            template_name='mistral-template-name',
+            environment='environment',
+            model_parameters=LLMParameters({'max_tokens': 512, 'temperature': 0.12}),
+            provider_info=None,
+            provider='bedrock',
+            model='mistral-model-name',
+            flavor_name='mistral_chat',
+            project_id=self.project_id
+        )
 
     @responses.activate
     def test_single_prompt_get_and_record(self) -> None:
@@ -401,6 +413,25 @@ class TestFreeplay(TestCase):
     def test_baseten_mistral_system_prompt_formatting(self) -> None:
         bound_prompt = BoundPrompt(
             self.baseten_mistral_prompt_info,
+            messages=[
+                {'role': 'system', 'content': 'System message 1'},
+                {'role': 'user', 'content': 'User message 1'},
+                {'role': 'user', 'content': 'User message 2'}
+            ]
+        )
+
+        formatted_prompt = bound_prompt.format()
+
+        self.assertEqual([
+            {'role': 'system', 'content': 'System message 1'},
+            {'content': 'User message 1', 'role': 'user'},
+            {'content': "User message 2", 'role': 'user'}
+        ], formatted_prompt.llm_prompt)
+        self.assertEqual('System message 1', formatted_prompt.system_content)
+
+    def test_mistral_system_prompt_formatting(self) -> None:
+        bound_prompt = BoundPrompt(
+            self.mistral_prompt_info,
             messages=[
                 {'role': 'system', 'content': 'System message 1'},
                 {'role': 'user', 'content': 'User message 1'},

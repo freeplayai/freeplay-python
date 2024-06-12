@@ -1,7 +1,7 @@
 from .freeplay import Freeplay
 from .resources.prompts import PromptInfo
 from .resources.recordings import CallInfo, ResponseInfo, RecordPayload, TestRunInfo
-from .resources.sessions import SessionInfo
+from .resources.sessions import SessionInfo, TraceInfo
 
 __all__ = [
     'CallInfo',
@@ -11,4 +11,5 @@ __all__ = [
     'ResponseInfo',
     'SessionInfo',
     'TestRunInfo',
+    'TraceInfo',
 ]

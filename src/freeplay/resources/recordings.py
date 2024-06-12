@@ -10,7 +10,7 @@ from freeplay.errors import FreeplayClientError, FreeplayError
 from freeplay.llm_parameters import LLMParameters
 from freeplay.model import InputVariables, OpenAIFunctionCall
 from freeplay.resources.prompts import PromptInfo
-from freeplay.resources.sessions import SessionInfo
+from freeplay.resources.sessions import SessionInfo, TraceInfo
 from freeplay.support import CallSupport
 
 logger = logging.getLogger(__name__)
@@ -62,6 +62,7 @@ class RecordPayload:
     response_info: Optional[ResponseInfo] = None
     test_run_info: Optional[TestRunInfo] = None
     eval_results: Optional[Dict[str, Union[bool, float]]] = None
+    trace_info: Optional[TraceInfo] = None
 
 
 @dataclass
@@ -116,6 +117,11 @@ class Recordings:
 
         if record_payload.eval_results is not None:
             record_api_payload['eval_results'] = record_payload.eval_results
+
+        if record_payload.trace_info is not None:
+            record_api_payload['trace_info'] = {
+                "trace_id": record_payload.trace_info.trace_id
+            }
 
         try:
             recorded_response = api_support.post_raw(

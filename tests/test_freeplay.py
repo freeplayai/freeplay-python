@@ -198,6 +198,54 @@ class TestFreeplay(TestCase):
         }, recorded_body_dom['eval_results'])
 
     @responses.activate
+    def test_record_trace(self) -> None:
+        self.__mock_freeplay_apis(self.prompt_template_name, self.tag)
+
+        input_variables = {"name": "Sparkles", "question": "Why isn't my door working"}
+        llm_response = 'This is the response from the LLM'
+
+        all_messages, call_info, formatted_prompt, response_info, session = self.__make_call(
+            input_variables=input_variables,
+            llm_response=llm_response
+        )
+
+        trace_info = session.create_trace(input=input_variables['question'])
+
+        self.freeplay_thin.recordings.create(
+            RecordPayload(
+                all_messages=all_messages,
+                inputs=input_variables,
+                session_info=self.session_info,
+                prompt_info=formatted_prompt.prompt_info,
+                call_info=call_info,
+                response_info=response_info,
+                trace_info=trace_info,
+            )
+        )
+
+        record_api_request = responses.calls[1].request
+        recorded_body_dom = json.loads(record_api_request.body)
+
+        self.assertEqual(
+            trace_info.trace_id,
+            recorded_body_dom['trace_info']['trace_id']
+        )
+
+        self.__mock_record_trace_api(session.session_id, trace_info.trace_id)
+
+        trace_info.record_output(project_id=self.project_id, output=llm_response)
+        record_trace_api_request = responses.calls[2].request
+        recorded_trace_body_dom = json.loads(record_trace_api_request.body)
+        self.assertEqual(
+            input_variables['question'],
+            recorded_trace_body_dom['input']
+        )
+        self.assertEqual(
+            llm_response,
+            recorded_trace_body_dom['output']
+        )
+
+    @responses.activate
     def test_record_function_call(self) -> None:
         self.__mock_freeplay_apis(self.prompt_template_name, self.tag)
 
@@ -807,6 +855,14 @@ class TestFreeplay(TestCase):
             body=json.dumps({
                 'completion_id': str(uuid4())
             })
+        )
+
+    def __mock_record_trace_api(self, session_id: str, trace_id: str) -> None:
+        responses.post(
+            url=f'{self.api_base}/v2/projects/{self.project_id}/sessions/{session_id}/traces/id/{trace_id}',
+            status=201,
+            content_type='application/json',
+            body=json.dumps({})
         )
 
     def __mock_customer_feedback_api(self, completion_id: str) -> None:

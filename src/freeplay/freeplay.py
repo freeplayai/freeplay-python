@@ -36,5 +36,5 @@ class Freeplay:
         self.customer_feedback = CustomerFeedback(self.call_support)
         self.prompts = Prompts(self.call_support, resolver)
         self.recordings = Recordings(self.call_support)
-        self.sessions = Sessions()
+        self.sessions = Sessions(self.call_support)
         self.test_runs = TestRuns(self.call_support)

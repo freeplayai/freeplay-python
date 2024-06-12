@@ -210,3 +210,15 @@ class CallSupport:
             summary_statistics=json_dom['summary_statistics']
         )
 
+    def record_trace(self, project_id: str, session_id: str, trace_id: str, input: str, output: str) -> None:
+        response = api_support.post_raw(
+            self.freeplay_api_key,
+            f'{self.api_base}/v2/projects/{project_id}/sessions/{session_id}/traces/id/{trace_id}',
+            {
+                'input': input,
+                'output': output
+            }
+        )
+        if response.status_code != 201:
+            raise freeplay_response_error('Error while recording trace.', response)
+

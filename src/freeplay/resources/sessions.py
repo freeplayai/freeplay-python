@@ -81,6 +81,9 @@ class Sessions:
             _call_support=self.call_support,
         )
 
+    def delete(self, project_id: str, session_id: str) -> None:
+        self.call_support.delete_session(project_id, session_id)
+
     def restore_session(self, session_id: str, custom_metadata: CustomMetadata = None) -> Session:
         return Session(
             session_id=session_id,

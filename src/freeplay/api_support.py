@@ -60,6 +60,13 @@ def post_raw(api_key: str, url: str, payload: t.Optional[Dict[str, t.Any]] = Non
     )
 
 
+def delete_raw(api_key: str, url: str) -> Response:
+    return requests.delete(
+        url=url,
+        headers=build_request_header(api_key),
+    )
+
+
 def get(target_type: t.Type[T], api_key: str, url: str) -> T:
     response = requests.get(
         url=url,

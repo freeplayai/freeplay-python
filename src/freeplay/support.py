@@ -222,3 +222,11 @@ class CallSupport:
         if response.status_code != 201:
             raise freeplay_response_error('Error while recording trace.', response)
 
+    def delete_session(self, project_id: str, session_id: str) -> None:
+        response = api_support.delete_raw(
+            self.freeplay_api_key,
+            f'{self.api_base}/v2/projects/{project_id}/sessions/{session_id}'
+        )
+        if response.status_code != 201:
+            raise freeplay_response_error('Error while deleting session.', response)
+

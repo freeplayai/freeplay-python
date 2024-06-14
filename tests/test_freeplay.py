@@ -246,6 +246,15 @@ class TestFreeplay(TestCase):
         )
 
     @responses.activate
+    def test_delete_session(self) -> None:
+        self.__mock_session_delete_api(self.project_id, self.session_id)
+        self.freeplay_thin.sessions.delete(self.project_id, self.session_id)
+
+        record_api_request = responses.calls[0].request
+
+        self.assertIsNone(record_api_request.body)
+
+    @responses.activate
     def test_record_function_call(self) -> None:
         self.__mock_freeplay_apis(self.prompt_template_name, self.tag)
 
@@ -889,6 +898,15 @@ class TestFreeplay(TestCase):
             callback=request_callback,
             content_type='application/json',
         )
+
+    def __mock_session_delete_api(self, project_id: str, session_id: str) -> str:
+        url = f'{self.api_base}/v2/projects/{project_id}/sessions/{session_id}'
+        responses.delete(
+            url=url,
+            status=201,
+            content_type='application/json'
+        )
+        return url
 
     def __mock_test_run_retrieval_api(self) -> None:
         body = json.dumps({

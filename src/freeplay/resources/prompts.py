@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional, List, cast, Any, Union
 
-from freeplay.errors import FreeplayConfigurationError, FreeplayClientError
+from freeplay.errors import FreeplayConfigurationError, FreeplayClientError, log_freeplay_client_warning
 from freeplay.llm_parameters import LLMParameters
 from freeplay.model import InputVariables
 from freeplay.support import CallSupport
@@ -144,11 +144,34 @@ class TemplatePrompt:
         self.prompt_info = prompt_info
         self.messages = messages
 
-    def bind(self, variables: InputVariables) -> BoundPrompt:
-        bound_messages = [
-            {'role': message['role'], 'content': bind_template_variables(message['content'], variables)}
-            for message in self.messages
-        ]
+    def bind(self, variables: InputVariables, history: Optional[List[Dict[str, str]]] = None) -> BoundPrompt:
+        # check history for a system message
+        history_clean = []
+        if history:
+            for msg in history:
+                if (msg.get('role') == 'system') & ('system' in [message.get('role') for message in self.messages]):
+                    log_freeplay_client_warning("System message found in history, and prompt template."
+                                                "Removing system message from the history")
+                else:
+                    history_clean.append(msg)
+
+        has_history_placeholder = {"kind": "history"} in self.messages
+        if history and not has_history_placeholder:
+            raise FreeplayClientError(
+                "History provided for prompt that does not expect history")
+        if has_history_placeholder and not history:
+            log_freeplay_client_warning("History missing for prompt that expects history")
+
+        bound_messages = []
+        for msg in self.messages:
+            if msg.get('kind') == 'history':
+                bound_messages.extend(history_clean)
+            else:
+                bound_messages.append({
+                    'role': msg['role'],
+                    'content': bind_template_variables(msg['content'], variables)},
+                )
+
         return BoundPrompt(self.prompt_info, bound_messages)
 
 
@@ -425,13 +448,14 @@ class Prompts:
             template_name: str,
             environment: str,
             variables: InputVariables,
+            history: Optional[List[Dict[str, str]]] = None,
             flavor_name: Optional[str] = None
     ) -> FormattedPrompt:
         bound_prompt = self.get(
             project_id=project_id,
             template_name=template_name,
             environment=environment
-        ).bind(variables=variables)
+        ).bind(variables=variables, history=history)
 
         return bound_prompt.format(flavor_name)
 

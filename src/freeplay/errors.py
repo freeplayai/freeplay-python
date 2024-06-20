@@ -1,4 +1,5 @@
 from requests import Response
+import warnings
 
 
 class FreeplayError(Exception):
@@ -32,3 +33,11 @@ def freeplay_response_error(message: str, response: Response) -> FreeplayError:
         return FreeplayClientError(full_message)
     else:
         return FreeplayServerError(full_message)
+
+
+class FreeplayClientWarning(UserWarning):
+    pass
+
+
+def log_freeplay_client_warning(message: str) -> None:
+    warnings.warn(message, FreeplayClientWarning)

@@ -12,7 +12,7 @@ from responses import matchers
 
 from freeplay import Freeplay
 from freeplay.errors import (FreeplayClientError,
-                             FreeplayConfigurationError)
+                             FreeplayConfigurationError, FreeplayClientWarning)
 from freeplay.llm_parameters import LLMParameters
 from freeplay.model import OpenAIFunctionCall
 from freeplay.resources.prompts import FormattedPrompt, PromptInfo, TemplatePrompt, FilesystemTemplateResolver, \
@@ -80,6 +80,19 @@ class TestFreeplay(TestCase):
             template_resolver=FilesystemTemplateResolver(Path(__file__).parent / "test_files" / "prompts_v2_format")
         )
         self.bundle_project_id = "475516c8-7be4-4d55-9388-535cef042981"
+        self.openai_api_prompt_info = PromptInfo(
+            prompt_template_id=str(uuid.uuid4()),
+            prompt_template_version_id=str(uuid.uuid4()),
+            template_name='template-name',
+            environment='environment',
+            model_parameters=LLMParameters({}),
+            provider_info=None,
+            provider='openai',
+            model='model-name',
+            flavor_name='openai_chat',
+            project_id=self.project_id
+
+        )
         self.anthropic_prompt_info = PromptInfo(
             prompt_template_id=str(uuid.uuid4()),
             prompt_template_version_id=str(uuid.uuid4()),
@@ -367,6 +380,152 @@ class TestFreeplay(TestCase):
         self.assertTrue(input_variables.get('name') in formatted_prompt.llm_prompt[0]['content'])  # type: ignore
         self.assertTrue(input_variables.get('question') in formatted_prompt.llm_prompt[1]['content'])  # type: ignore
         self.assertTrue(llm_response in all_messages[3]['content'])
+
+    def test_prompt_format__history_openai(self) -> None:
+        messages = [
+            {'role': 'system', 'content': 'System message'},
+            {'kind': 'history'},
+            {'role': 'user', 'content': 'User message {{number}}'}
+        ]
+        template_prompt = TemplatePrompt(
+            self.openai_api_prompt_info,
+            messages=messages
+        )
+        bound_prompt = template_prompt.bind({'number': 1}, history=[])
+        formatted_prompt = bound_prompt.format()
+        self.assertEqual(formatted_prompt.messages, [
+            {'role': 'system', 'content': 'System message'},
+            {'role': 'user', 'content': 'User message 1'}
+        ])
+
+        history = [{'role': 'user', 'content': 'User message 1'},
+                   {'role': 'assistant', 'content': 'Assistant message 1'}]
+
+        bound_prompt = template_prompt.bind({'number': 2}, history=history)
+        formatted_prompt = bound_prompt.format()
+        self.assertEqual(formatted_prompt.messages, [
+            {'role': 'system', 'content': 'System message'},
+            history[0],
+            history[1],
+            {'role': 'user', 'content': 'User message 2'}
+        ])
+
+    def test_prompt_format__history_anthropic(self) -> None:
+        messages = [
+            {'role': 'system', 'content': 'System message'},
+            {'kind': 'history'},
+            {'role': 'user', 'content': 'User message {{number}}'}
+        ]
+        template_prompt = TemplatePrompt(
+            self.anthropic_prompt_info,
+            messages=messages
+        )
+        bound_prompt = template_prompt.bind({'number': 1}, history=[])
+        formatted_prompt = bound_prompt.format()
+        self.assertEqual(formatted_prompt.llm_prompt, [
+            {'role': 'user', 'content': 'User message 1'}
+        ])
+        self.assertEqual(formatted_prompt.system_content, 'System message')
+
+        history = [{'role': 'user', 'content': 'User message 1'},
+                   {'role': 'assistant', 'content': 'Assistant message 1'}]
+
+        bound_prompt = template_prompt.bind({'number': 2}, history=history)
+        formatted_prompt = bound_prompt.format()
+        self.assertEqual(formatted_prompt.llm_prompt, [
+            history[0],
+            history[1],
+            {'role': 'user', 'content': 'User message 2'}
+        ])
+        self.assertEqual(formatted_prompt.system_content, 'System message')
+
+    def test_prompt_format__history_llama(self) -> None:
+        messages = [
+            {'role': 'system', 'content': 'System message'},
+            {'kind': 'history'},
+            {'role': 'user', 'content': 'User message {{number}}'}
+        ]
+        template_prompt = TemplatePrompt(
+            self.sagemaker_llama_3_prompt_info,
+            messages=messages
+        )
+        bound_prompt = template_prompt.bind({'number': 1}, history=[])
+        formatted_prompt = bound_prompt.format()
+        self.assertEqual(
+            "<|begin_of_text|>"
+            "<|start_header_id|>system<|end_header_id|>\nSystem message<|eot_id|>"
+            "<|start_header_id|>user<|end_header_id|>\nUser message 1<|eot_id|>"
+            "<|start_header_id|>assistant<|end_header_id|>",
+            formatted_prompt.llm_prompt_text
+        )
+
+        history = [{'role': 'user', 'content': 'User message 1'},
+                   {'role': 'assistant', 'content': 'Assistant message 1'}]
+
+        bound_prompt = template_prompt.bind({'number': 2}, history=history)
+        formatted_prompt = bound_prompt.format()
+        self.assertEqual(
+            "<|begin_of_text|>"
+            "<|start_header_id|>system<|end_header_id|>\nSystem message<|eot_id|>"
+            "<|start_header_id|>user<|end_header_id|>\nUser message 1<|eot_id|>"
+            "<|start_header_id|>assistant<|end_header_id|>\nAssistant message 1<|eot_id|>"
+            "<|start_header_id|>user<|end_header_id|>\nUser message 2<|eot_id|>"
+            "<|start_header_id|>assistant<|end_header_id|>",
+            formatted_prompt.llm_prompt_text
+        )
+
+    def test_prompt_format__bad_history(self) -> None:
+        # send pass history to prompt that doesn't support it
+        messages = [
+            {'role': 'system', 'content': 'System message'},
+            {'role': 'user', 'content': 'User message {{number}}'}
+        ]
+        template_prompt = TemplatePrompt(
+            self.openai_api_prompt_info,
+            messages
+        )
+        with self.assertRaisesRegex(FreeplayClientError,
+                                    "History provided for prompt that does not expect history"):
+            template_prompt.bind({'number': 1}, history=[{'role': 'user', 'content': 'User message 1'}])
+
+        # send no history to prompt that expects it
+        messages = [
+            {'role': 'system', 'content': 'System message'},
+            {'kind': 'history'},
+            {'role': 'user', 'content': 'User message {{number}}'}
+        ]
+        template_prompt = TemplatePrompt(
+            self.openai_api_prompt_info,
+            messages
+        )
+        with self.assertWarnsRegex(FreeplayClientWarning,
+                                   "History missing for prompt that expects history"):
+            formatted_prompt = template_prompt.bind({'number': 2}).format()
+            self.assertEqual(
+                [
+                    {'role': 'system', 'content': 'System message'},
+                    {'role': 'user', 'content': 'User message 2'}
+                ],
+                formatted_prompt.llm_prompt
+            )
+
+        history = [
+            {'role': 'system', 'content': 'System message'},
+            {'role': 'user', 'content': 'User message 1'},
+            {'role': 'assistant', 'content': 'Assistant message 1'}
+        ]
+        # send a system message to history
+        with self.assertWarnsRegex(FreeplayClientWarning, "System message found"):
+            formatted_prompt = template_prompt.bind({'number': 2}, history=history).format()
+            self.assertEqual(
+                [
+                    {'role': 'system', 'content': 'System message'},
+                    history[1],
+                    history[2],
+                    {'role': 'user', 'content': 'User message 2'}
+                ],
+                formatted_prompt.llm_prompt
+            )
 
     def test_anthropic_system_prompt_formatting__multiple_system_messages(self) -> None:
         bound_prompt = BoundPrompt(

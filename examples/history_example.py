@@ -15,7 +15,7 @@ fpclient = Freeplay(
     api_base=f"{os.environ['FREEPLAY_API_URL']}/api"
 )
 project_id = os.environ['FREEPLAY_PROJECT_ID']
-enviroment = 'prod'
+enviroment = 'dev'
 
 openai_client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY")
@@ -144,12 +144,13 @@ def call_and_record(
 
 
 session = fpclient.sessions.create()
+print("session id %s" % session.session_info.session_id)
 history = []
 for inputs in input_pairs:
     input_vars = {'question': inputs[1], 'article': inputs[0]}
     record_response = call_and_record(
         project_id=project_id,
-        template_name='History-Basics',
+        template_name='History-QA',
         env=enviroment,
         history=history,
         input_variables=input_vars,

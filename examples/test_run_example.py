@@ -51,3 +51,13 @@ for test_case in test_run.test_cases:
             'is_non_empty': True
         }
     )
+
+
+# wait 5 sec and get the results
+time.sleep(5)
+results = fp_client.test_runs.get(project_id, test_run.test_run_id)
+print(f"Test run results")
+print(results.test_run_id)
+print(results.name)
+print(results.description)
+print(results.summary_statistics)

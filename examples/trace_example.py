@@ -71,35 +71,36 @@ def call_and_record(
 
 
 # send 3 questions to the model encapsulated into a trace
-user_question = "answer life's most existential questions"
+user_questions = ["answer life's most existential questions", "what is sand?", "how tall are lions?"]
 
 session = fpclient.sessions.create()
-trace_info = session.create_trace(input=user_question)
-bot_response = call_and_record(
-    project_id=project_id,
-    template_name='my-anthropic-prompt',
-    env='latest',
-    input_variables={'question': user_question},
-    session_info=session.session_info,
-    trace_info=trace_info
-)
-categorization_result = call_and_record(
-    project_id=project_id,
-    template_name='my-anthropic-prompt',
-    env='latest',
-    input_variables={'question': f"What is the topic of the user's question? '{user_question}'"},
-    session_info=session.session_info,
-    trace_info=trace_info
-)
+for question in user_questions:
+    trace_info = session.create_trace(input=question)
+    bot_response = call_and_record(
+        project_id=project_id,
+        template_name='my-anthropic-prompt',
+        env='latest',
+        input_variables={'question': question},
+        session_info=session.session_info,
+        trace_info=trace_info
+    )
+    categorization_result = call_and_record(
+        project_id=project_id,
+        template_name='question-classifier',
+        env='latest',
+        input_variables={'question': question},
+        session_info=session.session_info,
+        trace_info=trace_info
+    )
 
-print(f"Sending customer feedback for completion id: {bot_response['completion_id']}")
-fpclient.customer_feedback.update(
-    bot_response['completion_id'],
-    {
-        'is_it_good': random.choice(["nah", "yuh"]),
-        'topic': categorization_result['llm_response'],
-    }
-)
+    print(f"Sending customer feedback for completion id: {bot_response['completion_id']}")
+    fpclient.customer_feedback.update(
+        bot_response['completion_id'],
+        {
+            'is_it_good': random.choice(["nah", "yuh"]),
+            'topic': categorization_result['llm_response'],
+        }
+    )
 
-trace_info.record_output(project_id, bot_response['llm_response'])
-print(f"Trace info id: {trace_info.trace_id}")
+    trace_info.record_output(project_id, bot_response['llm_response'])
+    print(f"Trace info id: {trace_info.trace_id}")

@@ -198,7 +198,7 @@ class CallSupport:
             api_key=self.freeplay_api_key,
             url=f'{self.api_base}/v2/projects/{project_id}/test-runs/id/{test_run_id}'
         )
-        if response.status_code != 201:
+        if response.status_code != 200:
             raise freeplay_response_error('Error while retrieving test run results.', response)
 
         json_dom = response.json()

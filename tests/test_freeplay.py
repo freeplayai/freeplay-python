@@ -1105,7 +1105,7 @@ class TestFreeplay(TestCase):
         })
         responses.get(
             url=f'{self.api_base}/v2/projects/{self.project_id}/test-runs/id/{self.test_run_id}',
-            status=201,
+            status=200,
             body=body
         )
 

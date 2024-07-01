@@ -149,7 +149,7 @@ class TemplatePrompt:
         history_clean = []
         if history:
             for msg in history:
-                if (msg.get('role') == 'system') & ('system' in [message.get('role') for message in self.messages]):
+                if (msg.get('role') == 'system') and ('system' in [message.get('role') for message in self.messages]):
                     log_freeplay_client_warning("System message found in history, and prompt template."
                                                 "Removing system message from the history")
                 else:

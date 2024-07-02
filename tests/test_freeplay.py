@@ -1048,7 +1048,7 @@ class TestFreeplay(TestCase):
                 {},
                 self.__create_test_run_response(
                     self.test_run_id,
-                    payload['include_test_case_outputs'] if payload else None
+                    payload['include_outputs'] if payload else None
                 )
             )
 

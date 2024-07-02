@@ -167,7 +167,7 @@ class CallSupport:
             self,
             project_id: str,
             testlist: str,
-            include_test_case_outputs: bool = False,
+            include_outputs: bool = False,
             name: Optional[str] = None,
             description: Optional[str] = None
     ) -> TestRunResponse:
@@ -176,7 +176,7 @@ class CallSupport:
             url=f'{self.api_base}/v2/projects/{project_id}/test-runs',
             payload={
                 'dataset_name': testlist,
-                'include_test_case_outputs': include_test_case_outputs,
+                'include_outputs': include_outputs,
                 'test_run_name': name,
                 'test_run_description': description
             },

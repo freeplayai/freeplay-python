@@ -19,7 +19,7 @@ template_prompt = fp_client.prompts.get(
 )
 
 test_run = fp_client.test_runs.create(
-    project_id, "core-tests", name=f'Test run: {uuid4()}', description='Run from Python examples')
+    project_id, "core-tests", include_outputs=True, name=f'Test run: {uuid4()}', description='Run from Python examples')
 for test_case in test_run.test_cases:
     formatted_prompt = template_prompt.bind(test_case.variables).format()
     print(f"Ready for LLM: {formatted_prompt.llm_prompt}")

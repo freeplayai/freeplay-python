@@ -103,4 +103,10 @@ for question in user_questions:
     )
 
     trace_info.record_output(project_id, bot_response['llm_response'])
+    # record feedback for the trace
+    trace_feedback = {
+        'is_it_good': random.choice([True, False]),
+        'freeplay_feedback': random.choice(["positive", "negative"])
+    }
+    fpclient.customer_feedback.update_trace(project_id, trace_info.trace_id, trace_feedback)
     print(f"Trace info id: {trace_info.trace_id}")

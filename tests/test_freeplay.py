@@ -333,6 +333,22 @@ class TestFreeplay(TestCase):
         self.assertEqual(True, recorded_body_dom['bool'])
 
     @responses.activate
+    def test_trace_feedback(self) -> None:
+        trace_id = str(uuid4())
+
+        self.__mock_trace_feedback_api(self.project_id, trace_id)
+
+        self.freeplay_thin.customer_feedback.update_trace(self.project_id, trace_id,
+                                                          {'is good': True, 'freeplay_feedback': 'positive', 'int': 1}
+                                                          )
+
+        trace_feedback_request = responses.calls[0].request
+        recorded_body_dom = json.loads(trace_feedback_request.body)
+        self.assertEqual(True, recorded_body_dom['is good'])
+        self.assertEqual('positive', recorded_body_dom['freeplay_feedback'])
+        self.assertEqual(1, recorded_body_dom['int'])
+
+    @responses.activate
     def test_customer_feedback__unauthorized(self) -> None:
         completion_id = str(uuid4())
         responses.put(
@@ -1036,6 +1052,13 @@ class TestFreeplay(TestCase):
     def __mock_customer_feedback_api(self, completion_id: str) -> None:
         responses.put(
             url=f'{self.api_base}/v1/completion_feedback/{completion_id}',
+            status=201,
+            content_type='application/json'
+        )
+
+    def __mock_trace_feedback_api(self, project_id: str, trace_id: str) -> None:
+        responses.post(
+            url=f'{self.api_base}/v2/projects/{project_id}/trace-feedback/id/{trace_id}',
             status=201,
             content_type='application/json'
         )

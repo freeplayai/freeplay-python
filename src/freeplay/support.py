@@ -5,7 +5,7 @@ from typing import Optional, Dict, Any, List, Union
 from freeplay import api_support
 from freeplay.api_support import try_decode
 from freeplay.errors import freeplay_response_error, FreeplayServerError
-from freeplay.model import InputVariables
+from freeplay.model import InputVariables, FeedbackValue
 
 
 @dataclass
@@ -162,6 +162,20 @@ class CallSupport:
         )
         if response.status_code != 201:
             raise freeplay_response_error("Error updating customer feedback", response)
+
+    def update_trace_feedback(
+            self, project_id: str, trace_id: str, feedback: Dict[str, FeedbackValue]
+    ) -> None:
+        response = api_support.post_raw(
+            self.freeplay_api_key,
+            f'{self.api_base}/v2/projects/{project_id}/trace-feedback/id/{trace_id}',
+            feedback
+        )
+        if response.status_code != 201:
+            raise freeplay_response_error(
+                f'Error updating trace feedback for {trace_id} in project {project_id}',
+                response
+            )
 
     def create_test_run(
             self,

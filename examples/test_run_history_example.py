@@ -3,19 +3,20 @@ import os
 import time
 from copy import deepcopy
 from typing import Optional
+from uuid import uuid4
 
 import boto3
 from anthropic import Anthropic, NotGiven
 from openai import OpenAI
 
-from freeplay import Freeplay, RecordPayload, ResponseInfo, CallInfo, SessionInfo, TraceInfo
+from freeplay import SessionInfo, TraceInfo, TestRunInfo, CallInfo, ResponseInfo, RecordPayload, Freeplay
 
 fpclient = Freeplay(
     freeplay_api_key=os.environ['FREEPLAY_API_KEY'],
     api_base=f"{os.environ['FREEPLAY_API_URL']}/api"
 )
+
 project_id = os.environ['FREEPLAY_PROJECT_ID']
-enviroment = 'dev'
 
 openai_client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY")
@@ -31,30 +32,6 @@ sagemaker_client = boto3.client(
 )
 
 
-articles = [
-    "george washington was the first president of the united states",
-    "the sky is blue",
-    "the earth is round",
-    ""
-]
-questions = [
-    "who was the first president of the united states?",
-    "what color is the sky?",
-    "what shape is the earth?",
-    "repeat the first question and answer"
-]
-input_pairs = list(zip(articles, questions))
-
-template_prompt = fpclient.prompts.get(
-    project_id=project_id,
-    template_name='History-QA',
-    environment=enviroment
-)
-print("Template Prompt messages")
-print(json.dumps(template_prompt.messages, indent=2))
-print("\n")
-
-
 def call_and_record(
         project_id: str,
         template_name: str,
@@ -62,7 +39,8 @@ def call_and_record(
         history: list,
         input_variables: dict,
         session_info: SessionInfo,
-        trace_info: Optional[TraceInfo] = None
+        trace_info: Optional[TraceInfo] = None,
+        test_run_info: Optional[TestRunInfo] = None
 ) -> dict:
     formatted_prompt = fpclient.prompts.get_formatted(
         project_id=project_id,
@@ -135,6 +113,7 @@ def call_and_record(
             call_info=call_info,
             response_info=response_info,
             trace_info=trace_info,
+            test_run_info=test_run_info
         )
     )
 
@@ -143,21 +122,31 @@ def call_and_record(
             "all_messages": all_messages}
 
 
-session = fpclient.sessions.create()
-print("session id %s" % session.session_info.session_id)
-history = []
-for inputs in input_pairs:
-    input_vars = {'question': inputs[1], 'article': inputs[0]}
+test_run = fpclient.test_runs.create(
+    project_id, "history-dataset", include_outputs=True, name=f'Test run: {uuid4()}',
+    description='Run from Python examples')
+
+for test_case in test_run.test_cases:
+    input_vars = test_case.variables
+    history = test_case.history
+    print(history)
+    session = fpclient.sessions.create()
+    test_run_info = test_run.get_test_run_info(test_case.id)
     record_response = call_and_record(
         project_id=project_id,
         template_name='History-QA',
-        env=enviroment,
+        env='dev',
         history=history,
         input_variables=input_vars,
         session_info=session.session_info,
+        test_run_info=test_run_info
     )
-    # this would work for 80% of cases
-    history = [msg for msg in record_response['all_messages'] if msg['role'] != 'system']
-    print("\n")
 
-
+# wait 5 sec and get the results
+time.sleep(5)
+results = fpclient.test_runs.get(project_id, test_run.test_run_id)
+print(f"Test run results")
+print(results.test_run_id)
+print(results.name)
+print(results.description)
+print(results.summary_statistics)

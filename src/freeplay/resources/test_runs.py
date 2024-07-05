@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from freeplay.model import InputVariables
 from freeplay.resources.recordings import TestRunInfo
@@ -13,10 +13,12 @@ class TestCase:
             test_case_id: str,
             variables: InputVariables,
             output: Optional[str],
+            history: Optional[List[Dict[str, str]]]
     ):
         self.id = test_case_id
         self.variables = variables
         self.output = output
+        self.history = history
 
 
 @dataclass
@@ -64,7 +66,10 @@ class TestRuns:
     ) -> TestRun:
         test_run = self.call_support.create_test_run(project_id, testlist, include_outputs, name, description)
         test_cases = [
-            TestCase(test_case_id=test_case.id, variables=test_case.variables, output=test_case.output)
+            TestCase(test_case_id=test_case.id,
+                     variables=test_case.variables,
+                     output=test_case.output,
+                     history=test_case.history)
             for test_case in test_run.test_cases
         ]
 

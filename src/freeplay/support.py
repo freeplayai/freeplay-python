@@ -49,6 +49,7 @@ class TestCaseTestRunResponse:
         self.variables: InputVariables = test_case['variables']
         self.id: str = test_case['test_case_id']
         self.output: Optional[str] = test_case.get('output')
+        self.history: Optional[List[Dict[str, str]]] = test_case.get('history')
 
 
 class TestRunResponse:

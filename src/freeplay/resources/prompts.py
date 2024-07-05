@@ -303,8 +303,11 @@ class FilesystemTemplateResolver(TemplateResolver):
     def __normalize_roles(messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
         normalized = []
         for message in messages:
-            role = FilesystemTemplateResolver.__role_translations.get(message['role']) or message['role']
-            normalized.append({'role': role, 'content': message['content']})
+            if 'kind' in message:
+                normalized.append(message)
+            else:
+                role = FilesystemTemplateResolver.__role_translations.get(message['role']) or message['role']
+                normalized.append({'role': role, 'content': message['content']})
         return normalized
 
     @staticmethod

@@ -847,6 +847,23 @@ class TestFreeplay(TestCase):
 
         self.assertEqual(TemplatePromptMatcher(expected), template_prompt)
 
+    def test_filesystem_resolver_with_history_v2(self) -> None:
+        template_prompt = self.bundle_client_v2.prompts.get(self.bundle_project_id, "test-prompt-with-history", "prod")
+        variables = {"question": "why?"}
+        history = [
+            {"role": "user", "content": "User message 1"},
+            {"role": "assistant", "content": "Assistant message 1"}
+        ]
+        bound_prompt = template_prompt.bind(variables, history)
+
+        self.assertEqual(
+            [
+                {'content': 'You are a support agent', 'role': 'system'},
+                {'content': 'User message 1', 'role': 'user'},
+                {'content': 'Assistant message 1', 'role': 'assistant'},
+                {'content': 'why?', 'role': 'user'}
+            ], bound_prompt.messages)
+
     def test_filesystem_resolver_without_params_v2(self) -> None:
         template_prompt = self.bundle_client_v2.prompts.get(self.bundle_project_id, "test-prompt-no-params", "prod")
 

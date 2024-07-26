@@ -5,7 +5,7 @@ from typing import Optional, Dict, Union
 from freeplay.errors import FreeplayClientError
 from freeplay.support import CallSupport
 
-CustomMetadata = Optional[Dict[str, Union[str, int, float]]]
+CustomMetadata = Optional[Dict[str, Union[str, int, float, bool]]]
 
 
 @dataclass

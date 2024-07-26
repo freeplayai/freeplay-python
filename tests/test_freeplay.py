@@ -58,7 +58,7 @@ class TestFreeplay(TestCase):
         self.prompt_template_id_1 = str(uuid4())
         self.prompt_template_name = "my-prompt-anthropic"
         self.session_id = str(uuid4())
-        self.custom_metadata: CustomMetadata = {'custom_metadata_field': 42}
+        self.custom_metadata: CustomMetadata = {'custom_metadata_field': 42, 'true': False}
         self.session_info = SessionInfo(session_id=self.session_id, custom_metadata=self.custom_metadata)
         self.record_url = f'{self.api_base}/v2/projects/{self.project_id}/sessions/{self.session_id}/completions'
         self.tag = 'test-tag'
@@ -198,7 +198,7 @@ class TestFreeplay(TestCase):
         )
 
         # Custom metadata recording
-        self.assertEqual({'custom_metadata_field': 42}, recorded_body_dom["session_info"]['custom_metadata'])
+        self.assertEqual({'custom_metadata_field': 42, 'true': False}, recorded_body_dom["session_info"]['custom_metadata'])
 
         self.assertEqual({"test_run_id": self.test_run_id, "test_case_id": test_case_id},
                          recorded_body_dom['test_run_info']

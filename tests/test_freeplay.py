@@ -69,15 +69,15 @@ class TestFreeplay(TestCase):
             api_base=self.api_base
         )
 
+        self.legacy_bundle_client = Freeplay(
+            freeplay_api_key=self.freeplay_api_key,
+            api_base=self.api_base,
+            template_resolver=FilesystemTemplateResolver(Path(__file__).parent / "test_files" / "legacy_prompt_formats")
+        )
         self.bundle_client = Freeplay(
             freeplay_api_key=self.freeplay_api_key,
             api_base=self.api_base,
             template_resolver=FilesystemTemplateResolver(Path(__file__).parent / "test_files" / "prompts")
-        )
-        self.bundle_client_v2 = Freeplay(
-            freeplay_api_key=self.freeplay_api_key,
-            api_base=self.api_base,
-            template_resolver=FilesystemTemplateResolver(Path(__file__).parent / "test_files" / "prompts_v2_format")
         )
         self.bundle_project_id = "475516c8-7be4-4d55-9388-535cef042981"
         self.openai_api_prompt_info = PromptInfo(
@@ -755,7 +755,7 @@ class TestFreeplay(TestCase):
             )
 
     def test_filesystem_resolver_with_params(self) -> None:
-        template_prompt = self.bundle_client.prompts.get(self.bundle_project_id, "test-prompt-with-params", "prod")
+        template_prompt = self.legacy_bundle_client.prompts.get(self.bundle_project_id, "test-prompt-with-params", "prod")
 
         expected = TemplatePrompt(
             prompt_info=PromptInfo(
@@ -778,7 +778,7 @@ class TestFreeplay(TestCase):
         self.assertEqual(TemplatePromptMatcher(expected), template_prompt)
 
     def test_filesystem_resolver_without_params(self) -> None:
-        template_prompt = self.bundle_client.prompts.get(self.bundle_project_id, "test-prompt-no-params", "prod")
+        template_prompt = self.legacy_bundle_client.prompts.get(self.bundle_project_id, "test-prompt-no-params", "prod")
 
         expected = TemplatePrompt(
             prompt_info=PromptInfo(
@@ -801,7 +801,7 @@ class TestFreeplay(TestCase):
         self.assertEqual(TemplatePromptMatcher(expected), template_prompt)
 
     def test_filesystem_resolver_other_environment(self) -> None:
-        template_prompt = self.bundle_client.prompts.get(self.bundle_project_id, "test-prompt-with-params", "qa")
+        template_prompt = self.legacy_bundle_client.prompts.get(self.bundle_project_id, "test-prompt-with-params", "qa")
 
         # Version ID is different
         expected = TemplatePrompt(
@@ -825,7 +825,7 @@ class TestFreeplay(TestCase):
         self.assertEqual(TemplatePromptMatcher(expected), template_prompt)
 
     def test_filesystem_resolver_with_params_v2(self) -> None:
-        template_prompt = self.bundle_client_v2.prompts.get(self.bundle_project_id, "test-prompt-with-params", "prod")
+        template_prompt = self.bundle_client.prompts.get(self.bundle_project_id, "test-prompt-with-params", "prod")
 
         expected = TemplatePrompt(
             prompt_info=PromptInfo(
@@ -848,7 +848,7 @@ class TestFreeplay(TestCase):
         self.assertEqual(TemplatePromptMatcher(expected), template_prompt)
 
     def test_filesystem_resolver_with_history_v2(self) -> None:
-        template_prompt = self.bundle_client_v2.prompts.get(self.bundle_project_id, "test-prompt-with-history", "prod")
+        template_prompt = self.bundle_client.prompts.get(self.bundle_project_id, "test-prompt-with-history", "prod")
         variables = {"question": "why?"}
         history = [
             {"role": "user", "content": "User message 1"},
@@ -865,7 +865,7 @@ class TestFreeplay(TestCase):
             ], bound_prompt.messages)
 
     def test_filesystem_resolver_without_params_v2(self) -> None:
-        template_prompt = self.bundle_client_v2.prompts.get(self.bundle_project_id, "test-prompt-no-params", "prod")
+        template_prompt = self.bundle_client.prompts.get(self.bundle_project_id, "test-prompt-no-params", "prod")
 
         expected = TemplatePrompt(
             prompt_info=PromptInfo(
@@ -905,7 +905,7 @@ class TestFreeplay(TestCase):
                       {'content': 'How can I help you?', 'role': 'assistant'},
                       {'content': '{{question}}', 'role': 'user'}]
         )
-        template_prompt = self.bundle_client_v2.prompts.get_by_version_id(
+        template_prompt = self.bundle_client.prompts.get_by_version_id(
             self.bundle_project_id,
             expected.prompt_info.prompt_template_id,
             expected.prompt_info.prompt_template_version_id
@@ -933,7 +933,7 @@ class TestFreeplay(TestCase):
                       {'content': 'How can I help you?', 'role': 'assistant'},
                       {'content': f'{question}', 'role': 'user'}]
         )
-        formatted_prompt = self.bundle_client_v2.prompts.get_formatted_by_version_id(
+        formatted_prompt = self.bundle_client.prompts.get_formatted_by_version_id(
             self.bundle_project_id,
             expected.prompt_info.prompt_template_id,
             expected.prompt_info.prompt_template_version_id,
@@ -945,7 +945,7 @@ class TestFreeplay(TestCase):
 
     def test_freeplay_directory_doesnt_exist(self) -> None:
         with self.assertRaisesRegex(FreeplayConfigurationError, "Path for prompt templates is not a valid directory"):
-            self.bundle_client = Freeplay(
+            self.legacy_bundle_client = Freeplay(
                 freeplay_api_key=self.freeplay_api_key,
                 api_base=self.api_base,
                 template_resolver=FilesystemTemplateResolver(Path(__file__).parent / "does_not_exist")
@@ -956,11 +956,11 @@ class TestFreeplay(TestCase):
                 FreeplayClientError,
                 f"Could not find prompt with name not-a-prompt for project {self.bundle_project_id} in environment prod"
         ):
-            self.bundle_client.prompts.get(self.bundle_project_id, "not-a-prompt", "prod")
+            self.legacy_bundle_client.prompts.get(self.bundle_project_id, "not-a-prompt", "prod")
 
     def test_freeplay_directory_is_file(self) -> None:
         with self.assertRaisesRegex(FreeplayConfigurationError, "Path for prompt templates is not a valid directory"):
-            self.bundle_client = Freeplay(
+            self.legacy_bundle_client = Freeplay(
                 freeplay_api_key=self.freeplay_api_key,
                 api_base=self.api_base,
                 template_resolver=FilesystemTemplateResolver(Path(__file__))
@@ -968,12 +968,12 @@ class TestFreeplay(TestCase):
 
     def test_freeplay_directory_invalid_environment(self) -> None:
         with self.assertRaisesRegex(FreeplayConfigurationError, "Could not find prompt template directory for project"):
-            self.bundle_client = Freeplay(
+            self.legacy_bundle_client = Freeplay(
                 freeplay_api_key=self.freeplay_api_key,
                 api_base=self.api_base,
-                template_resolver=FilesystemTemplateResolver(Path(__file__).parent / "test_files" / "prompts")
+                template_resolver=FilesystemTemplateResolver(Path(__file__).parent / "test_files" / "legacy_prompt_formats")
             )
-            self.bundle_client.prompts.get(self.bundle_project_id, "test-prompt-with-params", "not_real_environment")
+            self.legacy_bundle_client.prompts.get(self.bundle_project_id, "test-prompt-with-params", "not_real_environment")
 
     def test_prompt_invalid_flavor(self) -> None:
         with self.assertRaisesRegex(
@@ -981,14 +981,14 @@ class TestFreeplay(TestCase):
                 'Configured flavor \\(not_a_flavor\\) not found in SDK. Please update your SDK version or configure '
                 'a different model in the Freeplay UI.'
         ):
-            self.bundle_client.prompts.get(self.bundle_project_id, "test-prompt-invalid-flavor", "prod")
+            self.legacy_bundle_client.prompts.get(self.bundle_project_id, "test-prompt-invalid-flavor", "prod")
 
     def test_prompt_no_model(self) -> None:
         with self.assertRaisesRegex(
                 FreeplayConfigurationError,
                 'Model must be configured in the Freeplay UI. Unable to fulfill request.'
         ):
-            self.bundle_client.prompts.get(self.bundle_project_id, "test-prompt-no-model", "prod")
+            self.legacy_bundle_client.prompts.get(self.bundle_project_id, "test-prompt-no-model", "prod")
 
     @responses.activate
     def test_get_prompt_version_id(self) -> None:

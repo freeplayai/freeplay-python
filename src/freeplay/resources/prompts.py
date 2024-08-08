@@ -256,13 +256,13 @@ class FilesystemTemplateResolver(TemplateResolver):
     def __render_into_v2(json_dom: Dict[str, Any]) -> PromptTemplate:
         format_version = json_dom.get('format_version')
 
-        if format_version == 2:
+        if format_version and format_version >= 2:
             metadata = json_dom['metadata']
             flavor_name = metadata.get('flavor')
             model = metadata.get('model')
 
             return PromptTemplate(
-                format_version=2,
+                format_version=format_version,
                 prompt_template_id=json_dom.get('prompt_template_id'),  # type: ignore
                 prompt_template_version_id=json_dom.get('prompt_template_version_id'),  # type: ignore
                 prompt_template_name=json_dom.get('prompt_template_name'),  # type: ignore

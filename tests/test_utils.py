@@ -70,3 +70,6 @@ class MyTestCase(unittest.TestCase):
             all_valid({'foo': [1, 2, 3]}))
         self.assertTrue(
             all_valid({'foo': {'a': False}}))
+        self.assertTrue(
+            all_valid({'foo': 2.22})
+        )

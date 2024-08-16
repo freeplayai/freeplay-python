@@ -10,7 +10,7 @@ from .model import InputVariables
 
 # Validate that the variables are of the correct type, and do not include functions, dates, classes or None values.
 def all_valid(obj: Any) -> bool:
-    if isinstance(obj, (int, str, bool)):
+    if isinstance(obj, (int, str, bool, float)):
         return True
     elif isinstance(obj, list):
         return all(all_valid(item) for item in obj)

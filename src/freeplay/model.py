@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Union, Any, Dict, Mapping, TypedDict
 
-InputValue = Union[str, int, bool, Dict[str, Any], List[Any]]
+InputValue = Union[str, int, bool, float, Dict[str, Any], List[Any]]
 InputVariables = Mapping[str, InputValue]
 TestRunInput = Mapping[str, InputValue]
 FeedbackValue = Union[bool, str, int, float]

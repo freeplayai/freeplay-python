@@ -1,12 +1,13 @@
 import sys
 import unittest
+from typing import Any, Dict
 
 from freeplay.errors import FreeplayError
 from freeplay.model import InputVariables
 from freeplay.utils import bind_template_variables, all_valid
 
 
-class MyTestCase(unittest.TestCase):
+class TestUtils(unittest.TestCase):
     template_content = 'Hello, {{name}}, here is a question: {{question_1}} Here is some json: {"is_json": true, ' \
                        '"array": [{}]}'
 
@@ -73,3 +74,80 @@ class MyTestCase(unittest.TestCase):
         self.assertTrue(
             all_valid({'foo': 2.22})
         )
+
+    def test_json(self) -> None:
+        template = '{{foo}}'
+        variables = {'foo': {'bar': 'baz'}}
+        formatted = bind_template_variables(template, variables)
+        self.assertEqual(formatted, '{"bar":"baz"}')
+
+    def test_number(self) -> None:
+        template = '{{foo}}'
+        variables = {'foo': 1}
+        formatted = bind_template_variables(template, variables)
+        self.assertEqual(formatted, '1')
+
+    def test_conditional(self) -> None:
+        template = '{{#bar}}{{foo}}{{/bar}}'
+        self.assertEqual(bind_template_variables(template, {'foo': 1, 'bar': False}), '')
+        self.assertEqual(bind_template_variables(template, {'foo': 1, 'bar': True}), '1')
+
+    def test_literal(self) -> None:
+        # This is different than JS.
+        template = '{{{literal}}}'
+        formatted = bind_template_variables(template, {'literal': {'foo': 'bar'}})
+        self.assertEqual(formatted, '{"foo":"bar"}')
+
+    def test_undefined_variable(self) -> None:
+        template = '{{foo}}'
+        variables: Dict[Any, Any] = {}
+        formatted = bind_template_variables(template, variables)
+        self.assertEqual(formatted, '')
+
+    def test_null_variable(self) -> None:
+        template = '{{foo}}'
+        variables = {'foo': None}
+        with self.assertRaises(Exception):
+            bind_template_variables(template, variables)  # type: ignore
+
+    def test_array_variable(self) -> None:
+        template = '{{#foo}}{{.}}{{/foo}}'
+        variables = {'foo': [1, 2, 3]}
+        formatted = bind_template_variables(template, variables)
+        self.assertEqual(formatted, '123')
+
+    def test_nested_object(self) -> None:
+        template = '{{foo.bar}}'
+        variables = {'foo': {'bar': 'baz'}}
+        formatted = bind_template_variables(template, variables)
+        self.assertEqual(formatted, 'baz')
+
+    def test_unescaped_characters(self) -> None:
+        template = '{{{foo}}}'
+        variables = {'foo': '<script>alert("xss")</script>'}
+        formatted = bind_template_variables(template, variables)
+        self.assertEqual(formatted, '<script>alert("xss")</script>')
+
+    def test_missing_closing_tag(self) -> None:
+        # This does not throw but ideally it would.
+        template = '{{#foo}}{{bar}}'
+        variables: InputVariables = {'foo': True, 'bar': 'baz'}
+        bind_template_variables(template, variables)
+
+    def test_empty_template(self) -> None:
+        template = ''
+        variables = {'foo': 'bar'}
+        formatted = bind_template_variables(template, variables)
+        self.assertEqual(formatted, '')
+
+    def test_whitespace_handling(self) -> None:
+        template = '{{ foo }}'
+        variables = {'foo': 'bar'}
+        formatted = bind_template_variables(template, variables)
+        self.assertEqual(formatted, 'bar')
+
+    def test_array_of_numbers_and_strings(self) -> None:
+        template = '{{#foo}}{{.}}{{/foo}}'
+        variables = {'foo': [1, 'two', 3, 'four']}
+        formatted = bind_template_variables(template, variables)
+        self.assertEqual(formatted, '1two3four')

@@ -1,3 +1,4 @@
+import json
 from typing import Dict, Union, Optional, Any
 import importlib.metadata
 import platform
@@ -20,6 +21,18 @@ def all_valid(obj: Any) -> bool:
         return False
 
 
+class StandardPystache(pystache.Renderer):  # type: ignore
+
+    def __init__(self) -> None:
+        super().__init__(escape=lambda s: s)
+
+    def str_coerce(self, val: Any) -> str:
+        if isinstance(val, dict) or isinstance(val, list):
+            # We hide spacing after punctuation so that the templating is the same across all SDKs.
+            return json.dumps(val, separators=(',', ':'))
+        return str(val)
+
+
 def bind_template_variables(template: str, variables: InputVariables) -> str:
     if not all_valid(variables):
         raise FreeplayError(
@@ -28,7 +41,7 @@ def bind_template_variables(template: str, variables: InputVariables) -> str:
         )
 
     # When rendering mustache, do not escape HTML special characters.
-    rendered: str = pystache.Renderer(escape=lambda s: s).render(template, variables)
+    rendered: str = StandardPystache().render(template, variables)
     return rendered
 
 

@@ -16,6 +16,11 @@ class PromptTemplateMetadata:
     params: Optional[Dict[str, Any]] = None
     provider_info: Optional[Dict[str, Any]] = None
 
+@dataclass
+class ToolSchema:
+    name: str
+    description: str
+    parameters: Dict[str, Any]
 
 @dataclass
 class PromptTemplate:
@@ -27,6 +32,7 @@ class PromptTemplate:
     project_id: str
     format_version: int
     environment: Optional[str] = None
+    tool_schema: Optional[List[ToolSchema]] = None
 
 
 @dataclass

@@ -9,7 +9,7 @@ from freeplay import api_support
 from freeplay.errors import FreeplayClientError, FreeplayError
 from freeplay.llm_parameters import LLMParameters
 from freeplay.model import InputVariables, OpenAIFunctionCall
-from freeplay.resources.prompts import PromptInfo
+from freeplay.resources.prompts import FormattedPrompt, PromptInfo
 from freeplay.resources.sessions import SessionInfo, TraceInfo
 from freeplay.support import CallSupport
 
@@ -59,6 +59,7 @@ class RecordPayload:
     session_info: SessionInfo
     prompt_info: PromptInfo
     call_info: CallInfo
+    tool_schema: Optional[List[Dict[str, Any]]] = None
     response_info: Optional[ResponseInfo] = None
     test_run_info: Optional[TestRunInfo] = None
     eval_results: Optional[Dict[str, Union[bool, float]]] = None
@@ -82,6 +83,7 @@ class Recordings:
         record_api_payload = {
             "messages": record_payload.all_messages,
             "inputs": record_payload.inputs,
+            "tool_schema": record_payload.tool_schema,
             "session_info": {"custom_metadata": record_payload.session_info.custom_metadata},
             "prompt_info": {
                 "environment": record_payload.prompt_info.environment,

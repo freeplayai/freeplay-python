@@ -1,5 +1,7 @@
+from dataclasses import asdict
 import json
 import time
+import unittest
 import uuid
 from pathlib import Path
 from typing import Tuple, Any, Dict, List, cast
@@ -19,6 +21,7 @@ from freeplay.resources.prompts import FormattedPrompt, PromptInfo, TemplateProm
     BoundPrompt
 from freeplay.resources.recordings import RecordPayload, ResponseInfo, CallInfo, TestRunInfo
 from freeplay.resources.sessions import Session, SessionInfo, CustomMetadata
+from freeplay.support import ToolSchema
 
 
 class PromptInfoMatcher:
@@ -49,6 +52,8 @@ class TemplatePromptMatcher:
 class TestFreeplay(TestCase):
     def setUp(self) -> None:
         super().setUp()
+        self.maxDiff = None
+
         self.freeplay_api_key = "freeplay_api_key"
         self.openai_api_key = "openai_api_key"
         self.api_base = "http://localhost:9091/api"
@@ -164,6 +169,7 @@ class TestFreeplay(TestCase):
                 session_info=self.session_info,
                 prompt_info=formatted_prompt.prompt_info,
                 call_info=call_info,
+                tool_schema=formatted_prompt.tool_schema,
                 response_info=response_info,
                 eval_results={
                     'client_eval_field_bool': True,
@@ -192,6 +198,22 @@ class TestFreeplay(TestCase):
         self.assertEqual('anthropic', recorded_body_dom["call_info"]['provider'])
         self.assertEqual(0.7, recorded_body_dom["call_info"]['llm_parameters']['temperature'])
         self.assertEqual(50, recorded_body_dom["call_info"]['llm_parameters']['max_tokens_to_sample'])
+        self.assertEqual(
+            [
+                {
+                    'name': 'get_album_tracklist',
+                    'description': 'Given an album name and genre, return a list of songs.',
+                    'input_schema': {
+                        'type': 'object',
+                        'properties': {
+                            'album_name': {'type': 'string', 'description': 'Name of album from which to retrieve tracklist.'},
+                            'genre': {'type': 'string', 'description': 'Album genre'}
+                        }
+                    }
+                }
+            ],
+            recorded_body_dom['tool_schema']
+        )
         self.assertEqual(
             {"anthropic_endpoint": "https://example.com/anthropic"},
             recorded_body_dom["call_info"]['provider_info']
@@ -397,6 +419,19 @@ class TestFreeplay(TestCase):
         self.assertTrue(input_variables.get('question') in formatted_prompt.llm_prompt[1]['content'])  # type: ignore
         self.assertTrue(llm_response in all_messages[3]['content'])
 
+    @responses.activate
+    def test_get_template_prompt_with_tool_schema(self) -> None:
+        self.__mock_freeplay_apis(self.prompt_template_name, self.tag)
+
+        template_prompt = self.freeplay_thin.prompts.get(
+            project_id=self.project_id,
+            template_name=self.prompt_template_name,
+            environment=self.tag
+        )
+        self.assertEqual(template_prompt.tool_schema, [
+            ToolSchema(name='get_album_tracklist', description='Given an album name and genre, return a list of songs.', parameters={'type': 'object', 'properties': {'album_name': {'type': 'string', 'description': 'Name of album from which to retrieve tracklist.'}, 'genre': {'type': 'string', 'description': 'Album genre'}}})
+        ])
+
     def test_prompt_format__history_openai(self) -> None:
         messages = [
             {'role': 'system', 'content': 'System message'},
@@ -542,6 +577,49 @@ class TestFreeplay(TestCase):
                 ],
                 formatted_prompt.llm_prompt
             )
+
+    def test_prompt_format_with_tool_schema_anthropic(self) -> None:
+        messages = [
+            {'role': 'system', 'content': 'System message'},
+            {'role': 'user', 'content': 'User message {{number}}'}
+        ]
+        tool_schema = [
+            ToolSchema(name='tool_name', description='tool_description', parameters={'name': 'param_name', 'description': 'param_description', 'type': 'string'})
+        ]
+
+        template_prompt = TemplatePrompt(
+            self.anthropic_prompt_info,
+            messages=messages,
+            tool_schema=tool_schema
+        )
+
+        bound_prompt = template_prompt.bind({'number': 1})
+        formatted_prompt = bound_prompt.format()
+        self.assertEqual(formatted_prompt.tool_schema, [{
+            'name': 'tool_name',
+            'description': 'tool_description',
+            'input_schema': {'name': 'param_name', 'description': 'param_description', 'type': 'string'}
+        }])
+
+    def test_prompt_format_with_tool_schema_openai(self) -> None:
+        messages = [
+            {'role': 'system', 'content': 'System message'},
+            {'role': 'user', 'content': 'User message {{number}}'}
+        ]
+        tool_schema = [ToolSchema(name='tool_name', description='tool_description', parameters={'name': 'param_name', 'description': 'param_description', 'type': 'string'})]
+
+        template_prompt = TemplatePrompt(
+            self.openai_api_prompt_info,
+            messages=messages,
+            tool_schema=tool_schema
+        )
+
+        bound_prompt = template_prompt.bind({'number': 1})
+        formatted_prompt = bound_prompt.format()
+        self.assertEqual(formatted_prompt.tool_schema, [{
+            'function': asdict(tool_schema),
+            'type': 'function'
+        } for tool_schema in tool_schema])
 
     def test_anthropic_system_prompt_formatting__multiple_system_messages(self) -> None:
         bound_prompt = BoundPrompt(
@@ -1088,7 +1166,7 @@ class TestFreeplay(TestCase):
                 {},
                 self.__create_test_run_response(
                     self.test_run_id,
-                    payload['include_outputs'] if payload else None
+                    payload['include_outputs'] if payload else False
                 )
             )
 
@@ -1191,6 +1269,19 @@ class TestFreeplay(TestCase):
                 {
                     "role": "user",
                     "content": "{{question}}"
+                }
+            ],
+            "tool_schema": [
+                {
+                    "name": "get_album_tracklist",
+                    "description": "Given an album name and genre, return a list of songs.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "album_name": {"type": "string", "description": "Name of album from which to retrieve tracklist."},
+                            "genre": {"type": "string", "description": "Album genre"}
+                        }
+                    }
                 }
             ],
             "format_version": 2,

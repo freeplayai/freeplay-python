@@ -14,12 +14,23 @@ client = Anthropic(
 )
 
 input_variables = {'question': "why is the sky blue?"}
+
+prompt = fpclient.prompts.get(
+    project_id=os.environ['FREEPLAY_PROJECT_ID'],
+    template_name='my-anthropic-prompt',
+    environment='latest'
+)
+
+print(f"Tool Schema from simple prompt: {prompt.tool_schema}")
+
 formatted_prompt = fpclient.prompts.get_formatted(
     project_id=os.environ['FREEPLAY_PROJECT_ID'],
     template_name='my-anthropic-prompt',
     environment='latest',
     variables=input_variables
 )
+
+print(f"Tool schema: {formatted_prompt.tool_schema}")
 
 print(f"Ready for LLM: {formatted_prompt.llm_prompt}")
 
@@ -28,27 +39,29 @@ completion = client.messages.create(
     system=formatted_prompt.system_content or NotGiven(),
     messages=formatted_prompt.llm_prompt,
     model=formatted_prompt.prompt_info.model,
+    tools=formatted_prompt.tool_schema,
     **formatted_prompt.prompt_info.model_parameters
 )
 end = time.time()
-print("Completion: %s" % completion.content[0].text)
+print("Completion: %s" % completion.content[0])
 
 session = fpclient.sessions.create()
-all_messages = formatted_prompt.all_messages(
-    new_message={'role': 'assistant', 'content': completion.content[0].text}
-)
+messages = formatted_prompt.all_messages(completion)
+print(f"All messages: {messages}")
 call_info = CallInfo.from_prompt_info(formatted_prompt.prompt_info, start, end)
 response_info = ResponseInfo(
     is_complete=completion.stop_reason == 'stop_sequence'
 )
 
+print(f"Messages: {messages}")
 record_response = fpclient.recordings.create(
     RecordPayload(
-        all_messages=all_messages,
+        all_messages=messages,
         session_info=session.session_info,
         inputs=input_variables,
         prompt_info=formatted_prompt.prompt_info,
         call_info=call_info,
+        tool_schema=formatted_prompt.tool_schema,
         response_info=response_info
     )
 )

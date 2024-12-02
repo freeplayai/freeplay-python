@@ -1,23 +1,32 @@
 import copy
 import json
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+import logging
 from pathlib import Path
-from typing import Dict, Optional, List, cast, Any, Union
+from typing import Dict, Optional, List, cast, Any, Union, overload
+from anthropic.types.message import Message as AnthropicCompletion
+from openai.types.chat import ChatCompletion as OpenAIChatCompletion
 
 from freeplay.errors import FreeplayConfigurationError, FreeplayClientError, log_freeplay_client_warning
 from freeplay.llm_parameters import LLMParameters
 from freeplay.model import InputVariables
-from freeplay.support import CallSupport
+from freeplay.support import CallSupport, ToolSchema
 from freeplay.support import PromptTemplate, PromptTemplates, PromptTemplateMetadata
 from freeplay.utils import bind_template_variables
 
-
+logger = logging.getLogger(__name__)
 class MissingFlavorError(FreeplayConfigurationError):
     def __init__(self, flavor_name: str):
         super().__init__(
             f'Configured flavor ({flavor_name}) not found in SDK. Please update your SDK version or configure '
             'a different model in the Freeplay UI.'
+        )
+
+class UnsupportedToolSchemaError(FreeplayConfigurationError):
+    def __init__(self) -> None:
+        super().__init__(
+            f'Tool schema not supported for this model and provider.'
         )
 
 
@@ -42,10 +51,12 @@ class FormattedPrompt:
             prompt_info: PromptInfo,
             messages: List[Dict[str, str]],
             formatted_prompt: Optional[List[Dict[str, str]]] = None,
-            formatted_prompt_text: Optional[str] = None
+            formatted_prompt_text: Optional[str] = None,
+            tool_schema: Optional[List[Dict[str, Any]]] = None
     ):
         self.prompt_info = prompt_info
         self.llm_prompt = formatted_prompt
+        self.tool_schema = tool_schema
         if formatted_prompt_text:
             self.llm_prompt_text = formatted_prompt_text
 
@@ -58,19 +69,29 @@ class FormattedPrompt:
 
     def all_messages(
             self,
-            new_message: Dict[str, str]
-    ) -> List[Dict[str, str]]:
-        return self.messages + [new_message]
-
+            new_message: Union[Dict[str, str], AnthropicCompletion, OpenAIChatCompletion]
+    ) -> List[Dict[str, Any]]:
+        if isinstance(new_message, AnthropicCompletion):
+            return self.messages + [new_message.to_dict()]
+        elif isinstance(new_message, OpenAIChatCompletion):
+            if len(new_message.choices) > 1:
+                logger.warning("Freeplay SDK does not support multiple choices. Using the first choice.")
+            elif len(new_message.choices) < 1:
+                raise FreeplayClientError("No completion choices found.")
+            return self.messages + [new_message.choices[0].message.to_dict()]
+        elif isinstance(new_message, dict):
+            return self.messages + [new_message]
 
 class BoundPrompt:
     def __init__(
             self,
             prompt_info: PromptInfo,
-            messages: List[Dict[str, str]]
+            messages: List[Dict[str, str]],
+            tool_schema: Optional[List[ToolSchema]] = None
     ):
         self.prompt_info = prompt_info
         self.messages = messages
+        self.tool_schema = tool_schema
 
     @staticmethod
     def __format_messages_for_flavor(
@@ -113,6 +134,25 @@ class BoundPrompt:
             return formatted
 
         raise MissingFlavorError(flavor_name)
+    
+    @staticmethod
+    def __format_tool_schema(flavor_name: str, tool_schema: List[ToolSchema]) -> List[Dict[str, Any]]:
+        if flavor_name == 'anthropic_chat':
+            return [{
+                'name': tool_schema.name,
+                'description': tool_schema.description,
+                'input_schema': tool_schema.parameters
+            } for tool_schema in tool_schema]
+        elif flavor_name in ['openai_chat', 'azure_openai_chat']:
+            return [
+                {
+                    'function': asdict(tool_schema),
+                    'type': 'function'
+                } for tool_schema in tool_schema
+            ]
+        
+        raise UnsupportedToolSchemaError()
+
 
     def format(
             self,
@@ -121,17 +161,24 @@ class BoundPrompt:
         final_flavor = flavor_name or self.prompt_info.flavor_name
         formatted_prompt = BoundPrompt.__format_messages_for_flavor(final_flavor, self.messages)
 
+        formatted_tool_schema = BoundPrompt.__format_tool_schema(
+            final_flavor, 
+            self.tool_schema
+        ) if self.tool_schema else None
+
         if isinstance(formatted_prompt, str):
             return FormattedPrompt(
                 prompt_info=self.prompt_info,
                 messages=self.messages,
-                formatted_prompt_text=formatted_prompt
+                formatted_prompt_text=formatted_prompt,
+                tool_schema=formatted_tool_schema
             )
         else:
             return FormattedPrompt(
                 prompt_info=self.prompt_info,
                 messages=self.messages,
-                formatted_prompt=formatted_prompt
+                formatted_prompt=formatted_prompt,
+                tool_schema=formatted_tool_schema
             )
 
 
@@ -139,9 +186,11 @@ class TemplatePrompt:
     def __init__(
             self,
             prompt_info: PromptInfo,
-            messages: List[Dict[str, str]]
+            messages: List[Dict[str, str]],
+            tool_schema: Optional[List[ToolSchema]] = None
     ):
         self.prompt_info = prompt_info
+        self.tool_schema = tool_schema
         self.messages = messages
 
     def bind(self, variables: InputVariables, history: Optional[List[Dict[str, str]]] = None) -> BoundPrompt:
@@ -172,7 +221,7 @@ class TemplatePrompt:
                     'content': bind_template_variables(msg['content'], variables)},
                 )
 
-        return BoundPrompt(self.prompt_info, bound_messages)
+        return BoundPrompt(self.prompt_info, bound_messages, self.tool_schema)
 
 
 class TemplateResolver(ABC):
@@ -410,7 +459,7 @@ class Prompts:
             project_id=prompt.project_id
         )
 
-        return TemplatePrompt(prompt_info, prompt.content)
+        return TemplatePrompt(prompt_info, prompt.content, prompt.tool_schema)
 
     def get_by_version_id(self, project_id: str, template_id: str, version_id: str) -> TemplatePrompt:
         prompt = self.template_resolver.get_prompt_version_id(project_id, template_id, version_id)
@@ -443,7 +492,7 @@ class Prompts:
             project_id=prompt.project_id
         )
 
-        return TemplatePrompt(prompt_info, prompt.content)
+        return TemplatePrompt(prompt_info, prompt.content, prompt.tool_schema)
 
     def get_formatted(
             self,

@@ -5,8 +5,8 @@ from dataclasses import asdict, dataclass
 import logging
 from pathlib import Path
 from typing import Dict, Optional, List, cast, Any, Union, overload
-from anthropic.types.message import Message as AnthropicCompletion
-from openai.types.chat import ChatCompletion as OpenAIChatCompletion
+from anthropic.types.message import Message as AnthropicMessage
+from openai.types.chat import ChatCompletionMessage as OpenAIMessage
 
 from freeplay.errors import FreeplayConfigurationError, FreeplayClientError, log_freeplay_client_warning
 from freeplay.llm_parameters import LLMParameters
@@ -69,16 +69,10 @@ class FormattedPrompt:
 
     def all_messages(
             self,
-            new_message: Union[Dict[str, str], AnthropicCompletion, OpenAIChatCompletion]
+            new_message: Union[Dict[str, str], AnthropicMessage, OpenAIMessage]
     ) -> List[Dict[str, Any]]:
-        if isinstance(new_message, AnthropicCompletion):
+        if isinstance(new_message, AnthropicMessage) or isinstance(new_message, OpenAIMessage):
             return self.messages + [new_message.to_dict()]
-        elif isinstance(new_message, OpenAIChatCompletion):
-            if len(new_message.choices) > 1:
-                logger.warning("Freeplay SDK does not support multiple choices. Using the first choice.")
-            elif len(new_message.choices) < 1:
-                raise FreeplayClientError("No completion choices found.")
-            return self.messages + [new_message.choices[0].message.to_dict()]
         elif isinstance(new_message, dict):
             return self.messages + [new_message]
 

@@ -45,7 +45,7 @@ end = time.time()
 print("Completion: %s" % completion)
 
 session = fpclient.sessions.create()
-messages = formatted_prompt.all_messages(completion)
+messages = formatted_prompt.all_messages(completion.choices[0].message)
 print(f"All messages: {messages}")
 call_info = CallInfo.from_prompt_info(formatted_prompt.prompt_info, start, end)
 response_info = ResponseInfo(
@@ -61,7 +61,7 @@ record_response = fpclient.recordings.create(
         prompt_info=formatted_prompt.prompt_info,
         call_info=call_info,
         tool_schema=formatted_prompt.tool_schema,
-        response_info=response_info
+        response_info=response_info,
     )
 )
 

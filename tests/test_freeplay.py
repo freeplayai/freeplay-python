@@ -415,8 +415,8 @@ class TestFreeplay(TestCase):
         llm_response = 'This is the response from Anthropic'
         all_messages = formatted_prompt.all_messages({'role': 'assistant', 'content': ('%s' % llm_response)})
 
-        self.assertTrue(input_variables.get('name') in formatted_prompt.llm_prompt[0]['content'])  # type: ignore
-        self.assertTrue(input_variables.get('question') in formatted_prompt.llm_prompt[1]['content'])  # type: ignore
+        self.assertTrue(input_variables.get('name') in formatted_prompt.llm_prompt[0]['content'])
+        self.assertTrue(input_variables.get('question') in formatted_prompt.llm_prompt[1]['content'])
         self.assertTrue(llm_response in all_messages[3]['content'])
 
     @responses.activate

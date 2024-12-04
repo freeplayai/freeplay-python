@@ -4,9 +4,7 @@ from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
 import logging
 from pathlib import Path
-from typing import Dict, Optional, List, cast, Any, Union, overload
-from anthropic.types.message import Message as AnthropicMessage
-from openai.types.chat import ChatCompletionMessage as OpenAIMessage
+from typing import Dict, Optional, List, Protocol, cast, Any, Union, runtime_checkable
 
 from freeplay.errors import FreeplayConfigurationError, FreeplayClientError, log_freeplay_client_warning
 from freeplay.llm_parameters import LLMParameters
@@ -44,6 +42,13 @@ class PromptInfo:
     flavor_name: str
     project_id: str
 
+# Client SDKs (Anthropic and OpenAI) have pydantic types for messages that require strict structures.
+# We want to avoid taking a dependency on the client SDKs, so we instead just ensure they can be converted to a dict,
+# this will ultimately be validated at runtime by the server for any incompatibility.
+@runtime_checkable
+class GenericProviderMessage(Protocol):
+    def to_dict(self) -> Dict[str, Any]:
+        pass
 
 class FormattedPrompt:
     def __init__(
@@ -54,9 +59,11 @@ class FormattedPrompt:
             formatted_prompt_text: Optional[str] = None,
             tool_schema: Optional[List[Dict[str, Any]]] = None
     ):
+        # These two definitions allow us to operate on typed fields unitl we expose them as Any for client use.
+        self._llm_prompt = formatted_prompt
+        self._tool_schema = tool_schema
+
         self.prompt_info = prompt_info
-        self.llm_prompt = formatted_prompt
-        self.tool_schema = tool_schema
         if formatted_prompt_text:
             self.llm_prompt_text = formatted_prompt_text
 
@@ -67,11 +74,21 @@ class FormattedPrompt:
         # Note: messages are **not formatted** for the provider.
         self.messages = messages
 
+    @property
+    # We know this is a list of dict[str,str], but we use Any to avoid typing issues with client SDK libraries, which require strict TypedDict.
+    def llm_prompt(self) -> Any:
+        return self._llm_prompt
+    
+    @property
+    def tool_schema(self) -> Any:
+        return self._tool_schema
+
     def all_messages(
             self,
-            new_message: Union[Dict[str, str], AnthropicMessage, OpenAIMessage]
+            new_message: Union[Dict[str, str], GenericProviderMessage]
     ) -> List[Dict[str, Any]]:
-        if isinstance(new_message, AnthropicMessage) or isinstance(new_message, OpenAIMessage):
+        # Check if it's a OpenAI or Anthropic message: if it's a provider message object (has to_dict method)
+        if isinstance(new_message, GenericProviderMessage):
             return self.messages + [new_message.to_dict()]
         elif isinstance(new_message, dict):
             return self.messages + [new_message]

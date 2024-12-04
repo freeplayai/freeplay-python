@@ -1,6 +1,6 @@
 .PHONY: type-checks
 type-checks:
-	poetry run mypy src tests;
+	poetry run mypy src tests;# examples;
 
 test: type-checks
 	poetry env use 3.8

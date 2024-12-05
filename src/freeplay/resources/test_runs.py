@@ -37,6 +37,7 @@ class TestRun:
     def get_test_run_info(self, test_case_id: str) -> TestRunInfo:
         return TestRunInfo(self.test_run_id, test_case_id)
 
+
 @dataclass
 class TestRunResults:
     def __init__(
@@ -62,9 +63,11 @@ class TestRuns:
             testlist: str,
             include_outputs: bool = False,
             name: Optional[str] = None,
-            description: Optional[str] = None
+            description: Optional[str] = None,
+            flavor_name: Optional[str] = None
     ) -> TestRun:
-        test_run = self.call_support.create_test_run(project_id, testlist, include_outputs, name, description)
+        test_run = self.call_support.create_test_run(
+            project_id, testlist, include_outputs, name, description, flavor_name)
         test_cases = [
             TestCase(test_case_id=test_case.id,
                      variables=test_case.variables,

@@ -36,9 +36,9 @@ print(f"Tool schema: {formatted_prompt.tool_schema}")
 
 start = time.time()
 completion = client.chat.completions.create(
-    messages=formatted_prompt.messages,
+    messages=formatted_prompt.llm_prompt,
     model=formatted_prompt.prompt_info.model,
-    tools=formatted_prompt.tool_schema if formatted_prompt.tool_schema else None,
+    tools=formatted_prompt.tool_schema,
     **formatted_prompt.prompt_info.model_parameters
 )
 end = time.time()

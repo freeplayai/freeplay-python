@@ -55,7 +55,7 @@ class TestCaseTestRunResponse:
         self.variables: InputVariables = test_case['variables']
         self.id: str = test_case['test_case_id']
         self.output: Optional[str] = test_case.get('output')
-        self.history: Optional[List[Dict[str, str]]] = test_case.get('history')
+        self.history: Optional[List[Dict[str, Any]]] = test_case.get('history')
 
 
 class TestRunResponse:
@@ -190,7 +190,8 @@ class CallSupport:
             testlist: str,
             include_outputs: bool = False,
             name: Optional[str] = None,
-            description: Optional[str] = None
+            description: Optional[str] = None,
+            flavor_name: Optional[str] = None
     ) -> TestRunResponse:
         response = api_support.post_raw(
             api_key=self.freeplay_api_key,
@@ -199,7 +200,8 @@ class CallSupport:
                 'dataset_name': testlist,
                 'include_outputs': include_outputs,
                 'test_run_name': name,
-                'test_run_description': description
+                'test_run_description': description,
+                'flavor_name': flavor_name
             },
         )
 

@@ -1,14 +1,16 @@
-from dataclasses import asdict
 import json
 import time
-import unittest
 import uuid
+from dataclasses import asdict
 from pathlib import Path
 from typing import Tuple, Any, Dict, List, cast
 from unittest import TestCase
 from uuid import uuid4
 
 import responses
+from anthropic.types import TextBlock, ToolUseBlock
+from openai.types.chat import ChatCompletionMessage, ChatCompletionMessageToolCall
+from openai.types.chat.chat_completion_message_tool_call import Function
 from requests import PreparedRequest
 from responses import matchers
 
@@ -206,7 +208,8 @@ class TestFreeplay(TestCase):
                     'input_schema': {
                         'type': 'object',
                         'properties': {
-                            'album_name': {'type': 'string', 'description': 'Name of album from which to retrieve tracklist.'},
+                            'album_name': {'type': 'string',
+                                           'description': 'Name of album from which to retrieve tracklist.'},
                             'genre': {'type': 'string', 'description': 'Album genre'}
                         }
                     }
@@ -220,7 +223,8 @@ class TestFreeplay(TestCase):
         )
 
         # Custom metadata recording
-        self.assertEqual({'custom_metadata_field': 42, 'true': False}, recorded_body_dom["session_info"]['custom_metadata'])
+        self.assertEqual({'custom_metadata_field': 42, 'true': False},
+                         recorded_body_dom["session_info"]['custom_metadata'])
 
         self.assertEqual({"test_run_id": self.test_run_id, "test_case_id": test_case_id},
                          recorded_body_dom['test_run_info']
@@ -420,6 +424,81 @@ class TestFreeplay(TestCase):
         self.assertTrue(llm_response in all_messages[3]['content'])
 
     @responses.activate
+    def test_all_messages(self) -> None:
+        self.__mock_freeplay_apis(self.prompt_template_name, self.tag)
+
+        input_variables = {"name": "Sparkles", "question": "Why isn't my door working"}
+
+        template_prompt = self.freeplay_thin.prompts.get(
+            project_id=self.project_id,
+            template_name=self.prompt_template_name,
+            environment=self.tag
+        )
+        bound_prompt = template_prompt.bind(input_variables)
+        formatted_prompt = bound_prompt.format()
+
+        # Can append Anthropic messages from Pydantic models
+        all_messages = formatted_prompt.all_messages(
+            {
+                'content': [
+                    TextBlock(text='some text', type='text'),
+                    ToolUseBlock(
+                        id='1',
+                        input='{}',
+                        name='name',
+                        type='tool_use')
+                ],
+                'role': 'assistant'
+            })
+        self.assertEqual(4, len(all_messages))
+        json.dumps(all_messages)
+
+        # Can append Anthropic messages as raw dict
+        all_messages = formatted_prompt.all_messages(
+            {
+                'content': [{
+                    'text': 'some text',
+                    'type': 'text'
+                }, {
+                    'id': '1',
+                    'input': '{}',
+                    'name': 'name',
+                    'type': 'tool_use'
+                }],
+                'role': 'assistant'
+            })
+        self.assertEqual(4, len(all_messages))
+        json.dumps(all_messages)
+
+        # Can append Freeplay standard format messages
+        all_messages = formatted_prompt.all_messages(
+            {
+                'content': 'text',
+                'role': 'assistant'
+            })
+
+        self.assertEqual(4, len(all_messages))
+        json.dumps(all_messages)
+
+        # Can append OpenAI Pydantic models
+        all_messages = formatted_prompt.all_messages(
+            ChatCompletionMessage(content='some-content', role='assistant', tool_calls=[
+                ChatCompletionMessageToolCall(
+                    id='2', function=Function(name='name', arguments='{}'), type='function')
+            ]))
+        self.assertEqual(4, len(all_messages))
+        json.dumps(all_messages)
+
+        # Can append OpenAI as dict models
+        all_messages = formatted_prompt.all_messages(
+            {'content': 'some-content', 'role': 'assistant', 'tool_calls': [
+                {'id': '2', 'function': {'name': 'name', 'arguments': '{}'}, 'type': 'function'}
+            ]})
+
+        self.assertEqual(4, len(all_messages))
+        json.dumps(all_messages)
+
+    @responses.activate
     def test_get_template_prompt_with_tool_schema(self) -> None:
         self.__mock_freeplay_apis(self.prompt_template_name, self.tag)
 
@@ -429,7 +508,11 @@ class TestFreeplay(TestCase):
             environment=self.tag
         )
         self.assertEqual(template_prompt.tool_schema, [
-            ToolSchema(name='get_album_tracklist', description='Given an album name and genre, return a list of songs.', parameters={'type': 'object', 'properties': {'album_name': {'type': 'string', 'description': 'Name of album from which to retrieve tracklist.'}, 'genre': {'type': 'string', 'description': 'Album genre'}}})
+            ToolSchema(name='get_album_tracklist', description='Given an album name and genre, return a list of songs.',
+                       parameters={'type': 'object', 'properties': {'album_name': {'type': 'string',
+                                                                                   'description': 'Name of album from which to retrieve tracklist.'},
+                                                                    'genre': {'type': 'string',
+                                                                              'description': 'Album genre'}}})
         ])
 
     def test_prompt_format__history_openai(self) -> None:
@@ -584,7 +667,8 @@ class TestFreeplay(TestCase):
             {'role': 'user', 'content': 'User message {{number}}'}
         ]
         tool_schema = [
-            ToolSchema(name='tool_name', description='tool_description', parameters={'name': 'param_name', 'description': 'param_description', 'type': 'string'})
+            ToolSchema(name='tool_name', description='tool_description',
+                       parameters={'name': 'param_name', 'description': 'param_description', 'type': 'string'})
         ]
 
         template_prompt = TemplatePrompt(
@@ -606,7 +690,9 @@ class TestFreeplay(TestCase):
             {'role': 'system', 'content': 'System message'},
             {'role': 'user', 'content': 'User message {{number}}'}
         ]
-        tool_schema = [ToolSchema(name='tool_name', description='tool_description', parameters={'name': 'param_name', 'description': 'param_description', 'type': 'string'})]
+        tool_schema = [ToolSchema(name='tool_name', description='tool_description',
+                                  parameters={'name': 'param_name', 'description': 'param_description',
+                                              'type': 'string'})]
 
         template_prompt = TemplatePrompt(
             self.openai_api_prompt_info,
@@ -763,11 +849,18 @@ class TestFreeplay(TestCase):
         self.__mock_freeplay_apis(self.prompt_template_name)
 
         test_run = self.freeplay_thin.test_runs.create(
-            self.project_id, testlist='good stuff', name='test-run-name', description='test-run-description')
+            self.project_id,
+            testlist='good stuff',
+            name='test-run-name',
+            description='test-run-description',
+            flavor_name='openai_chat'
+        )
 
         test_cases = test_run.get_test_cases()
         self.assertEqual(2, len(test_cases))
         self.assertTrue(all(test_case.output is None for test_case in test_cases))
+        self.assertIsNone(test_cases[0].history)
+        self.assertIsNotNone(test_cases[1].history)
 
     @responses.activate
     def test_create_test_run_with_outputs(self) -> None:
@@ -833,7 +926,8 @@ class TestFreeplay(TestCase):
             )
 
     def test_filesystem_resolver_with_params(self) -> None:
-        template_prompt = self.legacy_bundle_client.prompts.get(self.bundle_project_id, "test-prompt-with-params", "prod")
+        template_prompt = self.legacy_bundle_client.prompts.get(self.bundle_project_id, "test-prompt-with-params",
+                                                                "prod")
 
         expected = TemplatePrompt(
             prompt_info=PromptInfo(
@@ -1049,9 +1143,11 @@ class TestFreeplay(TestCase):
             self.legacy_bundle_client = Freeplay(
                 freeplay_api_key=self.freeplay_api_key,
                 api_base=self.api_base,
-                template_resolver=FilesystemTemplateResolver(Path(__file__).parent / "test_files" / "legacy_prompt_formats")
+                template_resolver=FilesystemTemplateResolver(
+                    Path(__file__).parent / "test_files" / "legacy_prompt_formats")
             )
-            self.legacy_bundle_client.prompts.get(self.bundle_project_id, "test-prompt-with-params", "not_real_environment")
+            self.legacy_bundle_client.prompts.get(self.bundle_project_id, "test-prompt-with-params",
+                                                  "not_real_environment")
 
     def test_prompt_invalid_flavor(self) -> None:
         with self.assertRaisesRegex(
@@ -1278,7 +1374,8 @@ class TestFreeplay(TestCase):
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "album_name": {"type": "string", "description": "Name of album from which to retrieve tracklist."},
+                            "album_name": {"type": "string",
+                                           "description": "Name of album from which to retrieve tracklist."},
                             "genre": {"type": "string", "description": "Album genre"}
                         }
                     }
@@ -1317,6 +1414,13 @@ class TestFreeplay(TestCase):
                     'test_case_id': str(uuid4()),
                     'variables': {'question': "What does blue look like?"},
                     'output': 'It\'s a magical synergy between ocean and sky.' if include_outputs else None,
+                    'history': [{
+                        'role': 'user',
+                        'content': [{
+                            'type': 'text',
+                            'text': 'some text'
+                        }]
+                    }]
                 }
             ]
         })

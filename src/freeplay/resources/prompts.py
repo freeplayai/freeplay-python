@@ -1,19 +1,21 @@
 import copy
 import json
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
-import logging
 from pathlib import Path
-from typing import Dict, Optional, List, Protocol, cast, Any, Union, runtime_checkable
+from typing import Dict, Optional, List, cast, Any, Union, runtime_checkable, Protocol
 
 from freeplay.errors import FreeplayConfigurationError, FreeplayClientError, log_freeplay_client_warning
 from freeplay.llm_parameters import LLMParameters
 from freeplay.model import InputVariables
 from freeplay.support import CallSupport, ToolSchema
 from freeplay.support import PromptTemplate, PromptTemplates, PromptTemplateMetadata
-from freeplay.utils import bind_template_variables
+from freeplay.utils import bind_template_variables, convert_provider_message_to_dict
 
 logger = logging.getLogger(__name__)
+
+
 class MissingFlavorError(FreeplayConfigurationError):
     def __init__(self, flavor_name: str):
         super().__init__(
@@ -21,11 +23,26 @@ class MissingFlavorError(FreeplayConfigurationError):
             'a different model in the Freeplay UI.'
         )
 
+
 class UnsupportedToolSchemaError(FreeplayConfigurationError):
     def __init__(self) -> None:
         super().__init__(
             f'Tool schema not supported for this model and provider.'
         )
+
+
+# Models ==
+
+# A content block a la OpenAI or Anthropic. Intentionally over-permissive to allow schema evolution by the providers.
+@runtime_checkable
+class ContentBlock(Protocol):
+    def model_dump(self) -> Dict[str, Any]:
+        pass
+
+
+# A content/role pair with a type-safe content for common provider recording. If not using a common provider,
+# use {'content': str, 'role': str} to record. If using a common provider, this is usually the `.content` field.
+GenericProviderMessage = Union[Dict[str, Any], ContentBlock]
 
 
 # SDK-Exposed Classes
@@ -42,13 +59,6 @@ class PromptInfo:
     flavor_name: str
     project_id: str
 
-# Client SDKs (Anthropic and OpenAI) have pydantic types for messages that require strict structures.
-# We want to avoid taking a dependency on the client SDKs, so we instead just ensure they can be converted to a dict,
-# this will ultimately be validated at runtime by the server for any incompatibility.
-@runtime_checkable
-class GenericProviderMessage(Protocol):
-    def to_dict(self) -> Dict[str, Any]:
-        pass
 
 class FormattedPrompt:
     def __init__(
@@ -78,20 +88,18 @@ class FormattedPrompt:
     # We know this is a list of dict[str,str], but we use Any to avoid typing issues with client SDK libraries, which require strict TypedDict.
     def llm_prompt(self) -> Any:
         return self._llm_prompt
-    
+
     @property
     def tool_schema(self) -> Any:
         return self._tool_schema
 
     def all_messages(
             self,
-            new_message: Union[Dict[str, str], GenericProviderMessage]
+            new_message: GenericProviderMessage
     ) -> List[Dict[str, Any]]:
-        # Check if it's a OpenAI or Anthropic message: if it's a provider message object (has to_dict method)
-        if isinstance(new_message, GenericProviderMessage):
-            return self.messages + [new_message.to_dict()]
-        elif isinstance(new_message, dict):
-            return self.messages + [new_message]
+        converted_message = convert_provider_message_to_dict(new_message)
+        return self.messages + [converted_message]
+
 
 class BoundPrompt:
     def __init__(
@@ -145,7 +153,7 @@ class BoundPrompt:
             return formatted
 
         raise MissingFlavorError(flavor_name)
-    
+
     @staticmethod
     def __format_tool_schema(flavor_name: str, tool_schema: List[ToolSchema]) -> List[Dict[str, Any]]:
         if flavor_name == 'anthropic_chat':
@@ -161,9 +169,8 @@ class BoundPrompt:
                     'type': 'function'
                 } for tool_schema in tool_schema
             ]
-        
-        raise UnsupportedToolSchemaError()
 
+        raise UnsupportedToolSchemaError()
 
     def format(
             self,
@@ -173,7 +180,7 @@ class BoundPrompt:
         formatted_prompt = BoundPrompt.__format_messages_for_flavor(final_flavor, self.messages)
 
         formatted_tool_schema = BoundPrompt.__format_tool_schema(
-            final_flavor, 
+            final_flavor,
             self.tool_schema
         ) if self.tool_schema else None
 

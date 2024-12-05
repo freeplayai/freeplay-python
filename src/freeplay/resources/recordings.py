@@ -9,7 +9,7 @@ from freeplay import api_support
 from freeplay.errors import FreeplayClientError, FreeplayError
 from freeplay.llm_parameters import LLMParameters
 from freeplay.model import InputVariables, OpenAIFunctionCall
-from freeplay.resources.prompts import FormattedPrompt, PromptInfo
+from freeplay.resources.prompts import PromptInfo
 from freeplay.resources.sessions import SessionInfo, TraceInfo
 from freeplay.support import CallSupport
 
@@ -53,7 +53,7 @@ class TestRunInfo:
 
 @dataclass
 class RecordPayload:
-    all_messages: List[Dict[str, str]]
+    all_messages: List[Dict[str, Any]]
     inputs: InputVariables
 
     session_info: SessionInfo

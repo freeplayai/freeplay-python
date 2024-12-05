@@ -1,7 +1,7 @@
-import json
-from typing import Dict, Union, Optional, Any
 import importlib.metadata
+import json
 import platform
+from typing import Dict, Union, Optional, Any
 
 import pystache  # type: ignore
 
@@ -70,3 +70,19 @@ def get_user_agent() -> str:
     # Output format
     # Freeplay/0.2.30 (Python/3.11.4; Darwin/23.2.0)
     return f"{sdk_name}/{sdk_version} ({language}/{language_version}; {os_name}/{os_version})"
+
+
+# Recursively convert Pydantic models, lists, and dicts to dict compatible format -- used to allow us to accept
+# provider message shapes (usually generated types) or the default {'content': ..., 'role': ...} shape.
+def convert_provider_message_to_dict(obj: Any) -> Any:
+    if hasattr(obj, 'model_dump'):
+        # Pydantic v2
+        return obj.model_dump(mode='json')
+    elif hasattr(obj, 'dict'):
+        # Pydantic v1
+        return obj.dict(encode_json=True)
+    elif isinstance(obj, dict):
+        return {k: convert_provider_message_to_dict(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_provider_message_to_dict(item) for item in obj]
+    return obj

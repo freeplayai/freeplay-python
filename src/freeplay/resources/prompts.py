@@ -4,7 +4,7 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Dict, Optional, List, cast, Any, Union, runtime_checkable, Protocol
+from typing import Dict, Optional, List, Sequence, cast, Any, Union, runtime_checkable, Protocol
 
 from freeplay.errors import FreeplayConfigurationError, FreeplayClientError, log_freeplay_client_warning
 from freeplay.llm_parameters import LLMParameters
@@ -211,12 +211,15 @@ class TemplatePrompt:
         self.tool_schema = tool_schema
         self.messages = messages
 
-    def bind(self, variables: InputVariables, history: Optional[List[Dict[str, str]]] = None) -> BoundPrompt:
+    def bind(self, variables: InputVariables, history: Optional[Sequence[GenericProviderMessage]] = None) -> BoundPrompt:
         # check history for a system message
         history_clean = []
         if history:
-            for msg in history:
-                if (msg.get('role') == 'system') and ('system' in [message.get('role') for message in self.messages]):
+            template_messages_contain_system = any(message.get('role') == 'system' for message in self.messages)
+            history_dict = [convert_provider_message_to_dict(msg) for msg in history]
+            for msg in history_dict:
+                history_has_system = msg.get('role', None) == 'system'
+                if history_has_system and template_messages_contain_system:
                     log_freeplay_client_warning("System message found in history, and prompt template."
                                                 "Removing system message from the history")
                 else:
@@ -523,7 +526,7 @@ class Prompts:
             template_name: str,
             environment: str,
             variables: InputVariables,
-            history: Optional[List[Dict[str, str]]] = None,
+            history: Optional[Sequence[GenericProviderMessage]] = None,
             flavor_name: Optional[str] = None
     ) -> FormattedPrompt:
         bound_prompt = self.get(

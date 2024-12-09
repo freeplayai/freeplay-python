@@ -341,7 +341,12 @@ class FilesystemTemplateResolver(TemplateResolver):
                     params=metadata.get('params'),
                     provider_info=metadata.get('provider_info')
                 ),
-                project_id=str(json_dom.get('project_id'))
+                project_id=str(json_dom.get('project_id')),
+                tool_schema=[ToolSchema(
+                    name=schema.get('name'),
+                    description=schema.get('description'),
+                    parameters=schema.get('parameters')
+                ) for schema in json_dom.get('tool_schema', [])] if json_dom.get('tool_schema') else None
             )
         else:
             metadata = json_dom['metadata']

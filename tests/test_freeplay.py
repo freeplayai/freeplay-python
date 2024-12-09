@@ -1036,6 +1036,24 @@ class TestFreeplay(TestCase):
                 {'content': 'why?', 'role': 'user'}
             ], bound_prompt.messages)
 
+    def test_filesystem_resolver_with_tool_schema(self) -> None:
+        template_prompt = self.bundle_client.prompts.get(self.bundle_project_id, "test-prompt-with-tool-schema", "prod")
+        self.assertEqual(template_prompt.tool_schema, [ToolSchema(
+            name="weather_of_location",
+            description="Get weather of a location",
+            parameters={
+                "additionalProperties": False,
+                "properties": {
+                    "location": {
+                        "description": "Location to get the weather for",
+                        "type": "string"
+                    }
+                },
+                "required": ["location"],
+                "type": "object"
+            }
+        )])
+
     def test_filesystem_resolver_without_params_v2(self) -> None:
         template_prompt = self.bundle_client.prompts.get(self.bundle_project_id, "test-prompt-no-params", "prod")
 

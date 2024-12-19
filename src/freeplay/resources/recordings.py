@@ -2,6 +2,7 @@ import json
 import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
+from uuid import UUID
 
 from requests import HTTPError
 
@@ -64,6 +65,7 @@ class RecordPayload:
     test_run_info: Optional[TestRunInfo] = None
     eval_results: Optional[Dict[str, Union[bool, float]]] = None
     trace_info: Optional[TraceInfo] = None
+    completion_id: Optional[UUID] = None
 
 
 @dataclass
@@ -80,7 +82,7 @@ class Recordings:
             raise FreeplayClientError("Messages list must have at least one message. "
                                       "The last message should be the current response.")
 
-        record_api_payload = {
+        record_api_payload: Dict[str, Any] = {
             "messages": record_payload.all_messages,
             "inputs": record_payload.inputs,
             "tool_schema": record_payload.tool_schema,
@@ -98,6 +100,9 @@ class Recordings:
                 "llm_parameters": record_payload.call_info.model_parameters,
             }
         }
+
+        if record_payload.completion_id is not None:
+            record_api_payload['completion_id'] = str(record_payload.completion_id)
 
         if record_payload.session_info.custom_metadata is not None:
             record_api_payload['custom_metadata'] = record_payload.session_info.custom_metadata

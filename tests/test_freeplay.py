@@ -249,9 +249,10 @@ class TestFreeplay(TestCase):
         )
 
         trace_info = session.create_trace(input=input_variables['question'])
-
+        completion_id = uuid4()
         self.freeplay_thin.recordings.create(
             RecordPayload(
+                completion_id=completion_id,
                 all_messages=all_messages,
                 inputs=input_variables,
                 session_info=self.session_info,
@@ -265,6 +266,10 @@ class TestFreeplay(TestCase):
         record_api_request = responses.calls[1].request
         recorded_body_dom = json.loads(record_api_request.body)
 
+        self.assertEqual(
+            str(completion_id),
+            recorded_body_dom['completion_id']
+        )
         self.assertEqual(
             trace_info.trace_id,
             recorded_body_dom['trace_info']['trace_id']

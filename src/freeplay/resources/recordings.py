@@ -69,6 +69,14 @@ class RecordPayload:
 
 
 @dataclass
+class RecordUpdatePayload:
+    project_id: str
+    completion_id: str
+    new_messages: Optional[List[Dict[str, Any]]] = None
+    eval_results: Optional[Dict[str, Union[bool, float]]] = None
+
+
+@dataclass
 class RecordResponse:
     completion_id: str
 
@@ -143,18 +151,7 @@ class Recordings:
             message = f'There was an error recording to Freeplay. Call will not be logged. ' \
                       f'Status: {e.response.status_code}. '
 
-            if e.response.content:
-                try:
-                    content = e.response.content
-                    json_body = json.loads(content)
-                    if 'message' in json_body:
-                        message += json_body['message']
-                except:
-                    pass
-            else:
-                message += f'{e.__class__}'
-
-            raise FreeplayError(message) from e
+            self.__handle_and_raise_api_error(e, message)
 
         except Exception as e:
             status_code = -1
@@ -165,3 +162,36 @@ class Recordings:
                       f'Status: {status_code}. {e.__class__}'
 
             raise FreeplayError(message) from e
+
+    def update(self, record_update_payload: RecordUpdatePayload) -> RecordResponse:
+        record_update_api_payload: Dict[str, Any] = {
+            "new_messages": record_update_payload.new_messages,
+            "eval_results": record_update_payload.eval_results,
+        }
+
+        try:
+            record_update_response = api_support.post_raw(
+                api_key=self.call_support.freeplay_api_key,
+                url=f'{self.call_support.api_base}/v2/projects/{record_update_payload.project_id}/completions/{record_update_payload.completion_id}',
+                payload=record_update_api_payload
+            )
+            record_update_response.raise_for_status()
+            json_dom = record_update_response.json()
+            return RecordResponse(completion_id=str(json_dom['completion_id']))
+        except HTTPError as e:
+            message = f'There was an error updating the completion. Status: {e.response.status_code}.'
+            self.__handle_and_raise_api_error(e, message)
+
+    @staticmethod
+    def __handle_and_raise_api_error(e: HTTPError, messages: str):
+        if e.response.content:
+            try:
+                content = e.response.content
+                json_body = json.loads(content)
+                if 'message' in json_body:
+                    messages += json_body['message']
+            except:
+                pass
+        else:
+            messages += f'{e.__class__}'
+        raise FreeplayError(messages) from e

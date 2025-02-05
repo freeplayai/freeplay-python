@@ -21,7 +21,7 @@ from freeplay.llm_parameters import LLMParameters
 from freeplay.model import OpenAIFunctionCall
 from freeplay.resources.prompts import FormattedPrompt, PromptInfo, TemplatePrompt, FilesystemTemplateResolver, \
     BoundPrompt
-from freeplay.resources.recordings import RecordPayload, ResponseInfo, CallInfo, TestRunInfo
+from freeplay.resources.recordings import RecordPayload, RecordUpdatePayload, ResponseInfo, CallInfo, TestRunInfo
 from freeplay.resources.sessions import Session, SessionInfo, CustomMetadata
 from freeplay.support import ToolSchema
 
@@ -65,9 +65,11 @@ class TestFreeplay(TestCase):
         self.prompt_template_id_1 = str(uuid4())
         self.prompt_template_name = "my-prompt-anthropic"
         self.session_id = str(uuid4())
+        self.completion_id = str(uuid4())
         self.custom_metadata: CustomMetadata = {'custom_metadata_field': 42, 'true': False}
         self.session_info = SessionInfo(session_id=self.session_id, custom_metadata=self.custom_metadata)
         self.record_url = f'{self.api_base}/v2/projects/{self.project_id}/sessions/{self.session_id}/completions'
+        self.record_update_url = f'{self.api_base}/v2/projects/{self.project_id}/completions/{self.completion_id}'
         self.tag = 'test-tag'
         self.test_run_id = str(uuid4())
 
@@ -230,7 +232,7 @@ class TestFreeplay(TestCase):
                          recorded_body_dom['test_run_info']
                          )
 
-        # Custom metadata recording
+        # eval results recording
         self.assertEqual({
             'client_eval_field_bool': True,
             'client_eval_field_float': 0.23
@@ -288,6 +290,55 @@ class TestFreeplay(TestCase):
             llm_response,
             recorded_trace_body_dom['output']
         )
+
+    @responses.activate
+    def test_update_record(self) -> None:
+        input_variables = {"name": "Sparkles", "question": "Why isn't my door working"}
+        llm_response = 'This is the response from the LLM'
+
+        self.__mock_freeplay_apis(self.prompt_template_name, self.tag)
+
+        all_messages, call_info, formatted_prompt, response_info, session = self.__make_call(
+            input_variables,
+            llm_response
+        )
+
+        # make initial record call
+        record_response = self.freeplay_thin.recordings.create(
+            RecordPayload(
+                all_messages=formatted_prompt.messages,
+                # mimic state where we don't yet have the LLM response like batch api
+                inputs=input_variables,
+                session_info=self.session_info,
+                prompt_info=formatted_prompt.prompt_info,
+                call_info=call_info,
+                response_info=response_info,
+            )
+        )
+        completion_id = record_response.completion_id
+
+        # Make the record update call
+        new_messages = [{'role': 'assistant', 'content': llm_response}]
+        self.freeplay_thin.recordings.update(
+            RecordUpdatePayload(
+                project_id=self.project_id,
+                completion_id=completion_id,
+                new_messages=new_messages,
+                eval_results={
+                    'client_eval_field_bool': True,
+                    'client_eval_field_float': 0.23
+                }
+            )
+        )
+
+        # eval results recording
+        record_update_api_request = responses.calls[2].request
+        recorded_body_dom = json.loads(record_update_api_request.body)
+        self.assertEqual(new_messages, recorded_body_dom['new_messages'])
+        self.assertEqual({
+            'client_eval_field_bool': True,
+            'client_eval_field_float': 0.23
+        }, recorded_body_dom['eval_results'])
 
     @responses.activate
     def test_delete_session(self) -> None:
@@ -1244,6 +1295,7 @@ class TestFreeplay(TestCase):
         self.__mock_test_run_api()
         self.__mock_test_run_retrieval_api()
         self.__mock_record_api()
+        self.__mock_record_update_api()
 
     def __mock_record_api(self) -> None:
         responses.post(
@@ -1251,7 +1303,17 @@ class TestFreeplay(TestCase):
             status=201,
             content_type='application/json',
             body=json.dumps({
-                'completion_id': str(uuid4())
+                'completion_id': self.completion_id
+            })
+        )
+
+    def __mock_record_update_api(self) -> None:
+        responses.post(
+            url=self.record_update_url,
+            status=201,
+            content_type='application/json',
+            body=json.dumps({
+                'completion_id': self.completion_id
             })
         )
 

@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass
 from json import JSONEncoder
 from typing import Optional, Dict, Any, List, Union
@@ -5,7 +6,7 @@ from typing import Optional, Dict, Any, List, Union
 from freeplay import api_support
 from freeplay.api_support import try_decode
 from freeplay.errors import freeplay_response_error, FreeplayServerError
-from freeplay.model import InputVariables, FeedbackValue
+from freeplay.model import InputVariables, FeedbackValue, StrictChatMessage
 
 
 @dataclass
@@ -87,6 +88,28 @@ class TestRunRetrievalResponse:
             human_evaluation=summary_statistics['human_evaluation']
         )
 
+class DatasetTestCaseRequest:
+    def __init__(self, history: Optional[List[StrictChatMessage]], inputs: InputVariables, metadata: Optional[Dict[str, str]], output: Optional[str]) -> None:
+        self.history: Optional[List[StrictChatMessage]] = history
+        self.inputs: InputVariables = inputs
+        self.metadata: Optional[Dict[str, str]] = metadata
+        self.output: Optional[str] = output
+
+
+class DatasetTestCaseResponse:
+    def __init__(self, test_case: Dict[str, Any]):
+        self.values: InputVariables = test_case['values']
+        self.id: str = test_case['id']
+        self.output: Optional[str] = test_case.get('output')
+        self.history: Optional[List[StrictChatMessage]] = test_case.get('history')
+        self.metadata: Optional[Dict[str, str]] = test_case.get('metadata')
+
+class DatasetTestCasesRetrievalResponse:
+    def __init__(self, test_cases: List[Dict[str, Any]]) -> None:
+        self.test_cases = [
+            DatasetTestCaseResponse(test_case)
+            for test_case in test_cases
+        ]
 
 class CallSupport:
     def __init__(
@@ -253,3 +276,24 @@ class CallSupport:
         if response.status_code != 201:
             raise freeplay_response_error('Error while deleting session.', response)
 
+    def create_test_cases(self, project_id: str, dataset_id: str, test_cases: List[DatasetTestCaseRequest]) -> None:
+        examples = [{"history": test_case.history, "output": test_case.output, "metadata": test_case.metadata, "inputs": test_case.inputs} for test_case in test_cases]
+        payload: Dict[str, Any] = {"examples": examples}
+        url = f'{self.api_base}/v2/projects/{project_id}/datasets/id/{dataset_id}/test-cases'
+
+        response = api_support.post_raw(self.freeplay_api_key, url, payload)
+        if response.status_code != 201:
+            raise freeplay_response_error('Error while creating test cases.', response)
+
+    def get_test_cases(self, project_id: str, dataset_id: str) -> DatasetTestCasesRetrievalResponse:
+        url = f'{self.api_base}/v2/projects/{project_id}/datasets/id/{dataset_id}/test-cases'
+        response = api_support.get_raw(self.freeplay_api_key, url)
+
+        if response.status_code != 200:
+            raise freeplay_response_error('Error while getting test cases.', response)
+
+        json_dom = response.json()
+
+        return DatasetTestCasesRetrievalResponse(
+            test_cases=[{"history": jsn["history"], "id": jsn["id"], "output": jsn["output"], "values": jsn["values"], "metadata": jsn["metadata"] if 'metadata' in jsn.keys() else None} for jsn in json_dom]
+        )

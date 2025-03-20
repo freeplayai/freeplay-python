@@ -9,6 +9,7 @@ from uuid import uuid4
 
 import responses
 from anthropic.types import TextBlock, ToolUseBlock
+from freeplay.resources.test_cases import DatasetTestCase
 from openai.types.chat import ChatCompletionMessage, ChatCompletionMessageToolCall
 from openai.types.chat.chat_completion_message_tool_call import Function
 from requests import PreparedRequest
@@ -60,6 +61,7 @@ class TestFreeplay(TestCase):
         self.openai_api_key = "openai_api_key"
         self.api_base = "http://localhost:9091/api"
         self.project_id = str(uuid4())
+        self.dataset_id = str(uuid4())
         self.project_version_id = str(uuid4())
         self.prompt_template_version_id = self.project_version_id
         self.prompt_template_id_1 = str(uuid4())
@@ -1273,6 +1275,25 @@ class TestFreeplay(TestCase):
         self.assertEqual(expected.get("prompt_template_name"), formatted_prompt.prompt_info.template_name)
         self.assertEqual(expected.get("metadata").get("provider"), formatted_prompt.prompt_info.provider)
 
+    @responses.activate
+    def test_insert_and_get_test_cases(self) -> None:
+        self.__mock_test_case_insert_api()
+        self.__mock_test_case_retrieval_api()
+
+        test_case: DatasetTestCase = DatasetTestCase(history=None,
+                                                     metadata={"key": "value"},
+                                                     inputs={"question": "value 1"},
+                                                     output="Prompt response 1")
+
+        test_case_result = self.freeplay_thin.test_cases.create_many(self.project_id, self.dataset_id, [test_case])
+        self.assertEqual(test_case_result.dataset_id, self.dataset_id)
+        dataset_result = self.freeplay_thin.test_cases.get(self.project_id, self.dataset_id)
+        self.assertEqual(len(dataset_result.test_cases), 1)
+        self.assertEqual(dataset_result.test_cases[0].history, test_case.history)
+        self.assertEqual(dataset_result.test_cases[0].inputs, test_case.inputs)
+        self.assertEqual(dataset_result.test_cases[0].output, test_case.output)
+        self.assertEqual(dataset_result.test_cases[0].metadata, test_case.metadata)
+
     def __mock_freeplay_apis(self, template_name: str, environment: str = 'latest') -> None:
         responses.get(
             url=f'{self.api_base}/v2/projects/{self.project_id}/prompt-templates/name/'
@@ -1365,6 +1386,31 @@ class TestFreeplay(TestCase):
             content_type='application/json'
         )
         return url
+
+    def __mock_test_case_retrieval_api(self) -> None:
+        body = json.dumps([
+         {'history': None, 'id': '995f77f8-eaa2-45f1-8c77-136183fc4a74', 'output': 'Prompt response 1',
+          'values': {'question': 'value 1'}, 'metadata': {'key': "value"}}])
+        responses.get(
+            url=f'{self.api_base}/v2/projects/{self.project_id}/datasets/id/{self.dataset_id}/test-cases',
+            status=200,
+            body=body
+        )
+
+
+    def __mock_test_case_insert_api(self) -> None:
+        examples: List[Dict[str, Any]] = [
+            {'history': None, 'output': 'Prompt response 1', 'inputs': {'question': 'value 1'},
+             'metadata': {'key': "value"}}]
+
+        payload: Dict[str, Any] = {"examples": examples}
+        json_payload = json.dumps(payload)
+        responses.post(
+            url=f'{self.api_base}/v2/projects/{self.project_id}/datasets/id/{self.dataset_id}/test-cases',
+            status=201,
+            content_type='application/json',
+            body=json_payload
+        )
 
     def __mock_test_run_retrieval_api(self) -> None:
         body = json.dumps({

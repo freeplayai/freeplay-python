@@ -85,7 +85,7 @@ class Recordings:
     def __init__(self, call_support: CallSupport):
         self.call_support = call_support
 
-    def create(self, record_payload: RecordPayload) -> RecordResponse:
+    def create(self, record_payload: RecordPayload) -> RecordResponse:  # type: ignore
         if len(record_payload.all_messages) < 1:
             raise FreeplayClientError("Messages list must have at least one message. "
                                       "The last message should be the current response.")
@@ -163,7 +163,8 @@ class Recordings:
 
             raise FreeplayError(message) from e
 
-    def update(self, record_update_payload: RecordUpdatePayload) -> RecordResponse:
+
+    def update(self, record_update_payload: RecordUpdatePayload) -> RecordResponse:  # type: ignore
         record_update_api_payload: Dict[str, Any] = {
             "new_messages": record_update_payload.new_messages,
             "eval_results": record_update_payload.eval_results,
@@ -183,7 +184,7 @@ class Recordings:
             self.__handle_and_raise_api_error(e, message)
 
     @staticmethod
-    def __handle_and_raise_api_error(e: HTTPError, messages: str):
+    def __handle_and_raise_api_error(e: HTTPError, messages: str) -> None:
         if e.response.content:
             try:
                 content = e.response.content

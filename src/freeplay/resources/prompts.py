@@ -35,14 +35,14 @@ class UnsupportedToolSchemaError(FreeplayConfigurationError):
 
 # A content block a la OpenAI or Anthropic. Intentionally over-permissive to allow schema evolution by the providers.
 @runtime_checkable
-class ContentBlock(Protocol):
+class ProviderMessageContentBlock(Protocol):
     def model_dump(self) -> Dict[str, Any]:
         pass
 
 
 # A content/role pair with a type-safe content for common provider recording. If not using a common provider,
 # use {'content': str, 'role': str} to record. If using a common provider, this is usually the `.content` field.
-GenericProviderMessage = Union[Dict[str, Any], ContentBlock]
+GenericProviderMessage = Union[Dict[str, Any], ProviderMessageContentBlock]
 
 
 # SDK-Exposed Classes

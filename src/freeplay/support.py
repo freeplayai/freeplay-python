@@ -6,7 +6,7 @@ from typing import Optional, Dict, Any, List, Union
 from freeplay import api_support
 from freeplay.api_support import try_decode
 from freeplay.errors import freeplay_response_error, FreeplayServerError
-from freeplay.model import InputVariables, FeedbackValue, StrictChatMessage
+from freeplay.model import InputVariables, FeedbackValue, NormalizedMessage
 
 
 @dataclass
@@ -89,8 +89,8 @@ class TestRunRetrievalResponse:
         )
 
 class DatasetTestCaseRequest:
-    def __init__(self, history: Optional[List[StrictChatMessage]], inputs: InputVariables, metadata: Optional[Dict[str, str]], output: Optional[str]) -> None:
-        self.history: Optional[List[StrictChatMessage]] = history
+    def __init__(self, history: Optional[List[NormalizedMessage]], inputs: InputVariables, metadata: Optional[Dict[str, str]], output: Optional[str]) -> None:
+        self.history: Optional[List[NormalizedMessage]] = history
         self.inputs: InputVariables = inputs
         self.metadata: Optional[Dict[str, str]] = metadata
         self.output: Optional[str] = output
@@ -101,7 +101,7 @@ class DatasetTestCaseResponse:
         self.values: InputVariables = test_case['values']
         self.id: str = test_case['id']
         self.output: Optional[str] = test_case.get('output')
-        self.history: Optional[List[StrictChatMessage]] = test_case.get('history')
+        self.history: Optional[List[NormalizedMessage]] = test_case.get('history')
         self.metadata: Optional[Dict[str, str]] = test_case.get('metadata')
 
 class DatasetTestCasesRetrievalResponse:

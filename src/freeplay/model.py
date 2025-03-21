@@ -60,5 +60,5 @@ class AssistantMessage:
     content: Union[str, List[ContentBlock]]
     role: Literal["assistant"] = "assistant"
 
-# Used to enforce 'history' in test cases
-StrictChatMessage = Union[UserMessage, SystemMessage, AssistantMessage]
+# Largely used for history in dataset test cases presently
+NormalizedMessage = Union[UserMessage, SystemMessage, AssistantMessage]

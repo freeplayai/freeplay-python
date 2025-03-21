@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Optional, Dict, Any
 
-from freeplay.model import InputVariables, StrictChatMessage
+from freeplay.model import InputVariables, NormalizedMessage
 from freeplay.support import CallSupport, DatasetTestCaseRequest, DatasetTestCasesRetrievalResponse
 
 
@@ -11,7 +11,7 @@ class DatasetTestCase:
             self,
             inputs: InputVariables,
             output: Optional[str],
-            history: Optional[List[StrictChatMessage]] = None,
+            history: Optional[List[NormalizedMessage]] = None,
             metadata: Optional[Dict[str, str]] = None,
             id: Optional[str] = None, # Only set on retrieval
     ):
@@ -40,10 +40,8 @@ class TestCases:
     def __init__(self, call_support: CallSupport) -> None:
         self.call_support = call_support
 
-    def create(self, project_id: str, dataset_id: str, test_case: DatasetTestCase) -> DatasetTestCase:
-        test_cases = [DatasetTestCaseRequest(test_case.history, test_case.inputs, test_case.metadata, test_case.output)]
-        self.call_support.create_test_cases(project_id, dataset_id, test_cases)
-        return test_case
+    def create(self, project_id: str, dataset_id: str, test_case: DatasetTestCase) -> Dataset:
+        return self.create_many(project_id, dataset_id, [test_case])
 
     def create_many(self, project_id: str, dataset_id: str, test_cases: List[DatasetTestCase]) -> Dataset:
         dataset_test_cases = [DatasetTestCaseRequest(test_case.history, test_case.inputs, test_case.metadata, test_case.output) for test_case in test_cases]

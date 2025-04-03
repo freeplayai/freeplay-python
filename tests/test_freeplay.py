@@ -22,7 +22,8 @@ from freeplay.llm_parameters import LLMParameters
 from freeplay.model import OpenAIFunctionCall
 from freeplay.resources.prompts import FormattedPrompt, PromptInfo, TemplatePrompt, FilesystemTemplateResolver, \
     BoundPrompt
-from freeplay.resources.recordings import RecordPayload, RecordUpdatePayload, ResponseInfo, CallInfo, TestRunInfo
+from freeplay.resources.recordings import RecordPayload, RecordUpdatePayload, ResponseInfo, CallInfo, TestRunInfo, \
+    UsageTokens
 from freeplay.resources.sessions import Session, SessionInfo, CustomMetadata
 from freeplay.support import ToolSchema
 
@@ -196,6 +197,8 @@ class TestFreeplay(TestCase):
         self.assertEqual(self.project_version_id, recorded_body_dom['prompt_info']['prompt_template_version_id'])
         self.assertIsNotNone(recorded_body_dom["call_info"]["start_time"])
         self.assertIsNotNone(recorded_body_dom["call_info"]["end_time"])
+        self.assertEqual(recorded_body_dom["call_info"]["usage"]["prompt_tokens"], 123)
+        self.assertEqual(recorded_body_dom["call_info"]["usage"]["completion_tokens"], 456)
         self.assertEqual(self.tag, recorded_body_dom["prompt_info"]['environment'])
         self.assertEqual(
             all_messages,
@@ -1577,7 +1580,11 @@ class TestFreeplay(TestCase):
             end_time=end,
             model_parameters=formatted_prompt.prompt_info.model_parameters,
             provider_info=formatted_prompt.prompt_info.provider_info,
+            usage=UsageTokens(
+                prompt_tokens=123,
+                completion_tokens=456,
+            )
         )
-        all_messages = formatted_prompt.all_messages({'role': 'Assistant', 'content': ('%s' % llm_response)})
+        all_messages = formatted_prompt.all_messages({'role': 'assistant', 'content': ('%s' % llm_response)})
         response_info = ResponseInfo(is_complete=True)
         return all_messages, call_info, formatted_prompt, response_info, session

@@ -3,7 +3,7 @@ import time
 
 from anthropic import Anthropic, NotGiven
 
-from freeplay import Freeplay, RecordPayload, ResponseInfo, CallInfo
+from freeplay import Freeplay, RecordPayload, ResponseInfo, CallInfo, UsageTokens
 
 fpclient = Freeplay(
     freeplay_api_key=os.environ['FREEPLAY_API_KEY'],
@@ -51,7 +51,12 @@ messages = formatted_prompt.all_messages({
     'role': completion.role,
 })
 print(f"All messages: {messages}")
-call_info = CallInfo.from_prompt_info(formatted_prompt.prompt_info, start, end)
+call_info = CallInfo.from_prompt_info(
+    formatted_prompt.prompt_info,
+    start,
+    end,
+    usage=UsageTokens(completion.usage.input_tokens, completion.usage.output_tokens)
+)
 response_info = ResponseInfo(
     is_complete=completion.stop_reason == 'stop_sequence'
 )

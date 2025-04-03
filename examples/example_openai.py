@@ -1,9 +1,10 @@
 import os
 import time
-import logging
+
 from openai import OpenAI
 
 from freeplay import Freeplay, RecordPayload, ResponseInfo, CallInfo
+from freeplay.resources.recordings import UsageTokens
 
 # logging.basicConfig(level=logging.NOTSET)
 
@@ -47,7 +48,12 @@ print("Completion: %s" % completion)
 session = fpclient.sessions.create()
 messages = formatted_prompt.all_messages(completion.choices[0].message)
 print(f"All messages: {messages}")
-call_info = CallInfo.from_prompt_info(formatted_prompt.prompt_info, start, end)
+call_info = CallInfo.from_prompt_info(
+    formatted_prompt.prompt_info,
+    start,
+    end,
+    UsageTokens(completion.usage.prompt_tokens, completion.usage.completion_tokens)
+)
 response_info = ResponseInfo(
     is_complete=completion.choices[0].finish_reason == 'stop'
 )

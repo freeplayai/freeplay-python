@@ -18,6 +18,12 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
+class UsageTokens:
+    prompt_tokens: int
+    completion_tokens: int
+
+
+@dataclass
 class CallInfo:
     provider: str
     model: str
@@ -25,9 +31,15 @@ class CallInfo:
     end_time: float
     model_parameters: LLMParameters
     provider_info: Optional[Dict[str, Any]] = None
+    usage: Optional[UsageTokens] = None
 
     @staticmethod
-    def from_prompt_info(prompt_info: PromptInfo, start_time: float, end_time: float) -> 'CallInfo':
+    def from_prompt_info(
+            prompt_info: PromptInfo,
+            start_time: float,
+            end_time: float,
+            usage: Optional[UsageTokens] = None
+    ) -> 'CallInfo':
         return CallInfo(
             provider=prompt_info.provider,
             model=prompt_info.model,
@@ -35,6 +47,7 @@ class CallInfo:
             end_time=end_time,
             model_parameters=prompt_info.model_parameters,
             provider_info=prompt_info.provider_info,
+            usage=usage
         )
 
 
@@ -138,6 +151,12 @@ class Recordings:
                 "trace_id": record_payload.trace_info.trace_id
             }
 
+        if record_payload.call_info.usage is not None:
+            record_api_payload['call_info']['usage'] = {
+                "prompt_tokens": record_payload.call_info.usage.prompt_tokens,
+                "completion_tokens": record_payload.call_info.usage.completion_tokens,
+            }
+
         try:
             recorded_response = api_support.post_raw(
                 api_key=self.call_support.freeplay_api_key,
@@ -162,7 +181,6 @@ class Recordings:
                       f'Status: {status_code}. {e.__class__}'
 
             raise FreeplayError(message) from e
-
 
     def update(self, record_update_payload: RecordUpdatePayload) -> RecordResponse:  # type: ignore
         record_update_api_payload: Dict[str, Any] = {

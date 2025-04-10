@@ -1,7 +1,7 @@
 import json
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Literal
 from uuid import UUID
 
 from requests import HTTPError
@@ -23,6 +23,9 @@ class UsageTokens:
     completion_tokens: int
 
 
+ApiStyle = Union[Literal['batch'], Literal['default']]
+
+
 @dataclass
 class CallInfo:
     provider: str
@@ -32,13 +35,15 @@ class CallInfo:
     model_parameters: LLMParameters
     provider_info: Optional[Dict[str, Any]] = None
     usage: Optional[UsageTokens] = None
+    api_style: Optional[ApiStyle] = None
 
     @staticmethod
     def from_prompt_info(
             prompt_info: PromptInfo,
             start_time: float,
             end_time: float,
-            usage: Optional[UsageTokens] = None
+            usage: Optional[UsageTokens] = None,
+            api_style: Optional[ApiStyle] = None
     ) -> 'CallInfo':
         return CallInfo(
             provider=prompt_info.provider,
@@ -47,7 +52,8 @@ class CallInfo:
             end_time=end_time,
             model_parameters=prompt_info.model_parameters,
             provider_info=prompt_info.provider_info,
-            usage=usage
+            usage=usage,
+            api_style=api_style
         )
 
 
@@ -156,6 +162,9 @@ class Recordings:
                 "prompt_tokens": record_payload.call_info.usage.prompt_tokens,
                 "completion_tokens": record_payload.call_info.usage.completion_tokens,
             }
+
+        if record_payload.call_info.api_style is not None:
+            record_api_payload['call_info']['api_style'] = record_payload.call_info.api_style
 
         try:
             recorded_response = api_support.post_raw(

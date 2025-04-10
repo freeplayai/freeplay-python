@@ -9,7 +9,6 @@ from uuid import uuid4
 
 import responses
 from anthropic.types import TextBlock, ToolUseBlock
-from freeplay.resources.test_cases import DatasetTestCase
 from openai.types.chat import ChatCompletionMessage, ChatCompletionMessageToolCall
 from openai.types.chat.chat_completion_message_tool_call import Function
 from requests import PreparedRequest
@@ -25,6 +24,7 @@ from freeplay.resources.prompts import FormattedPrompt, PromptInfo, TemplateProm
 from freeplay.resources.recordings import RecordPayload, RecordUpdatePayload, ResponseInfo, CallInfo, TestRunInfo, \
     UsageTokens
 from freeplay.resources.sessions import Session, SessionInfo, CustomMetadata
+from freeplay.resources.test_cases import DatasetTestCase
 from freeplay.support import ToolSchema
 
 
@@ -199,6 +199,7 @@ class TestFreeplay(TestCase):
         self.assertIsNotNone(recorded_body_dom["call_info"]["end_time"])
         self.assertEqual(recorded_body_dom["call_info"]["usage"]["prompt_tokens"], 123)
         self.assertEqual(recorded_body_dom["call_info"]["usage"]["completion_tokens"], 456)
+        self.assertEqual(recorded_body_dom["call_info"]["api_style"], 'batch')
         self.assertEqual(self.tag, recorded_body_dom["prompt_info"]['environment'])
         self.assertEqual(
             all_messages,
@@ -1583,7 +1584,8 @@ class TestFreeplay(TestCase):
             usage=UsageTokens(
                 prompt_tokens=123,
                 completion_tokens=456,
-            )
+            ),
+            api_style='batch'
         )
         all_messages = formatted_prompt.all_messages({'role': 'assistant', 'content': ('%s' % llm_response)})
         response_info = ResponseInfo(is_complete=True)

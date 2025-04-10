@@ -52,7 +52,8 @@ call_info = CallInfo.from_prompt_info(
     formatted_prompt.prompt_info,
     start,
     end,
-    UsageTokens(completion.usage.prompt_tokens, completion.usage.completion_tokens)
+    UsageTokens(completion.usage.prompt_tokens, completion.usage.completion_tokens),
+    api_style='batch'
 )
 response_info = ResponseInfo(
     is_complete=completion.choices[0].finish_reason == 'stop'

@@ -1,16 +1,37 @@
 import copy
 import json
 import logging
+import warnings
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Dict, Optional, List, Sequence, cast, Any, Union, runtime_checkable, Protocol
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Protocol,
+    Sequence,
+    TypedDict,
+    Union,
+    cast,
+    runtime_checkable,
+)
 
-from freeplay.errors import FreeplayConfigurationError, FreeplayClientError, log_freeplay_client_warning
+from freeplay.errors import (
+    FreeplayClientError,
+    FreeplayConfigurationError,
+    log_freeplay_client_warning,
+)
 from freeplay.llm_parameters import LLMParameters
 from freeplay.model import InputVariables
-from freeplay.support import CallSupport, ToolSchema
-from freeplay.support import PromptTemplate, PromptTemplates, PromptTemplateMetadata
+from freeplay.support import (
+    CallSupport,
+    PromptTemplate,
+    PromptTemplateMetadata,
+    PromptTemplates,
+    ToolSchema,
+)
 from freeplay.utils import bind_template_variables, convert_provider_message_to_dict
 
 logger = logging.getLogger(__name__)
@@ -33,16 +54,30 @@ class UnsupportedToolSchemaError(FreeplayConfigurationError):
 
 # Models ==
 
-# A content block a la OpenAI or Anthropic. Intentionally over-permissive to allow schema evolution by the providers.
+# A content block compatible with stainless generated SDKs (such as Anthropic
+# and OpenAI). This lets us generate a dictionary from the stainless classes
+# correctly. Intentionally over-permissive to allow schema evolution by the
+# providers.
 @runtime_checkable
-class ProviderMessageContentBlock(Protocol):
+class ProviderMessageProtocol(Protocol):
     def model_dump(self) -> Dict[str, Any]:
         pass
 
 
-# A content/role pair with a type-safe content for common provider recording. If not using a common provider,
-# use {'content': str, 'role': str} to record. If using a common provider, this is usually the `.content` field.
-GenericProviderMessage = Union[Dict[str, Any], ProviderMessageContentBlock]
+class MessageDict(TypedDict):
+    role: str
+    content: Any
+
+
+# This type represents a struct or dict containing a role and content. The role
+#  should be one of user, assistant or system. This type should be compatible
+#  with OpenAI and Anthropic's message format, as well as most other SDKs. If
+#  not using a common provider, use {'content': str, 'role': str} to record. If
+#  using a common provider, this is usually the `.content` field.
+ProviderMessage = Union[MessageDict, Dict[str, Any], ProviderMessageProtocol]
+
+# DEPRECATED: Use ProviderMessage instead
+GenericProviderMessage = ProviderMessage
 
 
 # SDK-Exposed Classes
@@ -69,7 +104,7 @@ class FormattedPrompt:
             formatted_prompt_text: Optional[str] = None,
             tool_schema: Optional[List[Dict[str, Any]]] = None
     ):
-        # These two definitions allow us to operate on typed fields unitl we expose them as Any for client use.
+        # These two definitions allow us to operate on typed fields until we expose them as Any for client use.
         self._llm_prompt = formatted_prompt
         self._tool_schema = tool_schema
 
@@ -81,11 +116,18 @@ class FormattedPrompt:
             (message['content'] for message in messages if message['role'] == 'system'), None)
         self.system_content = maybe_system_content
 
-        # Note: messages are **not formatted** for the provider.
-        self.messages = messages
+        self._messages = messages
 
     @property
-    # We know this is a list of dict[str,str], but we use Any to avoid typing issues with client SDK libraries, which require strict TypedDict.
+    def messages(self) -> List[Dict[str, str]]:
+        warnings.warn(
+            "The 'messages' attribute is deprecated and will be removed in a future version. It is not formatted for the provider. Use 'llm_prompt' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self._messages
+
+    @property
     def llm_prompt(self) -> Any:
         return self._llm_prompt
 
@@ -93,12 +135,9 @@ class FormattedPrompt:
     def tool_schema(self) -> Any:
         return self._tool_schema
 
-    def all_messages(
-            self,
-            new_message: GenericProviderMessage
-    ) -> List[Dict[str, Any]]:
+    def all_messages(self, new_message: ProviderMessage) -> List[Dict[str, Any]]:
         converted_message = convert_provider_message_to_dict(new_message)
-        return self.messages + [converted_message]
+        return self._messages + [converted_message]
 
 
 class BoundPrompt:
@@ -211,7 +250,11 @@ class TemplatePrompt:
         self.tool_schema = tool_schema
         self.messages = messages
 
-    def bind(self, variables: InputVariables, history: Optional[Sequence[GenericProviderMessage]] = None) -> BoundPrompt:
+    def bind(
+        self,
+        variables: InputVariables,
+        history: Optional[Sequence[ProviderMessage]] = None,
+    ) -> BoundPrompt:
         # check history for a system message
         history_clean = []
         if history:
@@ -521,13 +564,13 @@ class Prompts:
         return TemplatePrompt(prompt_info, prompt.content, prompt.tool_schema)
 
     def get_formatted(
-            self,
-            project_id: str,
-            template_name: str,
-            environment: str,
-            variables: InputVariables,
-            history: Optional[Sequence[GenericProviderMessage]] = None,
-            flavor_name: Optional[str] = None
+        self,
+        project_id: str,
+        template_name: str,
+        environment: str,
+        variables: InputVariables,
+        history: Optional[Sequence[ProviderMessage]] = None,
+        flavor_name: Optional[str] = None,
     ) -> FormattedPrompt:
         bound_prompt = self.get(
             project_id=project_id,

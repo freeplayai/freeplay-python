@@ -73,9 +73,9 @@ def call_and_record(
 # send 3 questions to the model encapsulated into a trace
 user_questions = ["answer life's most existential questions", "what is sand?", "how tall are lions?"]
 
-session = fpclient.sessions.create()
+session = fpclient.sessions.create({"metadata_123": "blah"})
 for question in user_questions:
-    trace_info = session.create_trace(input=question)
+    trace_info = session.create_trace(agent_name="mr-secret-agent", input=question, custom_metadata={"metadata_key": "hello"})
     bot_response = call_and_record(
         project_id=project_id,
         template_name='my-anthropic-prompt',
@@ -102,7 +102,10 @@ for question in user_questions:
         }
     )
 
-    trace_info.record_output(project_id, bot_response['llm_response'])
+    trace_info.record_output(
+        project_id,
+        bot_response['llm_response'],
+        eval_results={"bool_field": False, "num_field": 0.9})
     # record feedback for the trace
     trace_feedback = {
         'is_it_good': random.choice([True, False]),

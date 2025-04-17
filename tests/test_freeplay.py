@@ -14,6 +14,7 @@ from openai.types.chat.chat_completion_message_tool_call import Function
 from requests import PreparedRequest
 from responses import matchers
 
+from freeplay import CustomMetadata
 from freeplay import Freeplay
 from freeplay.errors import (FreeplayClientError,
                              FreeplayConfigurationError, FreeplayClientWarning)
@@ -23,7 +24,7 @@ from freeplay.resources.prompts import FormattedPrompt, PromptInfo, TemplateProm
     BoundPrompt
 from freeplay.resources.recordings import RecordPayload, RecordUpdatePayload, ResponseInfo, CallInfo, TestRunInfo, \
     UsageTokens
-from freeplay.resources.sessions import Session, SessionInfo, CustomMetadata
+from freeplay.resources.sessions import Session, SessionInfo
 from freeplay.resources.test_cases import DatasetTestCase
 from freeplay.support import ToolSchema
 
@@ -256,7 +257,12 @@ class TestFreeplay(TestCase):
             llm_response=llm_response
         )
 
-        trace_info = session.create_trace(input=input_variables['question'])
+        trace_metadata: CustomMetadata = {'bool_field': True, 'float_field': 1.2}
+        trace_info = session.create_trace(
+            input=input_variables['question'],
+            agent_name='agent_name',
+            custom_metadata=trace_metadata
+        )
         completion_id = uuid4()
         self.freeplay_thin.recordings.create(
             RecordPayload(
@@ -285,7 +291,9 @@ class TestFreeplay(TestCase):
 
         self.__mock_record_trace_api(session.session_id, trace_info.trace_id)
 
-        trace_info.record_output(project_id=self.project_id, output=llm_response)
+        client_eval_results = {'bool_field': False, 'float_field': 0.23}
+        trace_info.record_output(
+            project_id=self.project_id, output=llm_response, eval_results=client_eval_results)
         record_trace_api_request = responses.calls[2].request
         recorded_trace_body_dom = json.loads(record_trace_api_request.body)
         self.assertEqual(
@@ -295,6 +303,18 @@ class TestFreeplay(TestCase):
         self.assertEqual(
             llm_response,
             recorded_trace_body_dom['output']
+        )
+        self.assertEqual(
+            'agent_name',
+            recorded_trace_body_dom['agent_name']
+        )
+        self.assertEqual(
+            trace_metadata,
+            recorded_trace_body_dom['custom_metadata']
+        )
+        self.assertEqual(
+            client_eval_results,
+            recorded_trace_body_dom['eval_results']
         )
 
     @responses.activate
@@ -1393,14 +1413,13 @@ class TestFreeplay(TestCase):
 
     def __mock_test_case_retrieval_api(self) -> None:
         body = json.dumps([
-         {'history': None, 'id': '995f77f8-eaa2-45f1-8c77-136183fc4a74', 'output': 'Prompt response 1',
-          'values': {'question': 'value 1'}, 'metadata': {'key': "value"}}])
+            {'history': None, 'id': '995f77f8-eaa2-45f1-8c77-136183fc4a74', 'output': 'Prompt response 1',
+             'values': {'question': 'value 1'}, 'metadata': {'key': "value"}}])
         responses.get(
             url=f'{self.api_base}/v2/projects/{self.project_id}/datasets/id/{self.dataset_id}/test-cases',
             status=200,
             body=body
         )
-
 
     def __mock_test_case_insert_api(self) -> None:
         examples: List[Dict[str, Any]] = [

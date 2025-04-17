@@ -1,4 +1,3 @@
-import json
 from dataclasses import dataclass
 from json import JSONEncoder
 from typing import Optional, Dict, Any, List, Union
@@ -7,6 +6,8 @@ from freeplay import api_support
 from freeplay.api_support import try_decode
 from freeplay.errors import freeplay_response_error, FreeplayServerError
 from freeplay.model import InputVariables, FeedbackValue, NormalizedMessage
+
+CustomMetadata = Optional[Dict[str, Union[str, int, float, bool]]]
 
 
 @dataclass
@@ -17,11 +18,13 @@ class PromptTemplateMetadata:
     params: Optional[Dict[str, Any]] = None
     provider_info: Optional[Dict[str, Any]] = None
 
+
 @dataclass
 class ToolSchema:
     name: str
     description: str
     parameters: Dict[str, Any]
+
 
 @dataclass
 class PromptTemplate:
@@ -39,6 +42,7 @@ class PromptTemplate:
 @dataclass
 class PromptTemplates:
     prompt_templates: List[PromptTemplate]
+
 
 @dataclass
 class SummaryStatistics:
@@ -88,8 +92,10 @@ class TestRunRetrievalResponse:
             human_evaluation=summary_statistics['human_evaluation']
         )
 
+
 class DatasetTestCaseRequest:
-    def __init__(self, history: Optional[List[NormalizedMessage]], inputs: InputVariables, metadata: Optional[Dict[str, str]], output: Optional[str]) -> None:
+    def __init__(self, history: Optional[List[NormalizedMessage]], inputs: InputVariables,
+                 metadata: Optional[Dict[str, str]], output: Optional[str]) -> None:
         self.history: Optional[List[NormalizedMessage]] = history
         self.inputs: InputVariables = inputs
         self.metadata: Optional[Dict[str, str]] = metadata
@@ -104,12 +110,14 @@ class DatasetTestCaseResponse:
         self.history: Optional[List[NormalizedMessage]] = test_case.get('history')
         self.metadata: Optional[Dict[str, str]] = test_case.get('metadata')
 
+
 class DatasetTestCasesRetrievalResponse:
     def __init__(self, test_cases: List[Dict[str, Any]]) -> None:
         self.test_cases = [
             DatasetTestCaseResponse(test_case)
             for test_case in test_cases
         ]
+
 
 class CallSupport:
     def __init__(
@@ -256,13 +264,26 @@ class CallSupport:
             summary_statistics=json_dom['summary_statistics']
         )
 
-    def record_trace(self, project_id: str, session_id: str, trace_id: str, input: str, output: str) -> None:
+    def record_trace(
+            self,
+            project_id: str,
+            session_id: str,
+            trace_id: str,
+            input: str,
+            output: str,
+            agent_name: Optional[str] = None,
+            custom_metadata: CustomMetadata = None,
+            eval_results: Optional[Dict[str, Union[bool, float]]] = None
+    ) -> None:
         response = api_support.post_raw(
             self.freeplay_api_key,
             f'{self.api_base}/v2/projects/{project_id}/sessions/{session_id}/traces/id/{trace_id}',
             {
+                'agent_name': agent_name,
                 'input': input,
-                'output': output
+                'output': output,
+                'custom_metadata': custom_metadata,
+                'eval_results': eval_results,
             }
         )
         if response.status_code != 201:
@@ -277,7 +298,13 @@ class CallSupport:
             raise freeplay_response_error('Error while deleting session.', response)
 
     def create_test_cases(self, project_id: str, dataset_id: str, test_cases: List[DatasetTestCaseRequest]) -> None:
-        examples = [{"history": test_case.history, "output": test_case.output, "metadata": test_case.metadata, "inputs": test_case.inputs} for test_case in test_cases]
+        examples = [
+            {
+                "history": test_case.history,
+                "output": test_case.output,
+                "metadata": test_case.metadata,
+                "inputs": test_case.inputs
+            } for test_case in test_cases]
         payload: Dict[str, Any] = {"examples": examples}
         url = f'{self.api_base}/v2/projects/{project_id}/datasets/id/{dataset_id}/test-cases'
 
@@ -295,5 +322,13 @@ class CallSupport:
         json_dom = response.json()
 
         return DatasetTestCasesRetrievalResponse(
-            test_cases=[{"history": jsn["history"], "id": jsn["id"], "output": jsn["output"], "values": jsn["values"], "metadata": jsn["metadata"] if 'metadata' in jsn.keys() else None} for jsn in json_dom]
+            test_cases=[
+                {
+                    "history": jsn["history"],
+                    "id": jsn["id"],
+                    "output": jsn["output"],
+                    "values": jsn["values"],
+                    "metadata": jsn["metadata"] if 'metadata' in jsn.keys() else None
+                } for jsn in json_dom
+            ]
         )

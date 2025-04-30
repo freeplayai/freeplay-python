@@ -156,7 +156,13 @@ class BoundPrompt:
             flavor_name: str,
             messages: List[Dict[str, str]]
     ) -> Union[str, List[Dict[str, str]]]:
-        if flavor_name in ['azure_openai_chat', 'openai_chat', 'baseten_mistral_chat', 'mistral_chat']:
+        if flavor_name in [
+            'azure_openai_chat',
+            'openai_chat',
+            'baseten_mistral_chat',
+            'mistral_chat',
+            'perplexity_chat'
+        ]:
             # We need a deepcopy here to avoid referential equality with the llm_prompt
             return copy.deepcopy(messages)
         elif flavor_name == 'anthropic_chat':

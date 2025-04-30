@@ -2,7 +2,7 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
-## [0.3.17] - 2025-04-30
+## [0.3.18] - 2025-04-30
 
 ### Added
 
@@ -17,6 +17,6 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
           similar to the output recorded on a completion.
 - Added handling of prompt formatting for Perplexity models.
 
-## [Before v0.3.17]
+## [Before v0.3.18]
 
 See https://docs.freeplay.ai/changelog

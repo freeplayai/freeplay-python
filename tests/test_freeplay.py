@@ -3,7 +3,7 @@ import time
 import uuid
 from dataclasses import asdict
 from pathlib import Path
-from typing import Tuple, Any, Dict, List, cast
+from typing import Tuple, Any, Dict, List, cast, Optional
 from unittest import TestCase
 from uuid import uuid4
 
@@ -21,12 +21,12 @@ from freeplay.errors import (FreeplayClientError,
 from freeplay.llm_parameters import LLMParameters
 from freeplay.model import OpenAIFunctionCall
 from freeplay.resources.prompts import FormattedPrompt, PromptInfo, TemplatePrompt, FilesystemTemplateResolver, \
-    BoundPrompt
+    BoundPrompt, MediaMap, MediaFileBase64
 from freeplay.resources.recordings import RecordPayload, RecordUpdatePayload, ResponseInfo, CallInfo, TestRunInfo, \
     UsageTokens
 from freeplay.resources.sessions import Session, SessionInfo
 from freeplay.resources.test_cases import DatasetTestCase
-from freeplay.support import ToolSchema
+from freeplay.support import ToolSchema, TemplateChatMessage, HistoryTemplateMessage, TemplateMessage
 
 
 class PromptInfoMatcher:
@@ -244,6 +244,103 @@ class TestFreeplay(TestCase):
             'client_eval_field_bool': True,
             'client_eval_field_float': 0.23
         }, recorded_body_dom['eval_results'])
+
+    @responses.activate
+    def test_single_prompt_get_and_record_with_image(self) -> None:
+        input_variables = {"query": "Describe this photograph"}
+        one_pixel_png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+        media_files: MediaMap = {
+            "subject-image": MediaFileBase64(
+                type="base64",
+                content_type="image/png",
+                data=one_pixel_png
+            )
+        }
+        llm_response = "It looks great to me"
+
+        self.__mock_record_api()
+        responses.get(
+            url=f'{self.api_base}/v2/projects/{self.project_id}/prompt-templates/name/'
+                f'template-with-image?environment=some-tag',
+            status=200,
+            match=[matchers.query_param_matcher({'environment': 'some-tag'})],
+            body=json.dumps({
+            "content": [
+                {"role": "system", "content": "Respond to the user's query"},
+                {"role": "user", "content": "{{query}}", "media_slots": [{"type": "image", "placeholder_name": "subject-image"}]}
+            ],
+            "format_version": 2,
+            "metadata": {
+                "flavor": "anthropic_chat",
+                "model": "claude-2.1",
+                "params": {
+                    "max_tokens_to_sample": 50,
+                    "temperature": 0.7
+                },
+                "provider": "anthropic",
+                "provider_info": {
+                    "anthropic_endpoint": "https://example.com/anthropic"
+                }
+            },
+            "project_id": self.project_id,
+            "prompt_template_id": str(uuid4()),
+            "prompt_template_name": "template-with-image",
+            "prompt_template_version_id": str(uuid4())
+        }))
+
+        _, call_info, formatted_prompt, response_info, session = self.__make_call(
+            input_variables,
+            llm_response,
+            media_files,
+            template_name="template-with-image",
+            tag="some-tag"
+        )
+
+        test_case_id = str(uuid4())
+
+        self.freeplay_thin.recordings.create(
+            RecordPayload(
+                all_messages=[*formatted_prompt.llm_prompt, {"role": "assistant", "content": llm_response}],
+                inputs=input_variables,
+                media_files=media_files,
+                session_info=self.session_info,
+                prompt_info=formatted_prompt.prompt_info,
+                call_info=call_info,
+                tool_schema=formatted_prompt.tool_schema,
+                response_info=response_info,
+                eval_results={
+                    'client_eval_field_bool': True,
+                    'client_eval_field_float': 0.23
+                },
+                test_run_info=TestRunInfo(self.test_run_id, test_case_id)
+            )
+        )
+
+        self.assertEqual({"anthropic_endpoint": "https://example.com/anthropic"},
+                         formatted_prompt.prompt_info.provider_info)
+
+        record_api_request = responses.calls[1].request
+        recorded_body_dom = json.loads(record_api_request.body)
+        self.assertEqual(formatted_prompt.llm_prompt,
+                         [{
+                             "role": "user",
+                             "content": [
+                                 {"text": "Describe this photograph", "type": "text"},
+                                 {"source": {
+                                     "data": one_pixel_png,
+                                     "media_type": "image/png",
+                                     "type": "base64"},
+                                     "type": "image"
+                                 }
+                             ],
+                         }])
+        self.assertEqual(recorded_body_dom["media_files"], {
+            "subject-image": {
+                "content_type": "image/png",
+                "data": one_pixel_png,
+                "type": "base64"
+            }
+        })
 
     @responses.activate
     def test_record_trace(self) -> None:
@@ -482,13 +579,13 @@ class TestFreeplay(TestCase):
             environment=self.tag
         )
 
-        self.assertTrue("{{question}}" in template_prompt.messages[2]['content'])
+        self.assertTrue("{{question}}" in cast(TemplateChatMessage, template_prompt.messages[2]).content)
 
         bound_prompt = template_prompt.bind(input_variables)
 
         self.assertFalse("{{question}}" in bound_prompt.messages[2]['content'])
-        self.assertTrue(input_variables.get('name') in bound_prompt.messages[1]['content'])  # type: ignore
-        self.assertTrue(input_variables.get('question') in bound_prompt.messages[2]['content'])  # type: ignore
+        self.assertTrue(input_variables.get('name') in bound_prompt.messages[1]['content'])
+        self.assertTrue(input_variables.get('question') in bound_prompt.messages[2]['content'])
 
         formatted_prompt = bound_prompt.format()
 
@@ -598,10 +695,10 @@ class TestFreeplay(TestCase):
         ])
 
     def test_prompt_format__history_openai(self) -> None:
-        messages = [
-            {'role': 'system', 'content': 'System message'},
-            {'kind': 'history'},
-            {'role': 'user', 'content': 'User message {{number}}'}
+        messages: List[TemplateMessage] = [
+            TemplateChatMessage(role='system', content='System message'),
+            HistoryTemplateMessage(kind='history'),
+            TemplateChatMessage(role='user', content='User message {{number}}')
         ]
         template_prompt = TemplatePrompt(
             self.openai_api_prompt_info,
@@ -627,10 +724,10 @@ class TestFreeplay(TestCase):
         ])
 
     def test_prompt_format__history_anthropic(self) -> None:
-        messages = [
-            {'role': 'system', 'content': 'System message'},
-            {'kind': 'history'},
-            {'role': 'user', 'content': 'User message {{number}}'}
+        messages: List[TemplateMessage] = [
+            TemplateChatMessage(role='system', content='System message'),
+            HistoryTemplateMessage(kind='history'),
+            TemplateChatMessage(role='user', content='User message {{number}}')
         ]
         template_prompt = TemplatePrompt(
             self.anthropic_prompt_info,
@@ -656,10 +753,10 @@ class TestFreeplay(TestCase):
         self.assertEqual(formatted_prompt.system_content, 'System message')
 
     def test_prompt_format__history_llama(self) -> None:
-        messages = [
-            {'role': 'system', 'content': 'System message'},
-            {'kind': 'history'},
-            {'role': 'user', 'content': 'User message {{number}}'}
+        messages: List[TemplateMessage] = [
+            TemplateChatMessage(role='system', content='System message'),
+            HistoryTemplateMessage(kind='history'),
+            TemplateChatMessage(role='user', content='User message {{number}}')
         ]
         template_prompt = TemplatePrompt(
             self.sagemaker_llama_3_prompt_info,
@@ -692,9 +789,9 @@ class TestFreeplay(TestCase):
 
     def test_prompt_format__bad_history(self) -> None:
         # send pass history to prompt that doesn't support it
-        messages = [
-            {'role': 'system', 'content': 'System message'},
-            {'role': 'user', 'content': 'User message {{number}}'}
+        messages: List[TemplateMessage] = [
+            TemplateChatMessage(role='system', content='System message'),
+            TemplateChatMessage(role='user', content='User message {{number}}')
         ]
         template_prompt = TemplatePrompt(
             self.openai_api_prompt_info,
@@ -706,9 +803,9 @@ class TestFreeplay(TestCase):
 
         # send no history to prompt that expects it
         messages = [
-            {'role': 'system', 'content': 'System message'},
-            {'kind': 'history'},
-            {'role': 'user', 'content': 'User message {{number}}'}
+            TemplateChatMessage(role='system', content='System message'),
+            HistoryTemplateMessage(kind='history'),
+            TemplateChatMessage(role='user', content='User message {{number}}')
         ]
         template_prompt = TemplatePrompt(
             self.openai_api_prompt_info,
@@ -744,9 +841,9 @@ class TestFreeplay(TestCase):
             )
 
     def test_prompt_format_with_tool_schema_anthropic(self) -> None:
-        messages = [
-            {'role': 'system', 'content': 'System message'},
-            {'role': 'user', 'content': 'User message {{number}}'}
+        messages: List[TemplateMessage] = [
+            TemplateChatMessage(role='system', content='System message'),
+            TemplateChatMessage(role='user', content='User message {{number}}')
         ]
         tool_schema = [
             ToolSchema(name='tool_name', description='tool_description',
@@ -768,9 +865,9 @@ class TestFreeplay(TestCase):
         }])
 
     def test_prompt_format_with_tool_schema_openai(self) -> None:
-        messages = [
-            {'role': 'system', 'content': 'System message'},
-            {'role': 'user', 'content': 'User message {{number}}'}
+        messages: List[TemplateMessage] = [
+            TemplateChatMessage(role='system', content='System message'),
+            TemplateChatMessage(role='user', content='User message {{number}}')
         ]
         tool_schema = [ToolSchema(name='tool_name', description='tool_description',
                                   parameters={'name': 'param_name', 'description': 'param_description',
@@ -1024,9 +1121,11 @@ class TestFreeplay(TestCase):
                 flavor_name='openai_chat',
                 project_id=self.bundle_project_id
             ),
-            messages=[{'content': 'You are a support agent', 'role': 'system'},
-                      {'content': 'How can I help you?', 'role': 'assistant'},
-                      {'content': '{{question}}', 'role': 'user'}]
+            messages=[
+                TemplateChatMessage(role='system', content='You are a support agent'),
+                TemplateChatMessage(role='assistant', content='How can I help you?'),
+                TemplateChatMessage(role='user', content='{{question}}'),
+            ]
         )
 
         self.assertEqual(TemplatePromptMatcher(expected), template_prompt)
@@ -1047,9 +1146,11 @@ class TestFreeplay(TestCase):
                 flavor_name='openai_chat',
                 project_id=self.bundle_project_id
             ),
-            messages=[{'content': 'You are a support agent.', 'role': 'user'},
-                      {'content': 'How may I help you?', 'role': 'assistant'},
-                      {'content': '{{question}}', 'role': 'user'}]
+            messages=[
+                TemplateChatMessage(role='user', content='You are a support agent.'),
+                TemplateChatMessage(role='assistant', content='How may I help you?'),
+                TemplateChatMessage(role='user', content='{{question}}'),
+            ]
         )
 
         self.assertEqual(TemplatePromptMatcher(expected), template_prompt)
@@ -1071,9 +1172,11 @@ class TestFreeplay(TestCase):
                 flavor_name='openai_chat',
                 project_id=self.bundle_project_id
             ),
-            messages=[{'content': 'You are a support agent', 'role': 'system'},
-                      {'content': 'How can I help you?', 'role': 'assistant'},
-                      {'content': '{{question}}', 'role': 'user'}]
+            messages=[
+                TemplateChatMessage(role='system', content='You are a support agent'),
+                TemplateChatMessage(role='assistant', content='How can I help you?'),
+                TemplateChatMessage(role='user', content='{{question}}'),
+            ]
         )
 
         self.assertEqual(TemplatePromptMatcher(expected), template_prompt)
@@ -1094,9 +1197,11 @@ class TestFreeplay(TestCase):
                 flavor_name='openai_chat',
                 project_id=self.bundle_project_id
             ),
-            messages=[{'content': 'You are a support agent', 'role': 'system'},
-                      {'content': 'How can I help you?', 'role': 'assistant'},
-                      {'content': '{{question}}', 'role': 'user'}]
+            messages=[
+                TemplateChatMessage(role='system', content='You are a support agent'),
+                TemplateChatMessage(role='assistant', content='How can I help you?'),
+                TemplateChatMessage(role='user', content='{{question}}'),
+            ]
         )
 
         self.assertEqual(TemplatePromptMatcher(expected), template_prompt)
@@ -1152,9 +1257,11 @@ class TestFreeplay(TestCase):
                 flavor_name='openai_chat',
                 project_id=self.bundle_project_id
             ),
-            messages=[{'content': 'You are a support agent', 'role': 'system'},
-                      {'content': 'How can I help you?', 'role': 'assistant'},
-                      {'content': '{{question}}', 'role': 'user'}]
+            messages=[
+                TemplateChatMessage(role='system', content='You are a support agent'),
+                TemplateChatMessage(role='assistant', content='How can I help you?'),
+                TemplateChatMessage(role='user', content='{{question}}'),
+            ]
         )
 
         self.assertEqual(TemplatePromptMatcher(expected), template_prompt)
@@ -1173,9 +1280,11 @@ class TestFreeplay(TestCase):
                 flavor_name='openai_chat',
                 project_id=self.bundle_project_id
             ),
-            messages=[{'content': 'You are a support agent', 'role': 'system'},
-                      {'content': 'How can I help you?', 'role': 'assistant'},
-                      {'content': '{{question}}', 'role': 'user'}]
+            messages=[
+                TemplateChatMessage(role='system', content='You are a support agent'),
+                TemplateChatMessage(role='assistant', content='How can I help you?'),
+                TemplateChatMessage(role='user', content='{{question}}'),
+            ]
         )
         template_prompt = self.bundle_client.prompts.get_by_version_id(
             self.bundle_project_id,
@@ -1273,7 +1382,11 @@ class TestFreeplay(TestCase):
             self.prompt_template_version_id
         )
         expected = json.loads(self.__get_prompt_response(self.prompt_template_name))
-        self.assertEqual(expected.get("content"), prompt_template.messages)
+        self.assertEqual([
+            TemplateChatMessage(role='system', content='System message'),
+            TemplateChatMessage(role='assistant', content='How may I help you, {{name}}?'),
+            TemplateChatMessage(role='user', content='{{question}}'),
+        ], prompt_template.messages)
         self.assertEqual(expected.get("prompt_template_version_id"),
                          prompt_template.prompt_info.prompt_template_version_id)
         self.assertEqual(expected.get("prompt_template_name"), prompt_template.prompt_info.template_name)
@@ -1582,14 +1695,18 @@ class TestFreeplay(TestCase):
     def __make_call(
             self,
             input_variables: Dict[str, Any],
-            llm_response: str
+            llm_response: str,
+            media_files: Optional[MediaMap] = None,
+            template_name: Optional[str] = None,
+            tag: Optional[str] = None,
     ) -> Tuple[List[Dict[str, str]], CallInfo, FormattedPrompt, ResponseInfo, Session]:
         session = self.freeplay_thin.sessions.create(custom_metadata={'custom_metadata_field': 42})
         formatted_prompt = self.freeplay_thin.prompts.get_formatted(
             project_id=self.project_id,
-            template_name=self.prompt_template_name,
-            environment=self.tag,
-            variables=input_variables
+            template_name=template_name if template_name else self.prompt_template_name,
+            environment=tag if tag else self.tag,
+            variables=input_variables,
+            media_files=media_files,
         )
         start = time.time()
         end = start + 5

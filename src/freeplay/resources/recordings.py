@@ -10,7 +10,8 @@ from freeplay import api_support
 from freeplay.errors import FreeplayClientError, FreeplayError
 from freeplay.llm_parameters import LLMParameters
 from freeplay.model import InputVariables, OpenAIFunctionCall
-from freeplay.resources.prompts import PromptInfo
+from freeplay.resources.adapters import ImageContentBase64
+from freeplay.resources.prompts import PromptInfo, MediaMap, MediaFile, MediaFileUrl
 from freeplay.resources.sessions import SessionInfo, TraceInfo
 from freeplay.support import CallSupport
 
@@ -79,6 +80,7 @@ class RecordPayload:
     session_info: SessionInfo
     prompt_info: PromptInfo
     call_info: CallInfo
+    media_files: Optional[MediaMap] = None
     tool_schema: Optional[List[Dict[str, Any]]] = None
     response_info: Optional[ResponseInfo] = None
     test_run_info: Optional[TestRunInfo] = None
@@ -99,6 +101,19 @@ class RecordUpdatePayload:
 class RecordResponse:
     completion_id: str
 
+
+def media_files_to_json(media_file: MediaFile) -> Dict[str, Any]:
+    if isinstance(media_file, MediaFileUrl):
+        return {
+            "type": media_file.type,
+            "url": media_file.url
+        }
+    else:
+        return {
+            "type": media_file.type,
+            "data": media_file.data,
+            "content_type": media_file.content_type
+        }
 
 class Recordings:
     def __init__(self, call_support: CallSupport):
@@ -165,6 +180,12 @@ class Recordings:
 
         if record_payload.call_info.api_style is not None:
             record_api_payload['call_info']['api_style'] = record_payload.call_info.api_style
+
+        if record_payload.media_files is not None:
+            record_api_payload['media_files'] = {
+                name: media_files_to_json(media_file)
+                for name, media_file in record_payload.media_files.items()
+            }
 
         try:
             recorded_response = api_support.post_raw(

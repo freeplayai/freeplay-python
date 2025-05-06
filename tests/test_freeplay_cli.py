@@ -57,7 +57,7 @@ class TestFreeplayCLI(TestCase):
                 self.assertEqual('my-prompt', json_dom['prompt_template_name'])
                 self.assertEqual(0, len(json_dom['metadata']['params']))
                 self.assertEqual(
-                    [{"role": "system", "content": "Answer this question: {{question}}"}],
+                    [{"role": "system", "content": "Answer this question: {{question}}", "media_slots": []}],
                     json_dom['content']
                 )
 
@@ -74,9 +74,9 @@ class TestFreeplayCLI(TestCase):
                 self.assertEqual(25, json_dom['metadata']['params']['max_tokens_to_sample'])
                 self.assertEqual(
                     [
-                        {"role": "system", "content": "You're a tech support agent"},
-                        {"role": "assistant", "content": "How may I help you?"},
-                        {"role": "user", "content": "Answer this question: {{question}}"}
+                        {"role": "system", "content": "You're a tech support agent", "media_slots": []},
+                        {"role": "assistant", "content": "How may I help you?", "media_slots": []},
+                        {"role": "user", "content": "Answer this question: {{question}}", "media_slots": []}
                     ],
                     json_dom['content']
                 )

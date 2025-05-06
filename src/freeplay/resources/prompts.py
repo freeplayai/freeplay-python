@@ -1,4 +1,3 @@
-import copy
 import json
 import logging
 import warnings
@@ -16,6 +15,7 @@ from typing import (
     Union,
     cast,
     runtime_checkable,
+    Literal,
 )
 
 from freeplay.errors import (
@@ -25,24 +25,19 @@ from freeplay.errors import (
 )
 from freeplay.llm_parameters import LLMParameters
 from freeplay.model import InputVariables
+from freeplay.resources.adapters import MissingFlavorError, adaptor_for_flavor, ImageContentBase64, ImageContentUrl, \
+    TextContent
 from freeplay.support import (
     CallSupport,
     PromptTemplate,
     PromptTemplateMetadata,
     PromptTemplates,
-    ToolSchema,
+    TemplateMessage,
+    ToolSchema, TemplateChatMessage, HistoryTemplateMessage, MediaSlot, Role,
 )
 from freeplay.utils import bind_template_variables, convert_provider_message_to_dict
 
 logger = logging.getLogger(__name__)
-
-
-class MissingFlavorError(FreeplayConfigurationError):
-    def __init__(self, flavor_name: str):
-        super().__init__(
-            f'Configured flavor ({flavor_name}) not found in SDK. Please update your SDK version or configure '
-            'a different model in the Freeplay UI.'
-        )
 
 
 class UnsupportedToolSchemaError(FreeplayConfigurationError):
@@ -97,12 +92,12 @@ class PromptInfo:
 
 class FormattedPrompt:
     def __init__(
-            self,
-            prompt_info: PromptInfo,
-            messages: List[Dict[str, str]],
-            formatted_prompt: Optional[List[Dict[str, str]]] = None,
-            formatted_prompt_text: Optional[str] = None,
-            tool_schema: Optional[List[Dict[str, Any]]] = None
+        self,
+        prompt_info: PromptInfo,
+        messages: List[Dict[str, str]],
+        formatted_prompt: Optional[List[Dict[str, str]]] = None,
+        formatted_prompt_text: Optional[str] = None,
+        tool_schema: Optional[List[Dict[str, Any]]] = None
     ):
         # These two definitions allow us to operate on typed fields until we expose them as Any for client use.
         self._llm_prompt = formatted_prompt
@@ -142,62 +137,14 @@ class FormattedPrompt:
 
 class BoundPrompt:
     def __init__(
-            self,
-            prompt_info: PromptInfo,
-            messages: List[Dict[str, str]],
-            tool_schema: Optional[List[ToolSchema]] = None
+        self,
+        prompt_info: PromptInfo,
+        messages: List[Dict[str, Any]],
+        tool_schema: Optional[List[ToolSchema]] = None
     ):
         self.prompt_info = prompt_info
         self.messages = messages
         self.tool_schema = tool_schema
-
-    @staticmethod
-    def __format_messages_for_flavor(
-            flavor_name: str,
-            messages: List[Dict[str, str]]
-    ) -> Union[str, List[Dict[str, str]]]:
-        if flavor_name in [
-            'azure_openai_chat',
-            'openai_chat',
-            'baseten_mistral_chat',
-            'mistral_chat',
-            'perplexity_chat'
-        ]:
-            # We need a deepcopy here to avoid referential equality with the llm_prompt
-            return copy.deepcopy(messages)
-        elif flavor_name == 'anthropic_chat':
-            messages_without_system = [message for message in messages if message['role'] != 'system']
-            return messages_without_system
-        elif flavor_name == 'llama_3_chat':
-            if len(messages) < 1:
-                raise ValueError("Must have at least one message to format")
-
-            formatted = "<|begin_of_text|>"
-            for message in messages:
-                formatted += f"<|start_header_id|>{message['role']}<|end_header_id|>\n{message['content']}<|eot_id|>"
-            formatted += "<|start_header_id|>assistant<|end_header_id|>"
-
-            return formatted
-        elif flavor_name == 'gemini_chat':
-            if len(messages) < 1:
-                raise ValueError("Must have at least one message to format")
-
-            def translate_role(role: str) -> str:
-                if role == "user":
-                    return "user"
-                elif role == "assistant":
-                    return "model"
-                else:
-                    raise ValueError(f"Gemini formatting found unexpected role {role}")
-
-            formatted = [  # type: ignore
-                {'role': translate_role(message['role']), 'parts': [{'text': message['content']}]}
-                for message in messages if message['role'] != 'system'
-            ]
-
-            return formatted
-
-        raise MissingFlavorError(flavor_name)
 
     @staticmethod
     def __format_tool_schema(flavor_name: str, tool_schema: List[ToolSchema]) -> List[Dict[str, Any]]:
@@ -218,11 +165,12 @@ class BoundPrompt:
         raise UnsupportedToolSchemaError()
 
     def format(
-            self,
-            flavor_name: Optional[str] = None
+        self,
+        flavor_name: Optional[str] = None
     ) -> FormattedPrompt:
         final_flavor = flavor_name or self.prompt_info.flavor_name
-        formatted_prompt = BoundPrompt.__format_messages_for_flavor(final_flavor, self.messages)
+        adapter = adaptor_for_flavor(final_flavor)
+        formatted_prompt = adapter.to_llm_syntax(self.messages)
 
         formatted_tool_schema = BoundPrompt.__format_tool_schema(
             final_flavor,
@@ -245,12 +193,47 @@ class BoundPrompt:
             )
 
 
+@dataclass
+class MediaFileUrl:
+    type: Literal["url"]
+    url: str
+
+
+@dataclass
+class MediaFileBase64:
+    type: Literal["base64"]
+    data: str
+    content_type: str
+
+
+MediaFile = Union[MediaFileUrl, MediaFileBase64]
+
+MediaMap = Dict[str, MediaFile]
+
+
+def extract_media_content(media_files: MediaMap, media_slots: List[MediaSlot]) -> List[
+    Union[ImageContentBase64, ImageContentUrl]]:
+    media_content: List[Union[ImageContentBase64, ImageContentUrl]] = []
+    for slot in media_slots:
+        if slot.type != "image":
+            continue
+        file = media_files.get(slot.placeholder_name, None)
+        if file is None:
+            continue
+        if isinstance(file, MediaFileUrl):
+            media_content.append(ImageContentUrl(url=file.url))
+        else:
+            media_content.append(ImageContentBase64(content_type=file.content_type, data=file.data))
+
+    return media_content
+
+
 class TemplatePrompt:
     def __init__(
-            self,
-            prompt_info: PromptInfo,
-            messages: List[Dict[str, str]],
-            tool_schema: Optional[List[ToolSchema]] = None
+        self,
+        prompt_info: PromptInfo,
+        messages: List[TemplateMessage],
+        tool_schema: Optional[List[ToolSchema]] = None
     ):
         self.prompt_info = prompt_info
         self.tool_schema = tool_schema
@@ -260,11 +243,13 @@ class TemplatePrompt:
         self,
         variables: InputVariables,
         history: Optional[Sequence[ProviderMessage]] = None,
+        media_files: Optional[MediaMap] = None
     ) -> BoundPrompt:
         # check history for a system message
         history_clean = []
         if history:
-            template_messages_contain_system = any(message.get('role') == 'system' for message in self.messages)
+            template_messages_contain_system = any(
+                message.role == 'system' for message in self.messages if isinstance(message, TemplateChatMessage))
             history_dict = [convert_provider_message_to_dict(msg) for msg in history]
             for msg in history_dict:
                 history_has_system = msg.get('role', None) == 'system'
@@ -274,22 +259,37 @@ class TemplatePrompt:
                 else:
                     history_clean.append(msg)
 
-        has_history_placeholder = {"kind": "history"} in self.messages
+        has_history_placeholder = any(isinstance(message, HistoryTemplateMessage) for message in self.messages)
         if history and not has_history_placeholder:
             raise FreeplayClientError(
                 "History provided for prompt that does not expect history")
         if has_history_placeholder and not history:
             log_freeplay_client_warning("History missing for prompt that expects history")
 
-        bound_messages = []
+        bound_messages: List[Dict[str, Any]] = []
+        if not media_files:
+            media_files = {}
         for msg in self.messages:
-            if msg.get('kind') == 'history':
+            if isinstance(msg, HistoryTemplateMessage):
                 bound_messages.extend(history_clean)
             else:
-                bound_messages.append({
-                    'role': msg['role'],
-                    'content': bind_template_variables(msg['content'], variables)},
-                )
+                media_content = extract_media_content(media_files, msg.media_slots)
+                content = bind_template_variables(msg.content, variables)
+
+                if media_content:
+                    bound_messages.append({
+                        'role': msg.role,
+                        'content': [
+                            TextContent(text=content),
+                            *media_content
+                        ],
+                        'has_media': True,
+                    })
+                else:
+                    bound_messages.append({
+                        'role': msg.role,
+                        'content': content},
+                    )
 
         return BoundPrompt(self.prompt_info, bound_messages, self.tool_schema)
 
@@ -385,7 +385,7 @@ class FilesystemTemplateResolver(TemplateResolver):
                 prompt_template_id=json_dom.get('prompt_template_id'),  # type: ignore
                 prompt_template_version_id=json_dom.get('prompt_template_version_id'),  # type: ignore
                 prompt_template_name=json_dom.get('prompt_template_name'),  # type: ignore
-                content=FilesystemTemplateResolver.__normalize_roles(json_dom['content']),
+                content=FilesystemTemplateResolver.__normalize_messages(json_dom['content']),
                 metadata=PromptTemplateMetadata(
                     provider=FilesystemTemplateResolver.__flavor_to_provider(flavor_name),
                     flavor=flavor_name,
@@ -412,7 +412,7 @@ class FilesystemTemplateResolver(TemplateResolver):
                 prompt_template_id=json_dom.get('prompt_template_id'),  # type: ignore
                 prompt_template_version_id=json_dom.get('prompt_template_version_id'),  # type: ignore
                 prompt_template_name=json_dom.get('name'),  # type: ignore
-                content=FilesystemTemplateResolver.__normalize_roles(json.loads(str(json_dom['content']))),
+                content=FilesystemTemplateResolver.__normalize_messages(json.loads(str(json_dom['content']))),
                 metadata=PromptTemplateMetadata(
                     provider=FilesystemTemplateResolver.__flavor_to_provider(flavor_name),
                     flavor=flavor_name,
@@ -424,14 +424,16 @@ class FilesystemTemplateResolver(TemplateResolver):
             )
 
     @staticmethod
-    def __normalize_roles(messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
-        normalized = []
+    def __normalize_messages(messages: List[Dict[str, Any]]) -> List[TemplateMessage]:
+        normalized: List[TemplateMessage] = []
         for message in messages:
             if 'kind' in message:
-                normalized.append(message)
+                normalized.append(HistoryTemplateMessage(kind="history"))
             else:
                 role = FilesystemTemplateResolver.__role_translations.get(message['role']) or message['role']
-                normalized.append({'role': role, 'content': message['content']})
+                media_slots: List[MediaSlot] = cast(List[MediaSlot], message.get('media_slots', []))
+                normalized.append(
+                    TemplateChatMessage(role=cast(Role, role), content=message['content'], media_slots=media_slots))
         return normalized
 
     @staticmethod
@@ -577,22 +579,23 @@ class Prompts:
         variables: InputVariables,
         history: Optional[Sequence[ProviderMessage]] = None,
         flavor_name: Optional[str] = None,
+        media_files: Optional[MediaMap] = None,
     ) -> FormattedPrompt:
         bound_prompt = self.get(
             project_id=project_id,
             template_name=template_name,
             environment=environment
-        ).bind(variables=variables, history=history)
+        ).bind(variables=variables, history=history, media_files=media_files)
 
         return bound_prompt.format(flavor_name)
 
     def get_formatted_by_version_id(
-            self,
-            project_id: str,
-            template_id: str,
-            version_id: str,
-            variables: InputVariables,
-            flavor_name: Optional[str] = None,
+        self,
+        project_id: str,
+        template_id: str,
+        version_id: str,
+        variables: InputVariables,
+        flavor_name: Optional[str] = None,
     ) -> FormattedPrompt:
         bound_prompt = self.get_by_version_id(
             project_id=project_id,

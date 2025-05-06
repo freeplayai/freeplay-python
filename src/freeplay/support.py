@@ -1,6 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from json import JSONEncoder
-from typing import Optional, Dict, Any, List, Union
+from typing import Optional, Dict, Any, List, Union, Literal
 
 from freeplay import api_support
 from freeplay.api_support import try_decode
@@ -26,12 +26,35 @@ class ToolSchema:
     parameters: Dict[str, Any]
 
 
+Role = Literal['system', 'user', 'assistant']
+
+
+@dataclass
+class MediaSlot:
+    type: Literal["image", "audio", "video", "file"]
+    placeholder_name: str
+
+
+@dataclass
+class TemplateChatMessage:
+    role: Role
+    content: str
+    media_slots: List[MediaSlot] = field(default_factory=list)
+
+
+@dataclass
+class HistoryTemplateMessage:
+    kind: Literal["history"]
+
+TemplateMessage = Union[HistoryTemplateMessage, TemplateChatMessage]
+
+
 @dataclass
 class PromptTemplate:
     prompt_template_id: str
     prompt_template_version_id: str
     prompt_template_name: str
-    content: List[Dict[str, str]]
+    content: List[TemplateMessage]
     metadata: PromptTemplateMetadata
     project_id: str
     format_version: int

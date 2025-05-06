@@ -194,33 +194,33 @@ class BoundPrompt:
 
 
 @dataclass
-class MediaFileUrl:
+class MediaInputUrl:
     type: Literal["url"]
     url: str
 
 
 @dataclass
-class MediaFileBase64:
+class MediaInputBase64:
     type: Literal["base64"]
     data: str
     content_type: str
 
 
-MediaFile = Union[MediaFileUrl, MediaFileBase64]
+MediaInput = Union[MediaInputUrl, MediaInputBase64]
 
-MediaMap = Dict[str, MediaFile]
+MediaInputMap = Dict[str, MediaInput]
 
 
-def extract_media_content(media_files: MediaMap, media_slots: List[MediaSlot]) -> List[
+def extract_media_content(media_inputs: MediaInputMap, media_slots: List[MediaSlot]) -> List[
     Union[ImageContentBase64, ImageContentUrl]]:
     media_content: List[Union[ImageContentBase64, ImageContentUrl]] = []
     for slot in media_slots:
         if slot.type != "image":
             continue
-        file = media_files.get(slot.placeholder_name, None)
+        file = media_inputs.get(slot.placeholder_name, None)
         if file is None:
             continue
-        if isinstance(file, MediaFileUrl):
+        if isinstance(file, MediaInputUrl):
             media_content.append(ImageContentUrl(url=file.url))
         else:
             media_content.append(ImageContentBase64(content_type=file.content_type, data=file.data))
@@ -243,7 +243,7 @@ class TemplatePrompt:
         self,
         variables: InputVariables,
         history: Optional[Sequence[ProviderMessage]] = None,
-        media_files: Optional[MediaMap] = None
+        media_inputs: Optional[MediaInputMap] = None
     ) -> BoundPrompt:
         # check history for a system message
         history_clean = []
@@ -267,13 +267,13 @@ class TemplatePrompt:
             log_freeplay_client_warning("History missing for prompt that expects history")
 
         bound_messages: List[Dict[str, Any]] = []
-        if not media_files:
-            media_files = {}
+        if not media_inputs:
+            media_inputs = {}
         for msg in self.messages:
             if isinstance(msg, HistoryTemplateMessage):
                 bound_messages.extend(history_clean)
             else:
-                media_content = extract_media_content(media_files, msg.media_slots)
+                media_content = extract_media_content(media_inputs, msg.media_slots)
                 content = bind_template_variables(msg.content, variables)
 
                 if media_content:
@@ -579,13 +579,13 @@ class Prompts:
         variables: InputVariables,
         history: Optional[Sequence[ProviderMessage]] = None,
         flavor_name: Optional[str] = None,
-        media_files: Optional[MediaMap] = None,
+        media_inputs: Optional[MediaInputMap] = None,
     ) -> FormattedPrompt:
         bound_prompt = self.get(
             project_id=project_id,
             template_name=template_name,
             environment=environment
-        ).bind(variables=variables, history=history, media_files=media_files)
+        ).bind(variables=variables, history=history, media_inputs=media_inputs)
 
         return bound_prompt.format(flavor_name)
 

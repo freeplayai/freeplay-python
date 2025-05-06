@@ -10,8 +10,7 @@ from freeplay import api_support
 from freeplay.errors import FreeplayClientError, FreeplayError
 from freeplay.llm_parameters import LLMParameters
 from freeplay.model import InputVariables, OpenAIFunctionCall
-from freeplay.resources.adapters import ImageContentBase64
-from freeplay.resources.prompts import PromptInfo, MediaMap, MediaFile, MediaFileUrl
+from freeplay.resources.prompts import PromptInfo, MediaInputMap, MediaInput, MediaInputUrl
 from freeplay.resources.sessions import SessionInfo, TraceInfo
 from freeplay.support import CallSupport
 
@@ -80,7 +79,7 @@ class RecordPayload:
     session_info: SessionInfo
     prompt_info: PromptInfo
     call_info: CallInfo
-    media_files: Optional[MediaMap] = None
+    media_inputs: Optional[MediaInputMap] = None
     tool_schema: Optional[List[Dict[str, Any]]] = None
     response_info: Optional[ResponseInfo] = None
     test_run_info: Optional[TestRunInfo] = None
@@ -102,17 +101,17 @@ class RecordResponse:
     completion_id: str
 
 
-def media_files_to_json(media_file: MediaFile) -> Dict[str, Any]:
-    if isinstance(media_file, MediaFileUrl):
+def media_inputs_to_json(media_input: MediaInput) -> Dict[str, Any]:
+    if isinstance(media_input, MediaInputUrl):
         return {
-            "type": media_file.type,
-            "url": media_file.url
+            "type": media_input.type,
+            "url": media_input.url
         }
     else:
         return {
-            "type": media_file.type,
-            "data": media_file.data,
-            "content_type": media_file.content_type
+            "type": media_input.type,
+            "data": media_input.data,
+            "content_type": media_input.content_type
         }
 
 class Recordings:
@@ -181,10 +180,10 @@ class Recordings:
         if record_payload.call_info.api_style is not None:
             record_api_payload['call_info']['api_style'] = record_payload.call_info.api_style
 
-        if record_payload.media_files is not None:
-            record_api_payload['media_files'] = {
-                name: media_files_to_json(media_file)
-                for name, media_file in record_payload.media_files.items()
+        if record_payload.media_inputs is not None:
+            record_api_payload['media_inputs'] = {
+                name: media_inputs_to_json(media_input)
+                for name, media_input in record_payload.media_inputs.items()
             }
 
         try:

@@ -21,7 +21,7 @@ from freeplay.errors import (FreeplayClientError,
 from freeplay.llm_parameters import LLMParameters
 from freeplay.model import OpenAIFunctionCall
 from freeplay.resources.prompts import FormattedPrompt, PromptInfo, TemplatePrompt, FilesystemTemplateResolver, \
-    BoundPrompt, MediaMap, MediaFileBase64
+    BoundPrompt, MediaInputMap, MediaInputBase64
 from freeplay.resources.recordings import RecordPayload, RecordUpdatePayload, ResponseInfo, CallInfo, TestRunInfo, \
     UsageTokens
 from freeplay.resources.sessions import Session, SessionInfo
@@ -249,8 +249,8 @@ class TestFreeplay(TestCase):
     def test_single_prompt_get_and_record_with_image(self) -> None:
         input_variables = {"query": "Describe this photograph"}
         one_pixel_png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
-        media_files: MediaMap = {
-            "subject-image": MediaFileBase64(
+        media_inputs: MediaInputMap = {
+            "subject-image": MediaInputBase64(
                 type="base64",
                 content_type="image/png",
                 data=one_pixel_png
@@ -291,7 +291,7 @@ class TestFreeplay(TestCase):
         _, call_info, formatted_prompt, response_info, session = self.__make_call(
             input_variables,
             llm_response,
-            media_files,
+            media_inputs,
             template_name="template-with-image",
             tag="some-tag"
         )
@@ -302,7 +302,7 @@ class TestFreeplay(TestCase):
             RecordPayload(
                 all_messages=[*formatted_prompt.llm_prompt, {"role": "assistant", "content": llm_response}],
                 inputs=input_variables,
-                media_files=media_files,
+                media_inputs=media_inputs,
                 session_info=self.session_info,
                 prompt_info=formatted_prompt.prompt_info,
                 call_info=call_info,
@@ -334,7 +334,7 @@ class TestFreeplay(TestCase):
                                  }
                              ],
                          }])
-        self.assertEqual(recorded_body_dom["media_files"], {
+        self.assertEqual(recorded_body_dom["media_inputs"], {
             "subject-image": {
                 "content_type": "image/png",
                 "data": one_pixel_png,
@@ -1696,7 +1696,7 @@ class TestFreeplay(TestCase):
             self,
             input_variables: Dict[str, Any],
             llm_response: str,
-            media_files: Optional[MediaMap] = None,
+            media_inputs: Optional[MediaInputMap] = None,
             template_name: Optional[str] = None,
             tag: Optional[str] = None,
     ) -> Tuple[List[Dict[str, str]], CallInfo, FormattedPrompt, ResponseInfo, Session]:
@@ -1706,7 +1706,7 @@ class TestFreeplay(TestCase):
             template_name=template_name if template_name else self.prompt_template_name,
             environment=tag if tag else self.tag,
             variables=input_variables,
-            media_files=media_files,
+            media_inputs=media_inputs,
         )
         start = time.time()
         end = start + 5

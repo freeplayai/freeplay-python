@@ -4,7 +4,7 @@ import time
 from openai import OpenAI
 
 from freeplay import Freeplay, CallInfo, ResponseInfo, RecordPayload
-from freeplay.resources.prompts import MediaFileUrl
+from freeplay.resources.prompts import MediaInputUrl
 
 fpclient = Freeplay(
     freeplay_api_key=os.environ["FREEPLAY_API_KEY"],
@@ -16,8 +16,8 @@ input_variables = {"question": "Describe what's in this image"}
 
 image_url = "https://images.pexels.com/photos/30614903/pexels-photo-30614903/free-photo-of-aerial-view-of-bilbao-city-and-guggenheim-museum.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
 
-media_files = {
-    'some-image': MediaFileUrl(
+media_inputs = {
+    'some-image': MediaInputUrl(
         type="url",
         url=image_url
     )
@@ -27,7 +27,7 @@ formatted_prompt = fpclient.prompts.get_formatted(
     template_name="media",
     environment="latest",
     variables=input_variables,
-    media_files=media_files
+    media_inputs=media_inputs
 )
 
 start = time.time()
@@ -53,7 +53,7 @@ record_response = fpclient.recordings.create(
         ],
         session_info=session.session_info,
         inputs=input_variables,
-        media_files=media_files,
+        media_inputs=media_inputs,
         prompt_info=formatted_prompt.prompt_info,
         call_info=call_info,
         tool_schema=formatted_prompt.tool_schema,

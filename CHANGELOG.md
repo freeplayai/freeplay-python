@@ -2,6 +2,23 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
+## [0.3.19] - 2025-05-07
+
+### Added
+
+- Added support for images in prompt templates. Prompt templates created with media slots can be formatted using the Python SDK and sent as images to LLM providers using the media_inputs parameter:
+```
+self.freeplay_thin.prompts.get_formatted(
+    project_id=self.project_id,
+    template_name=template_name,
+    environment=tag if tag else self.tag,
+    variables=input_variables,
+    media_inputs=media_inputs,
+)
+```
+Future releases will include file inputs and audio inputs.
+
+
 ## [0.3.18] - 2025-04-30
 
 ### Added

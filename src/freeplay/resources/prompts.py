@@ -25,7 +25,7 @@ from freeplay.errors import (
 )
 from freeplay.llm_parameters import LLMParameters
 from freeplay.model import InputVariables
-from freeplay.resources.adapters import MissingFlavorError, adaptor_for_flavor, ImageContentBase64, ImageContentUrl, \
+from freeplay.resources.adapters import MissingFlavorError, adaptor_for_flavor, MediaContentBase64, MediaContentUrl, \
     TextContent
 from freeplay.support import (
     CallSupport,
@@ -212,18 +212,16 @@ MediaInputMap = Dict[str, MediaInput]
 
 
 def extract_media_content(media_inputs: MediaInputMap, media_slots: List[MediaSlot]) -> List[
-    Union[ImageContentBase64, ImageContentUrl]]:
-    media_content: List[Union[ImageContentBase64, ImageContentUrl]] = []
+    Union[MediaContentBase64, MediaContentUrl]]:
+    media_content: List[Union[MediaContentBase64, MediaContentUrl]] = []
     for slot in media_slots:
-        if slot.type != "image":
-            continue
         file = media_inputs.get(slot.placeholder_name, None)
         if file is None:
             continue
         if isinstance(file, MediaInputUrl):
-            media_content.append(ImageContentUrl(url=file.url))
+            media_content.append(MediaContentUrl(type=slot.type, url=file.url, slot_name=slot.placeholder_name))
         else:
-            media_content.append(ImageContentBase64(content_type=file.content_type, data=file.data))
+            media_content.append(MediaContentBase64(type=slot.type, content_type=file.content_type, data=file.data, slot_name=slot.placeholder_name))
 
     return media_content
 

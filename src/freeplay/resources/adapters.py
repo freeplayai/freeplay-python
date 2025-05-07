@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Protocol, Dict, List, Union, Any
 
 from freeplay.errors import FreeplayConfigurationError
+from freeplay.support import MediaType
 
 
 @dataclass
@@ -11,12 +12,16 @@ class TextContent:
 
 
 @dataclass
-class ImageContentUrl:
+class MediaContentUrl:
+    slot_name: str
+    type: MediaType
     url: str
 
 
 @dataclass
-class ImageContentBase64:
+class MediaContentBase64:
+    slot_name: str
+    type: MediaType
     content_type: str
     data: str
 
@@ -58,24 +63,28 @@ class AnthropicAdapter(LLMAdapter):
         return anthropic_messages
 
     @staticmethod
-    def __map_content(content: Union[TextContent, ImageContentBase64, ImageContentUrl]) -> Dict[str, Any]:
+    def __map_content(content: Union[TextContent, MediaContentBase64, MediaContentUrl]) -> Dict[str, Any]:
         if isinstance(content, TextContent):
             return {
                 "type": "text",
                 "text": content.text
             }
-        elif isinstance(content, ImageContentBase64):
+        if content.type == "audio" or content.type == "video":
+            raise ValueError("Anthropic does not support audio or video content")
+
+        media_type = "image" if content.type == "image" else "document"
+        if isinstance(content, MediaContentBase64):
             return {
-                "type": "image",
+                "type": media_type,
                 "source": {
                     "type": "base64",
                     "media_type": content.content_type,
                     "data": content.data,
                 }
             }
-        elif isinstance(content, ImageContentUrl):
+        elif isinstance(content, MediaContentUrl):
             return {
-                "type": "image",
+                "type": media_type,
                 "source": {
                     "type": "url",
                     "url": content.url,
@@ -101,20 +110,18 @@ class OpenAIAdapter(LLMAdapter):
         return openai_messages
 
     @staticmethod
-    def __map_content(content: Union[TextContent, ImageContentBase64, ImageContentUrl]) -> Dict[str, Any]:
+    def __map_content(content: Union[TextContent, MediaContentBase64, MediaContentUrl]) -> Dict[str, Any]:
         if isinstance(content, TextContent):
             return {
                 "type": "text",
                 "text": content.text
             }
-        elif isinstance(content, ImageContentBase64):
-            return {
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:{content.content_type};base64,{content.data}"
-                }
-            }
-        elif isinstance(content, ImageContentUrl):
+        elif isinstance(content, MediaContentBase64):
+            return OpenAIAdapter.__format_base64_content(content)
+        elif isinstance(content, MediaContentUrl):
+            if content.type != "image":
+                raise ValueError("Message contains a non-image URL, but OpenAI only supports image URLs.")
+
             return {
                 "type": "image_url",
                 "image_url": {
@@ -123,6 +130,32 @@ class OpenAIAdapter(LLMAdapter):
             }
         else:
             raise ValueError(f"Unexpected content type {type(content)}")
+
+    @staticmethod
+    def __format_base64_content(content: MediaContentBase64) -> Dict[str, Any]:
+        if content.type == "audio":
+            return {
+                "type": "input_audio",
+                "input_audio": {
+                    "data": content.data,
+                    "format": content.content_type.split("/")[-1].replace("mpeg", "mp3")
+                }
+            }
+        elif content.type == "file":
+            return {
+                "type": "file",
+                "file": {
+                    "filename": f"{content.slot_name}.{content.content_type.split('/')[-1]}",
+                    "file_data": f"data:{content.content_type};base64,{content.data}"
+                }
+            }
+        else:
+            return {
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:{content.content_type};base64,{content.data}"
+                }
+            }
 
 
 class Llama3Adapter(LLMAdapter):
@@ -163,17 +196,17 @@ class GeminiAdapter(LLMAdapter):
         return gemini_messages
 
     @staticmethod
-    def __map_content(content: Union[TextContent, ImageContentBase64, ImageContentUrl]) -> Dict[str, Any]:
+    def __map_content(content: Union[TextContent, MediaContentBase64, MediaContentUrl]) -> Dict[str, Any]:
         if isinstance(content, TextContent):
             return {"text": content.text}
-        elif isinstance(content, ImageContentBase64):
+        elif isinstance(content, MediaContentBase64):
             return {
                 "inline_data": {
                     "data": content.data,
                     "mime_type": content.content_type,
                 }
             }
-        elif isinstance(content, ImageContentUrl):
+        elif isinstance(content, MediaContentUrl):
             raise ValueError("Message contains an image URL, but image URLs are not supported by Gemini")
         else:
             raise ValueError(f"Unexpected content type {type(content)}")

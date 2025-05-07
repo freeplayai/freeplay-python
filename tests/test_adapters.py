@@ -1,8 +1,8 @@
 import unittest
 from typing import Any, List, Dict
 
-from freeplay.resources.adapters import OpenAIAdapter, AnthropicAdapter, GeminiAdapter, TextContent, ImageContentUrl, \
-    ImageContentBase64
+from freeplay.resources.adapters import OpenAIAdapter, AnthropicAdapter, GeminiAdapter, TextContent, MediaContentUrl, \
+    MediaContentBase64
 
 
 class TestAdapters(unittest.TestCase):
@@ -15,8 +15,8 @@ class TestAdapters(unittest.TestCase):
                 "has_media": True,
                 "content": [
                     TextContent("Take a look at these images!"),
-                    ImageContentUrl("https://localhost/image.png"),
-                    ImageContentBase64("image/png", "some-data"),
+                    MediaContentUrl(type="image", url="https://localhost/image.png", slot_name="image1"),
+                    MediaContentBase64(type="image", content_type="image/png", data="some-data", slot_name="image2"),
                 ],
             }]
 
@@ -35,6 +35,44 @@ class TestAdapters(unittest.TestCase):
             }
         ])
 
+    def test_openai_audio(self) -> None:
+        messages: List[Dict[str, Any]] = [
+            {
+                "role": "user",
+                "has_media": True,
+                "content": [
+                    MediaContentBase64(type="audio", content_type="audio/mpeg", data="some-data", slot_name="audio1"),
+                ],
+            }]
+
+        formatted = OpenAIAdapter().to_llm_syntax(messages)
+
+        self.assertEqual(formatted, [
+            {
+                "role": "user",
+                "content": [{"type": "input_audio", "input_audio": {"data": "some-data", "format": "mp3"}}]
+            }
+        ])
+
+    def test_openai_pdf(self) -> None:
+        messages: List[Dict[str, Any]] = [
+            {
+                "role": "user",
+                "has_media": True,
+                "content": [
+                    MediaContentBase64(type="file", content_type="application/pdf", data="some-data", slot_name="document1"),
+                ],
+            }]
+
+        formatted = OpenAIAdapter().to_llm_syntax(messages)
+
+        self.assertEqual(formatted, [
+            {
+                "role": "user",
+                "content": [{"type": "file", "file": {"file_data": "data:application/pdf;base64,some-data", "filename": "document1.pdf"}}]
+            }
+        ])
+
     def test_anthropic(self) -> None:
         messages: List[Dict[str, Any]] = [
             {"role": "system", "content": "You are a helpful assistant."},
@@ -44,8 +82,8 @@ class TestAdapters(unittest.TestCase):
                 "has_media": True,
                 "content": [
                     TextContent("Take a look at these images!"),
-                    ImageContentUrl("https://localhost/image.png"),
-                    ImageContentBase64("image/png", "some-data"),
+                    MediaContentUrl(type="image", url="https://localhost/image.png", slot_name="image1"),
+                    MediaContentBase64(type="image", content_type="image/png", data="some-data", slot_name="image2"),
                 ],
             }]
 
@@ -63,6 +101,29 @@ class TestAdapters(unittest.TestCase):
             }
         ])
 
+    def test_anthropic_pdf(self) -> None:
+        messages: List[Dict[str, Any]] = [
+            {
+                "role": "user",
+                "has_media": True,
+                "content": [
+                    MediaContentUrl(type="file", url="https://localhost/file.pdf", slot_name="document1"),
+                    MediaContentBase64(type="file", content_type="application/pdf", data="some-data", slot_name="document2"),
+                ],
+            }]
+
+        formatted = AnthropicAdapter().to_llm_syntax(messages)
+
+        self.assertEqual(formatted, [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "document", "source": {"type": "url", "url": "https://localhost/file.pdf"}},
+                    {"type": "document", "source": {"type": "base64", "data": "some-data", "media_type": "application/pdf"}},
+                ]
+            }
+        ])
+
     def test_gemini(self) -> None:
         messages: List[Dict[str, Any]] = [
             {"role": "system", "content": "You are a helpful assistant."},
@@ -72,7 +133,7 @@ class TestAdapters(unittest.TestCase):
                 "has_media": True,
                 "content": [
                     TextContent("Take a look at these images!"),
-                    ImageContentBase64("image/png", "some-data"),
+                    MediaContentBase64(type="image", content_type="image/png", data="some-data", slot_name="image1"),
                 ],
             }]
 

@@ -29,9 +29,12 @@ class ToolSchema:
 Role = Literal['system', 'user', 'assistant']
 
 
+MediaType = Literal["image", "audio", "video", "file"]
+
+
 @dataclass
 class MediaSlot:
-    type: Literal["image", "audio", "video", "file"]
+    type: MediaType
     placeholder_name: str
 
 

@@ -2,6 +2,13 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
+
+## [0.3.20] - 2025-05-08
+
+### Added
+
+- Added support for files and audio in prompt templates.
+
 ## [0.3.19] - 2025-05-07
 
 ### Added

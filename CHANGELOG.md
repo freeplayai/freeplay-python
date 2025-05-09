@@ -2,6 +2,11 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
+## [0.3.21] - 2025-05-08
+
+### Updated
+
+- Updated "click" project dependency to support newer minor and patch versions.
 
 ## [0.3.20] - 2025-05-08
 

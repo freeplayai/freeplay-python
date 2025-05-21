@@ -8,6 +8,7 @@ from typing import (
     Any,
     Dict,
     List,
+    Literal,
     Optional,
     Protocol,
     Sequence,
@@ -15,7 +16,6 @@ from typing import (
     Union,
     cast,
     runtime_checkable,
-    Literal,
 )
 
 from freeplay.errors import (
@@ -25,15 +25,24 @@ from freeplay.errors import (
 )
 from freeplay.llm_parameters import LLMParameters
 from freeplay.model import InputVariables
-from freeplay.resources.adapters import MissingFlavorError, adaptor_for_flavor, MediaContentBase64, MediaContentUrl, \
-    TextContent
+from freeplay.resources.adapters import (
+    MediaContentBase64,
+    MediaContentUrl,
+    MissingFlavorError,
+    TextContent,
+    adaptor_for_flavor,
+)
 from freeplay.support import (
     CallSupport,
+    HistoryTemplateMessage,
+    MediaSlot,
     PromptTemplate,
     PromptTemplateMetadata,
     PromptTemplates,
+    Role,
+    TemplateChatMessage,
     TemplateMessage,
-    ToolSchema, TemplateChatMessage, HistoryTemplateMessage, MediaSlot, Role,
+    ToolSchema,
 )
 from freeplay.utils import bind_template_variables, convert_provider_message_to_dict
 
@@ -147,7 +156,7 @@ class BoundPrompt:
         self.tool_schema = tool_schema
 
     @staticmethod
-    def __format_tool_schema(flavor_name: str, tool_schema: List[ToolSchema]) -> List[Dict[str, Any]]:
+    def __format_tool_schema(flavor_name: str, tool_schema: List[ToolSchema]) -> Any:
         if flavor_name == 'anthropic_chat':
             return [{
                 'name': tool_schema.name,
@@ -161,6 +170,19 @@ class BoundPrompt:
                     'type': 'function'
                 } for tool_schema in tool_schema
             ]
+        elif flavor_name == "amazon_bedrock_converse":
+            return {
+                "tools": [
+                    {
+                        "toolSpec": {
+                            "name": tool_schema.name,
+                            "description": tool_schema.description,
+                            "inputSchema": {"json": tool_schema.parameters},
+                        }
+                    }
+                    for tool_schema in tool_schema
+                ]
+            }
 
         raise UnsupportedToolSchemaError()
 
@@ -171,7 +193,6 @@ class BoundPrompt:
         final_flavor = flavor_name or self.prompt_info.flavor_name
         adapter = adaptor_for_flavor(final_flavor)
         formatted_prompt = adapter.to_llm_syntax(self.messages)
-
         formatted_tool_schema = BoundPrompt.__format_tool_schema(
             final_flavor,
             self.tool_schema

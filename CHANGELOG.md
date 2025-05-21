@@ -2,6 +2,13 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
+## [0.3.22] - 2025-05-15
+
+### Added
+
+- Add support for Amazon Bedrock Converse flavor
+
+
 ## [0.3.21] - 2025-05-08
 
 ### Updated

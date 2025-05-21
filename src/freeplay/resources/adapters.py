@@ -1,6 +1,6 @@
 import copy
 from dataclasses import dataclass
-from typing import Protocol, Dict, List, Union, Any
+from typing import Any, Dict, List, Protocol, Union
 
 from freeplay.errors import FreeplayConfigurationError
 from freeplay.support import MediaType
@@ -221,6 +221,25 @@ class GeminiAdapter(LLMAdapter):
             raise ValueError(f"Gemini formatting found unexpected role {role}")
 
 
+class BedrockConverseAdapter(LLMAdapter):
+    def to_llm_syntax(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        converse_messages = []
+        for message in messages:
+            if message["role"] == "system":
+                continue
+            if "has_media" in message and message["has_media"]:
+                raise ValueError("Bedrock Converse does not support media content yet")
+
+            role = message["role"]
+            content = message["content"]
+            if role not in ["user", "assistant"]:
+                raise ValueError(f"Unexpected role for Bedrock Converse flavor: {role}")
+            if isinstance(content, str):
+                content = [{"text": content}]
+            converse_messages.append({"role": role, "content": content})
+        return converse_messages
+
+
 def adaptor_for_flavor(flavor_name: str) -> LLMAdapter:
     if flavor_name in ["baseten_mistral_chat", "mistral_chat", "perplexity_chat"]:
         return PassthroughAdapter()
@@ -232,5 +251,7 @@ def adaptor_for_flavor(flavor_name: str) -> LLMAdapter:
         return Llama3Adapter()
     elif flavor_name == "gemini_chat":
         return GeminiAdapter()
+    elif flavor_name == "amazon_bedrock_converse":
+        return BedrockConverseAdapter()
     else:
         raise MissingFlavorError(flavor_name)

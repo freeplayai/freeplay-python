@@ -2,6 +2,13 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
+
+## [0.3.22] - 2025-05-22
+
+### Fixed
+
+- Allow passing provider specific messages in Gemini so history works.
+
 ## [0.3.22] - 2025-05-15
 
 ### Added

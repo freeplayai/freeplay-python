@@ -35,6 +35,7 @@ class MissingFlavorError(FreeplayConfigurationError):
 
 
 class LLMAdapter(Protocol):
+    # This method must handle BOTH prompt template messages and provider specific messages.
     def to_llm_syntax(self, messages: List[Dict[str, Any]]) -> Union[str, List[Dict[str, Any]]]:
         pass
 
@@ -187,11 +188,13 @@ class GeminiAdapter(LLMAdapter):
                     "role": self.__translate_role(message["role"]),
                     "parts": [self.__map_content(content) for content in message['content']]
                 })
-            else:
+            elif "content" in message:
                 gemini_messages.append({
                     "role": self.__translate_role(message["role"]),
                     "parts": [{"text": message["content"]}]
                 })
+            else:
+                gemini_messages.append(copy.deepcopy(message))
 
         return gemini_messages
 

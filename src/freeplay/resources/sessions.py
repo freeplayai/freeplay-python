@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Optional, Dict, Union
 
 from freeplay.errors import FreeplayClientError
+from freeplay.model import TestRunInfo
 from freeplay.support import CallSupport, CustomMetadata
 
 
@@ -40,7 +41,8 @@ class TraceInfo:
             self,
             project_id: str,
             output: str,
-            eval_results: Optional[Dict[str, Union[bool, float]]] = None
+            eval_results: Optional[Dict[str, Union[bool, float]]] = None,
+            test_run_info: Optional[TestRunInfo] = None
     ) -> None:
         if self.input is None:
             raise FreeplayClientError("Input must be set before recording output")
@@ -52,7 +54,8 @@ class TraceInfo:
             output,
             agent_name=self.agent_name,
             custom_metadata=self.custom_metadata,
-            eval_results=eval_results
+            eval_results=eval_results,
+            test_run_info=test_run_info
         )
 
 

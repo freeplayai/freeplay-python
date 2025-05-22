@@ -19,10 +19,10 @@ from freeplay import Freeplay
 from freeplay.errors import (FreeplayClientError,
                              FreeplayConfigurationError, FreeplayClientWarning)
 from freeplay.llm_parameters import LLMParameters
-from freeplay.model import OpenAIFunctionCall
+from freeplay.model import OpenAIFunctionCall, TestRunInfo
 from freeplay.resources.prompts import FormattedPrompt, PromptInfo, TemplatePrompt, FilesystemTemplateResolver, \
     BoundPrompt, MediaInputMap, MediaInputBase64
-from freeplay.resources.recordings import RecordPayload, RecordUpdatePayload, ResponseInfo, CallInfo, TestRunInfo, \
+from freeplay.resources.recordings import RecordPayload, RecordUpdatePayload, ResponseInfo, CallInfo, \
     UsageTokens
 from freeplay.resources.sessions import Session, SessionInfo
 from freeplay.resources.test_cases import DatasetTestCase
@@ -390,7 +390,11 @@ class TestFreeplay(TestCase):
 
         client_eval_results = {'bool_field': False, 'float_field': 0.23}
         trace_info.record_output(
-            project_id=self.project_id, output=llm_response, eval_results=client_eval_results)
+            project_id=self.project_id,
+            output=llm_response,
+            eval_results=client_eval_results,
+            test_run_info=TestRunInfo(self.test_run_id, "test_case_id")
+        )
         record_trace_api_request = responses.calls[2].request
         recorded_trace_body_dom = json.loads(record_trace_api_request.body)
         self.assertEqual(
@@ -412,6 +416,14 @@ class TestFreeplay(TestCase):
         self.assertEqual(
             client_eval_results,
             recorded_trace_body_dom['eval_results']
+        )
+        self.assertEqual(
+            self.test_run_id,
+            recorded_trace_body_dom['test_run_info']['test_run_id']
+        )
+        self.assertEqual(
+            "test_case_id",
+            recorded_trace_body_dom['test_run_info']['test_case_id']
         )
 
     @responses.activate
@@ -1056,6 +1068,34 @@ class TestFreeplay(TestCase):
         self.assertTrue(all(test_case.output is not None for test_case in test_cases))
 
     @responses.activate
+    def test_create_test_run_with_trace_test_cases(self) -> None:
+        self.__mock_freeplay_apis(self.prompt_template_name)
+
+        test_run = self.freeplay_thin.test_runs.create(
+            self.project_id,
+            testlist='agent_dataset',
+            include_outputs=True,
+        )
+
+        trace_test_cases = test_run.get_trace_test_cases()
+        self.assertEqual(1, len(trace_test_cases))
+        self.assertTrue(all(test_case.input is not None for test_case in trace_test_cases))
+        self.assertTrue(all(test_case.output is not None for test_case in trace_test_cases))
+
+    @responses.activate
+    def test_create_test_run_with_trace_test_cases_and_test_cases(self) -> None:
+        self.__mock_freeplay_apis(self.prompt_template_name)
+
+        with self.assertRaises(ValueError):
+            test_run = self.freeplay_thin.test_runs.create(
+                self.project_id,
+                testlist='agent_dataset',
+                include_outputs=True,
+            )
+
+            test_run.get_test_cases()
+
+    @responses.activate
     def test_get_test_run_results(self) -> None:
         self.__mock_freeplay_apis(self.prompt_template_name, self.tag)
 
@@ -1499,14 +1539,34 @@ class TestFreeplay(TestCase):
 
     def __mock_test_run_api(self) -> None:
         def request_callback(request: PreparedRequest) -> Tuple[int, Dict[str, str], str]:
-            payload = json.loads(request.body) if request.body else None
+            payload: Optional[Dict[str, Any]] = None # Start with None
+
+            loaded_data = json.loads(request.body) if request.body else None
+            if isinstance(loaded_data, dict):
+                payload = loaded_data
+
+            # Ensure we have a dictionary for the .get() calls.
+            # If payload is None (e.g. empty/invalid body, or JSON "null"), use an empty dict.
+            final_payload_dict = payload if payload is not None else {}
+
+            include_outputs = final_payload_dict.get('include_outputs', False)
+            testlist_name = final_payload_dict.get('dataset_name')
+
+            if testlist_name == 'agent_dataset':
+                response_body = self.__create_agent_test_run_response(
+                    self.test_run_id,
+                    include_outputs
+                )
+            else:
+                response_body = self.__create_test_run_response(
+                    self.test_run_id,
+                    include_outputs
+                )
+            
             return (
                 201,
                 {},
-                self.__create_test_run_response(
-                    self.test_run_id,
-                    payload['include_outputs'] if payload else False
-                )
+                response_body
             )
 
         responses.add_callback(
@@ -1676,11 +1736,13 @@ class TestFreeplay(TestCase):
                     'test_case_id': str(uuid4()),
                     'variables': {'question': "Why isn't my internet working?"},
                     'output': 'It requested PTO this week.' if include_outputs else None,
+                    'test_case_type': 'completion'
                 },
                 {
                     'test_case_id': str(uuid4()),
                     'variables': {'question': "What does blue look like?"},
                     'output': 'It\'s a magical synergy between ocean and sky.' if include_outputs else None,
+                    'test_case_type': 'completion',
                     'history': [{
                         'role': 'user',
                         'content': [{
@@ -1689,7 +1751,26 @@ class TestFreeplay(TestCase):
                         }]
                     }]
                 }
-            ]
+            ],
+            'trace_test_cases': None,
+        })
+
+    @staticmethod
+    def __create_agent_test_run_response(test_run_id: str, include_outputs: bool = False) -> str:
+        return json.dumps({
+            'test_run_id': test_run_id,
+            'test_cases': None,
+            'trace_test_cases': [
+                {
+                    'test_case_id': str(uuid4()),
+                    'input': 'some input',
+                    'output': 'some output' if include_outputs else None,
+                    'custom_metadata': {
+                        'key': 'value'
+                    },
+                    'test_case_type': 'trace'
+                }
+            ],
         })
 
     def __make_call(

@@ -9,10 +9,11 @@ from requests import HTTPError
 from freeplay import api_support
 from freeplay.errors import FreeplayClientError, FreeplayError
 from freeplay.llm_parameters import LLMParameters
-from freeplay.model import InputVariables, OpenAIFunctionCall
+from freeplay.model import InputVariables, OpenAIFunctionCall, TestRunInfo
 from freeplay.resources.prompts import PromptInfo, MediaInputMap, MediaInput, MediaInputUrl
 from freeplay.resources.sessions import SessionInfo, TraceInfo
 from freeplay.support import CallSupport
+
 
 logger = logging.getLogger(__name__)
 
@@ -64,11 +65,6 @@ class ResponseInfo:
     prompt_tokens: Optional[int] = None
     response_tokens: Optional[int] = None
 
-
-@dataclass
-class TestRunInfo:
-    test_run_id: str
-    test_case_id: str
 
 
 @dataclass

@@ -13,6 +13,12 @@ class TestRun:
     inputs: List[TestRunInput]
 
 
+@dataclass
+class TestRunInfo:
+    test_run_id: str
+    test_case_id: str
+
+
 class OpenAIFunctionCall(TypedDict):
     name: str
     arguments: str

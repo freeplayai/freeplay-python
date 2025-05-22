@@ -1,8 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Optional, Dict
 
-from freeplay.model import InputVariables
-from freeplay.resources.recordings import TestRunInfo
+from freeplay.model import InputVariables, TestRunInfo
 from freeplay.support import CallSupport, SummaryStatistics
 
 
@@ -20,19 +19,44 @@ class TestCase:
         self.output = output
         self.history = history
 
+class TraceTestCase:
+    def __init__(
+            self,
+            test_case_id: str,
+            input: str,
+            output: Optional[str],
+    ):
+        self.id = test_case_id
+        self.input = input
+        self.output = output
 
 @dataclass
 class TestRun:
     def __init__(
             self,
             test_run_id: str,
-            test_cases: List[TestCase]
+            test_cases: List[TestCase] = [],
+            trace_test_cases: List[TraceTestCase] = []
     ):
         self.test_run_id = test_run_id
         self.test_cases = test_cases
+        self.trace_test_cases = trace_test_cases
+
+    def __must_not_be_both_trace_and_completion(self) -> None:
+        if self.test_cases and len(self.test_cases) > 0 and self.trace_test_cases and len(self.trace_test_cases) > 0:
+            raise ValueError("Test case and trace test case cannot both be present")
 
     def get_test_cases(self) -> List[TestCase]:
+        self.__must_not_be_both_trace_and_completion()
+        if len(self.trace_test_cases) > 0:
+            raise ValueError("Completion test cases are not present. Please use get_trace_test_cases() instead.")
         return self.test_cases
+
+    def get_trace_test_cases(self) -> List[TraceTestCase]:
+        self.__must_not_be_both_trace_and_completion()
+        if len(self.test_cases) > 0:
+            raise ValueError("Trace test cases are not present. Please use get_test_cases() instead.")
+        return self.trace_test_cases
 
     def get_test_run_info(self, test_case_id: str) -> TestRunInfo:
         return TestRunInfo(self.test_run_id, test_case_id)
@@ -75,8 +99,14 @@ class TestRuns:
                      history=test_case.history)
             for test_case in test_run.test_cases
         ]
+        trace_test_cases = [
+            TraceTestCase(test_case_id=test_case.id,
+                          input=test_case.input,
+                          output=test_case.output)
+            for test_case in test_run.trace_test_cases
+        ]
 
-        return TestRun(test_run.test_run_id, test_cases)
+        return TestRun(test_run.test_run_id, test_cases, trace_test_cases)
 
     def get(self, project_id: str, test_run_id: str) -> TestRunResults:
         test_run_results = self.call_support.get_test_run_results(project_id, test_run_id)

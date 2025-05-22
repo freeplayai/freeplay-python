@@ -1,11 +1,11 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from json import JSONEncoder
 from typing import Optional, Dict, Any, List, Union, Literal
 
 from freeplay import api_support
 from freeplay.api_support import try_decode
 from freeplay.errors import freeplay_response_error, FreeplayServerError
-from freeplay.model import InputVariables, FeedbackValue, NormalizedMessage
+from freeplay.model import InputVariables, FeedbackValue, NormalizedMessage, TestRunInfo
 
 CustomMetadata = Optional[Dict[str, Union[str, int, float, bool]]]
 
@@ -83,22 +83,38 @@ class PromptTemplateEncoder(JSONEncoder):
 
 class TestCaseTestRunResponse:
     def __init__(self, test_case: Dict[str, Any]):
-        self.variables: InputVariables = test_case['variables']
         self.id: str = test_case['test_case_id']
+        self.variables: InputVariables = test_case['variables']
         self.output: Optional[str] = test_case.get('output')
         self.history: Optional[List[Dict[str, Any]]] = test_case.get('history')
+        self.custom_metadata: Optional[Dict[str, str]] = test_case.get('custom_metadata')
 
+class TraceTestCaseTestRunResponse:
+    def __init__(self, test_case: Dict[str, Any]):
+        self.id: str = test_case['test_case_id']
+        self.input: str = test_case['input']
+        self.output: Optional[str] = test_case.get('output')
+        self.custom_metadata: Optional[Dict[str, str]] = test_case.get('custom_metadata')
 
 class TestRunResponse:
     def __init__(
             self,
             test_run_id: str,
-            test_cases: List[Dict[str, Any]]
+            test_cases: Optional[List[Dict[str, Any]]],
+            trace_test_cases: Optional[List[Dict[str, Any]]]
     ):
+        if test_cases and trace_test_cases:
+            raise ValueError("Test cases and trace test cases cannot both be present.")
+
         self.test_cases = [
             TestCaseTestRunResponse(test_case)
-            for test_case in test_cases
+            for test_case in (test_cases or []) if test_case is not None
         ]
+        self.trace_test_cases = [
+            TraceTestCaseTestRunResponse(test_case)
+            for test_case in (trace_test_cases or []) if test_case is not None
+        ]
+
         self.test_run_id = test_run_id
 
 
@@ -267,7 +283,7 @@ class CallSupport:
 
         json_dom = response.json()
 
-        return TestRunResponse(json_dom['test_run_id'], json_dom['test_cases'])
+        return TestRunResponse(json_dom['test_run_id'], json_dom['test_cases'], json_dom['trace_test_cases'])
 
     def get_test_run_results(
             self,
@@ -299,18 +315,21 @@ class CallSupport:
             output: str,
             agent_name: Optional[str] = None,
             custom_metadata: CustomMetadata = None,
-            eval_results: Optional[Dict[str, Union[bool, float]]] = None
+            eval_results: Optional[Dict[str, Union[bool, float]]] = None,
+            test_run_info: Optional[TestRunInfo] = None
     ) -> None:
+        payload = {
+            'agent_name': agent_name,
+            'input': input,
+            'output': output,
+            'custom_metadata': custom_metadata,
+            'eval_results': eval_results,
+            'test_run_info': asdict(test_run_info) if test_run_info else None
+        }
         response = api_support.post_raw(
             self.freeplay_api_key,
             f'{self.api_base}/v2/projects/{project_id}/sessions/{session_id}/traces/id/{trace_id}',
-            {
-                'agent_name': agent_name,
-                'input': input,
-                'output': output,
-                'custom_metadata': custom_metadata,
-                'eval_results': eval_results,
-            }
+            payload
         )
         if response.status_code != 201:
             raise freeplay_response_error('Error while recording trace.', response)

@@ -9,7 +9,7 @@ from anthropic.types import MessageParam
 from freeplay import Freeplay, CallInfo, ResponseInfo, RecordPayload
 from freeplay.resources.prompts import FormattedPrompt, PromptInfo
 from freeplay.resources.recordings import RecordResponse, TestRunInfo
-from freeplay.resources.sessions import Session
+from freeplay.resources.sessions import Session, TraceInfo
 
 
 def get_freeplay_thin_client() -> Freeplay:
@@ -27,6 +27,7 @@ def record_results_messages(
         session: Session,
         start: float,
         end: float,
+        trace_info: Optional[TraceInfo] = None,
         test_run_info: Optional[TestRunInfo] = None,
         eval_results: Optional[Dict[str, Union[bool, float]]] = None
 ) -> RecordResponse:
@@ -50,7 +51,8 @@ def record_results_messages(
             call_info=call_info,
             response_info=response_info,
             test_run_info=test_run_info,
-            eval_results=eval_results
+            eval_results=eval_results,
+            trace_info=trace_info
         )
     )
 

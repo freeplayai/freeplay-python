@@ -2,32 +2,36 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
-## 0.3.18
+## 0.3.24 - 2025-05-29
 
 ### Added
 - Create test run with dataset that targets agent. Example: 
-```python
-test_run = fp_client.test_runs.create(
-    project_id,
-    "Dataset Name",
-    include_outputs=True,
-    name="Test run title",
-    description='Some description',
-    flavor_name=template_prompt.prompt_info.flavor_name
-)
-```
+    ```python
+    test_run = fp_client.test_runs.create(
+        project_id,
+        "Dataset Name",
+        include_outputs=True,
+        name="Test run title",
+        description='Some description',
+        flavor_name=template_prompt.prompt_info.flavor_name
+    )
+    ```
 - Use traces when creating test run. Example:
-```python
-trace_info.record_output(
-    project_id,
-    completion.choices[0].message.content,
-    {
-        'f1-score': 0.48,
-        'is_non_empty': True
-    },
-    test_run_info=test_run.get_test_run_info(test_case.id)
-)
-```
+    ```python
+    trace_info.record_output(
+        project_id,
+        completion.choices[0].message.content,
+        {
+            'f1-score': 0.48,
+            'is_non_empty': True
+        },
+        test_run_info=test_run.get_test_run_info(test_case.id)
+    )
+    ```
+
+### Updated
+- Renamed `TestCase` dataclass to `CompletionTestCase` dataclass. The old `TestCase` is still exported as `TestCase` for backwards-compatibility, but is deprecated.
+- Both `CompletionTestCase` and `TraceTestCase` now surface `custom_metadata` field if it was supplied when the dataset was built.
 
 
 ## [0.3.22] - 2025-05-22

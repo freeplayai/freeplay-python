@@ -1065,6 +1065,7 @@ class TestFreeplay(TestCase):
 
         test_cases = test_run.get_test_cases()
         self.assertEqual(2, len(test_cases))
+        self.assertEqual(1, len(test_cases[0].custom_metadata or {}))
         self.assertTrue(all(test_case.output is not None for test_case in test_cases))
 
     @responses.activate
@@ -1079,6 +1080,7 @@ class TestFreeplay(TestCase):
 
         trace_test_cases = test_run.get_trace_test_cases()
         self.assertEqual(1, len(trace_test_cases))
+        self.assertEqual(1, len(trace_test_cases[0].custom_metadata or {}))
         self.assertTrue(all(test_case.input is not None for test_case in trace_test_cases))
         self.assertTrue(all(test_case.output is not None for test_case in trace_test_cases))
 
@@ -1736,7 +1738,10 @@ class TestFreeplay(TestCase):
                     'test_case_id': str(uuid4()),
                     'variables': {'question': "Why isn't my internet working?"},
                     'output': 'It requested PTO this week.' if include_outputs else None,
-                    'test_case_type': 'completion'
+                    'test_case_type': 'completion',
+                    'custom_metadata': {
+                        'key': 'value'
+                    }
                 },
                 {
                     'test_case_id': str(uuid4()),

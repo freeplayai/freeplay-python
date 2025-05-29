@@ -1,23 +1,34 @@
 from dataclasses import dataclass
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
+import warnings
 
 from freeplay.model import InputVariables, TestRunInfo
 from freeplay.support import CallSupport, SummaryStatistics
 
-
 @dataclass
-class TestCase:
+class CompletionTestCase:
     def __init__(
             self,
             test_case_id: str,
             variables: InputVariables,
             output: Optional[str],
-            history: Optional[List[Dict[str, str]]]
+            history: Optional[List[Dict[str, str]]],
+            custom_metadata: Optional[Dict[str, str]]
     ):
         self.id = test_case_id
         self.variables = variables
         self.output = output
         self.history = history
+        self.custom_metadata = custom_metadata
+
+class TestCase(CompletionTestCase):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        warnings.warn(
+            "'TestCase' is deprecated; use 'CompletionTestCase' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
 
 class TraceTestCase:
     def __init__(
@@ -25,17 +36,18 @@ class TraceTestCase:
             test_case_id: str,
             input: str,
             output: Optional[str],
+            custom_metadata: Optional[Dict[str, str]]
     ):
         self.id = test_case_id
         self.input = input
         self.output = output
-
+        self.custom_metadata = custom_metadata
 @dataclass
 class TestRun:
     def __init__(
             self,
             test_run_id: str,
-            test_cases: List[TestCase] = [],
+            test_cases: List[CompletionTestCase] = [],
             trace_test_cases: List[TraceTestCase] = []
     ):
         self.test_run_id = test_run_id
@@ -46,7 +58,7 @@ class TestRun:
         if self.test_cases and len(self.test_cases) > 0 and self.trace_test_cases and len(self.trace_test_cases) > 0:
             raise ValueError("Test case and trace test case cannot both be present")
 
-    def get_test_cases(self) -> List[TestCase]:
+    def get_test_cases(self) -> List[CompletionTestCase]:
         self.__must_not_be_both_trace_and_completion()
         if len(self.trace_test_cases) > 0:
             raise ValueError("Completion test cases are not present. Please use get_trace_test_cases() instead.")
@@ -93,16 +105,18 @@ class TestRuns:
         test_run = self.call_support.create_test_run(
             project_id, testlist, include_outputs, name, description, flavor_name)
         test_cases = [
-            TestCase(test_case_id=test_case.id,
+            CompletionTestCase(test_case_id=test_case.id,
                      variables=test_case.variables,
                      output=test_case.output,
-                     history=test_case.history)
+                     history=test_case.history,
+                     custom_metadata=test_case.custom_metadata)
             for test_case in test_run.test_cases
         ]
         trace_test_cases = [
             TraceTestCase(test_case_id=test_case.id,
                           input=test_case.input,
-                          output=test_case.output)
+                          output=test_case.output,
+                          custom_metadata=test_case.custom_metadata)
             for test_case in test_run.trace_test_cases
         ]
 

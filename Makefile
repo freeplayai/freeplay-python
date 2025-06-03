@@ -1,6 +1,10 @@
+.PHONY: setup
+setup:
+	./devenv.sh
+
 .PHONY: type-checks
 type-checks:
-	poetry run mypy src tests;# examples;
+	poetry run mypy src tests;
 
 test: type-checks
 	poetry env use 3.8

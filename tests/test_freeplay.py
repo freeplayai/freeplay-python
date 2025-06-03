@@ -441,7 +441,7 @@ class TestFreeplay(TestCase):
         # make initial record call
         record_response = self.freeplay_thin.recordings.create(
             RecordPayload(
-                all_messages=formatted_prompt.messages,
+                all_messages=formatted_prompt.llm_prompt,
                 # mimic state where we don't yet have the LLM response like batch api
                 inputs=input_variables,
                 session_info=self.session_info,
@@ -716,19 +716,21 @@ class TestFreeplay(TestCase):
             self.openai_api_prompt_info,
             messages=messages
         )
-        bound_prompt = template_prompt.bind({'number': 1}, history=[])
-        formatted_prompt = bound_prompt.format()
-        self.assertEqual(formatted_prompt.messages, [
-            {'role': 'system', 'content': 'System message'},
-            {'role': 'user', 'content': 'User message 1'}
-        ])
+        with self.assertWarnsRegex(FreeplayClientWarning,
+                                   "History missing for prompt that expects history"):
+            bound_prompt = template_prompt.bind({'number': 1}, history=[])
+            formatted_prompt = bound_prompt.format()
+            self.assertEqual(formatted_prompt.llm_prompt, [
+                {'role': 'system', 'content': 'System message'},
+                {'role': 'user', 'content': 'User message 1'}
+            ])
 
         history = [{'role': 'user', 'content': 'User message 1'},
                    {'role': 'assistant', 'content': 'Assistant message 1'}]
 
         bound_prompt = template_prompt.bind({'number': 2}, history=history)
         formatted_prompt = bound_prompt.format()
-        self.assertEqual(formatted_prompt.messages, [
+        self.assertEqual(formatted_prompt.llm_prompt, [
             {'role': 'system', 'content': 'System message'},
             history[0],
             history[1],
@@ -745,12 +747,14 @@ class TestFreeplay(TestCase):
             self.anthropic_prompt_info,
             messages=messages
         )
-        bound_prompt = template_prompt.bind({'number': 1}, history=[])
-        formatted_prompt = bound_prompt.format()
-        self.assertEqual(formatted_prompt.llm_prompt, [
-            {'role': 'user', 'content': 'User message 1'}
-        ])
-        self.assertEqual(formatted_prompt.system_content, 'System message')
+        with self.assertWarnsRegex(FreeplayClientWarning,
+                                   "History missing for prompt that expects history"):
+            bound_prompt = template_prompt.bind({'number': 1}, history=[])
+            formatted_prompt = bound_prompt.format()
+            self.assertEqual(formatted_prompt.llm_prompt, [
+                {'role': 'user', 'content': 'User message 1'}
+            ])
+            self.assertEqual(formatted_prompt.system_content, 'System message')
 
         history = [{'role': 'user', 'content': 'User message 1'},
                    {'role': 'assistant', 'content': 'Assistant message 1'}]
@@ -774,15 +778,17 @@ class TestFreeplay(TestCase):
             self.sagemaker_llama_3_prompt_info,
             messages=messages
         )
-        bound_prompt = template_prompt.bind({'number': 1}, history=[])
-        formatted_prompt = bound_prompt.format()
-        self.assertEqual(
-            "<|begin_of_text|>"
-            "<|start_header_id|>system<|end_header_id|>\nSystem message<|eot_id|>"
-            "<|start_header_id|>user<|end_header_id|>\nUser message 1<|eot_id|>"
-            "<|start_header_id|>assistant<|end_header_id|>",
-            formatted_prompt.llm_prompt_text
-        )
+        with self.assertWarnsRegex(FreeplayClientWarning,
+                                   "History missing for prompt that expects history"):
+            bound_prompt = template_prompt.bind({'number': 1}, history=[])
+            formatted_prompt = bound_prompt.format()
+            self.assertEqual(
+                "<|begin_of_text|>"
+                "<|start_header_id|>system<|end_header_id|>\nSystem message<|eot_id|>"
+                "<|start_header_id|>user<|end_header_id|>\nUser message 1<|eot_id|>"
+                "<|start_header_id|>assistant<|end_header_id|>",
+                formatted_prompt.llm_prompt_text
+            )
 
         history = [{'role': 'user', 'content': 'User message 1'},
                    {'role': 'assistant', 'content': 'Assistant message 1'}]
@@ -964,10 +970,6 @@ class TestFreeplay(TestCase):
             "<|start_header_id|>assistant<|end_header_id|>",
             formatted_prompt.llm_prompt_text
         )
-        self.assertEqual([
-            {'content': 'User message 1', 'role': 'user'},
-            {'content': 'User message 2', 'role': 'user'}
-        ], formatted_prompt.messages)
         self.assertEqual(None, formatted_prompt.system_content)
 
     def test_sagemaker_llama_3_prompt_formatting__with_system_message(self) -> None:
@@ -990,11 +992,6 @@ class TestFreeplay(TestCase):
             "<|start_header_id|>assistant<|end_header_id|>",
             formatted_prompt.llm_prompt_text
         )
-        self.assertEqual([
-            {'content': 'System message 1', 'role': 'system'},
-            {'content': 'User message 1', 'role': 'user'},
-            {'content': 'User message 2', 'role': 'user'}
-        ], formatted_prompt.messages)
         self.assertEqual("System message 1", formatted_prompt.system_content)
 
     def test_baseten_mistral_system_prompt_formatting(self) -> None:
@@ -1354,7 +1351,10 @@ class TestFreeplay(TestCase):
             ),
             messages=[{'content': 'You are a support agent', 'role': 'system'},
                       {'content': 'How can I help you?', 'role': 'assistant'},
-                      {'content': f'{question}', 'role': 'user'}]
+                      {'content': f'{question}', 'role': 'user'}],
+            formatted_prompt=[{'content': 'You are a support agent', 'role': 'system'},
+                              {'content': 'How can I help you?', 'role': 'assistant'},
+                              {'content': f'{question}', 'role': 'user'}]
         )
         formatted_prompt = self.bundle_client.prompts.get_formatted_by_version_id(
             self.bundle_project_id,
@@ -1364,7 +1364,7 @@ class TestFreeplay(TestCase):
         )
         self.assertEqual(expected.prompt_info.prompt_template_version_id,
                          formatted_prompt.prompt_info.prompt_template_version_id)
-        self.assertEqual(expected.messages, formatted_prompt.messages)
+        self.assertEqual(expected.llm_prompt, formatted_prompt.llm_prompt)
 
     def test_freeplay_directory_doesnt_exist(self) -> None:
         with self.assertRaisesRegex(FreeplayConfigurationError, "Path for prompt templates is not a valid directory"):
@@ -1445,10 +1445,10 @@ class TestFreeplay(TestCase):
             input_variables
         )
         expected = json.loads(self.__get_prompt_response(self.prompt_template_name))
-        self.assertNotEqual(expected.get("content"), formatted_prompt.messages)
+        self.assertNotEqual(expected.get("content"), formatted_prompt.llm_prompt)
         self.assertEqual(
             expected.get("content")[-1].get("content").replace("{{question}}", "Why isn't my door working"),
-            formatted_prompt.messages[-1].get("content"))
+            formatted_prompt.llm_prompt[-1].get("content"))
         self.assertEqual(expected.get("prompt_template_version_id"),
                          formatted_prompt.prompt_info.prompt_template_version_id)
         self.assertEqual(expected.get("prompt_template_name"), formatted_prompt.prompt_info.template_name)
@@ -1541,7 +1541,7 @@ class TestFreeplay(TestCase):
 
     def __mock_test_run_api(self) -> None:
         def request_callback(request: PreparedRequest) -> Tuple[int, Dict[str, str], str]:
-            payload: Optional[Dict[str, Any]] = None # Start with None
+            payload: Optional[Dict[str, Any]] = None  # Start with None
 
             loaded_data = json.loads(request.body) if request.body else None
             if isinstance(loaded_data, dict):
@@ -1564,7 +1564,7 @@ class TestFreeplay(TestCase):
                     self.test_run_id,
                     include_outputs
                 )
-            
+
             return (
                 201,
                 {},

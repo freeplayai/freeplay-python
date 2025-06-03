@@ -76,6 +76,17 @@ class SummaryStatistics:
     human_evaluation: Dict[str, Any]
 
 
+@dataclass
+class ProjectInfo:
+    id: str
+    name: str
+
+
+@dataclass
+class ProjectInfos:
+    projects: List[ProjectInfo]
+
+
 class PromptTemplateEncoder(JSONEncoder):
     def default(self, prompt_template: PromptTemplate) -> Dict[str, Any]:
         return prompt_template.__dict__
@@ -89,12 +100,14 @@ class TestCaseTestRunResponse:
         self.history: Optional[List[Dict[str, Any]]] = test_case.get('history')
         self.custom_metadata: Optional[Dict[str, str]] = test_case.get('custom_metadata')
 
+
 class TraceTestCaseTestRunResponse:
     def __init__(self, test_case: Dict[str, Any]):
         self.id: str = test_case['test_case_id']
         self.input: str = test_case['input']
         self.output: Optional[str] = test_case.get('output')
         self.custom_metadata: Optional[Dict[str, str]] = test_case.get('custom_metadata')
+
 
 class TestRunResponse:
     def __init__(
@@ -184,6 +197,26 @@ class CallSupport:
             raise FreeplayServerError('Failed to parse prompt templates from server')
 
         return maybe_prompts
+
+    def get_prompts_for_environment(self, environment: str) -> PromptTemplates:
+        projects_response = api_support.get_raw(
+            api_key=self.freeplay_api_key,
+            url=f'{self.api_base}/v2/projects/all'
+        )
+        if projects_response.status_code != 200:
+            raise freeplay_response_error("Error getting prompt templates", projects_response)
+
+        maybe_projects: Optional[ProjectInfos] = try_decode(ProjectInfos, projects_response.content)
+        if maybe_projects is None:
+            raise FreeplayServerError('Failed to parse list of projects from server')
+
+        prompt_templates = PromptTemplates([])
+        for project in maybe_projects.projects:
+            prompt_templates.prompt_templates.extend(
+                self.get_prompts(project.id, environment).prompt_templates
+            )
+
+        return prompt_templates
 
     def get_prompt(self, project_id: str, template_name: str, environment: str) -> PromptTemplate:
         response = api_support.get_raw(

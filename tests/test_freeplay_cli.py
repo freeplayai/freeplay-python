@@ -16,11 +16,19 @@ from freeplay.freeplay_cli import cli
 class TestFreeplayCLI(TestCase):
     def setUp(self) -> None:
         super().setUp()
-        self.project_id = str(uuid4())
+
+        self.project_id_1 = str(uuid4())
+        self.project_name_1 = "project-one"
+        self.project_id_2 = str(uuid4())
+        self.project_name_2 = "project-two"
+
+        self.prompt_name_1 = "my-prompt"
+        self.prompt_name_2 = "my-second-prompt"
         self.prompt_template_version_id_1 = str(uuid4())
         self.prompt_template_version_id_2 = str(uuid4())
         self.prompt_template_id_1 = str(uuid4())
         self.prompt_template_id_2 = str(uuid4())
+
         self.environment = "prod"
         os.environ["FREEPLAY_API_KEY"] = "freeplay_api_key"
         os.environ["FREEPLAY_SUBDOMAIN"] = "doesnotexist"
@@ -34,13 +42,13 @@ class TestFreeplayCLI(TestCase):
 
     @responses.activate
     def test_download_succeeds(self) -> None:
-        self.__mock_freeplay_api_success()
+        self.__mock_freeplay_prompts_api_success(self.project_id_1, self.environment)
 
         runner = CliRunner()
         with tempfile.TemporaryDirectory() as outDir:
             arguments = [
                 'download',
-                '--project-id=%s' % self.project_id,
+                '--project-id=%s' % self.project_id_1,
                 '--environment=%s' % self.environment,
                 '--output-dir=%s' % outDir
             ]
@@ -48,13 +56,13 @@ class TestFreeplayCLI(TestCase):
             runner.invoke(cli, arguments)
 
             full_file_path1 = \
-                Path(outDir) / "freeplay" / "prompts" / self.project_id / self.environment / "my-prompt.json"
+                Path(outDir) / "freeplay" / "prompts" / self.project_id_1 / self.environment / f"{self.prompt_name_1}.json"
             self.assertTrue(os.path.isfile(full_file_path1))
             with open(full_file_path1, 'r') as file:
                 json_dom = json.load(file)
                 self.assertEqual(self.prompt_template_id_1, json_dom['prompt_template_id'])
                 self.assertEqual(self.prompt_template_version_id_1, json_dom['prompt_template_version_id'])
-                self.assertEqual('my-prompt', json_dom['prompt_template_name'])
+                self.assertEqual(self.prompt_name_1, json_dom['prompt_template_name'])
                 self.assertEqual(0, len(json_dom['metadata']['params']))
                 self.assertEqual(
                     [{"role": "system", "content": "Answer this question: {{question}}", "media_slots": []}],
@@ -62,24 +70,73 @@ class TestFreeplayCLI(TestCase):
                 )
 
             full_file_path2 = \
-                Path(outDir) / "freeplay" / "prompts" / self.project_id / self.environment / "my-second-prompt.json"
+                Path(outDir) / "freeplay" / "prompts" / self.project_id_1 / self.environment / f"{self.prompt_name_2}.json"
             self.assertTrue(os.path.isfile(full_file_path2))
             with open(full_file_path2, 'r') as file:
                 json_dom = json.load(file)
                 self.assertEqual(self.prompt_template_id_2, json_dom['prompt_template_id'])
                 self.assertEqual(self.prompt_template_version_id_2, json_dom['prompt_template_version_id'])
-                self.assertEqual('my-second-prompt', json_dom['prompt_template_name'])
+                self.assertEqual(self.prompt_name_2, json_dom['prompt_template_name'])
                 self.assertEqual('claude-2', json_dom['metadata']['params']['model'])
                 self.assertEqual(0.1, json_dom['metadata']['params']['temperature'])
                 self.assertEqual(25, json_dom['metadata']['params']['max_tokens_to_sample'])
                 self.assertEqual(
                     [
-                        {"role": "system", "content": "You're a tech support agent", "media_slots": []},
-                        {"role": "assistant", "content": "How may I help you?", "media_slots": []},
-                        {"role": "user", "content": "Answer this question: {{question}}", "media_slots": []}
+                        {"role": "system", "content": self.system_message, "media_slots": []},
+                        {"role": "assistant", "content": self.assistant_message, "media_slots": []},
+                        {"role": "user", "content": self.user_message, "media_slots": []}
                     ],
                     json_dom['content']
                 )
+
+    @responses.activate
+    def test_download_all_succeeds_across_projects(self) -> None:
+        self.__mock_freeplay_projects_api_success()
+        self.__mock_freeplay_prompts_api_success(self.project_id_1, self.environment)
+        self.__mock_freeplay_prompts_api_success(self.project_id_2, self.environment)
+
+        runner = CliRunner()
+        with tempfile.TemporaryDirectory() as outDir:
+            outDir = os.path.abspath(outDir)  # Ensure absolute path
+            arguments = [
+                'download-all',
+                '--environment=%s' % self.environment,
+                '--output-dir=%s' % outDir
+            ]
+            # noinspection PyTypeChecker
+            result = runner.invoke(cli, arguments, catch_exceptions=False)
+            self.assertEqual(0, result.exit_code)
+
+            self.__assert_prompt_basics(outDir, self.project_id_1, self.environment, self.prompt_name_1)
+            self.__assert_prompt_basics(outDir, self.project_id_1, self.environment, self.prompt_name_2)
+
+            self.__assert_prompt_basics(outDir, self.project_id_2, self.environment, self.prompt_name_1)
+            self.__assert_prompt_basics(outDir, self.project_id_2, self.environment, self.prompt_name_2)
+
+    @responses.activate
+    def test_download_all_defaults_environment_to_latest(self) -> None:
+        environment = 'latest'
+
+        self.__mock_freeplay_projects_api_success()
+        self.__mock_freeplay_prompts_api_success(self.project_id_1, environment)
+        self.__mock_freeplay_prompts_api_success(self.project_id_2, environment)
+
+        runner = CliRunner()
+        with tempfile.TemporaryDirectory() as outDir:
+            outDir = os.path.abspath(outDir)  # Ensure absolute path
+            arguments = [
+                'download-all',
+                '--output-dir=%s' % outDir
+            ]
+            # noinspection PyTypeChecker
+            result = runner.invoke(cli, arguments, catch_exceptions=False)
+            self.assertEqual(0, result.exit_code)
+
+            self.__assert_prompt_basics(outDir, self.project_id_1, environment, self.prompt_name_1)
+            self.__assert_prompt_basics(outDir, self.project_id_1, environment, self.prompt_name_2)
+
+            self.__assert_prompt_basics(outDir, self.project_id_2, environment, self.prompt_name_1)
+            self.__assert_prompt_basics(outDir, self.project_id_2, environment, self.prompt_name_2)
 
     @responses.activate
     def test_download_invalid_project(self) -> None:
@@ -100,11 +157,26 @@ class TestFreeplayCLI(TestCase):
             # This actually goes to stderr, but Click combines it with stdout
             self.assertTrue("Error getting prompt templates [404]" in result.stdout)
 
-    def __mock_freeplay_api_success(self) -> None:
+    def __assert_prompt_basics(
+        self, out_dir: str, project_id: str, environment: str, prompt_name: str
+    ) -> None:
+        full_file_path = \
+            Path(out_dir) / "freeplay" / "prompts" / project_id / environment / f"{prompt_name}.json"
+        self.assertTrue(os.path.isfile(full_file_path))
+        with open(full_file_path, 'r') as file:
+            json_dom = json.load(file)
+            self.assertEqual(prompt_name, json_dom['prompt_template_name'])
+            self.assertEqual(project_id, json_dom['project_id'])
+
+    def __mock_freeplay_prompts_api_success(
+            self,
+            project_id: str,
+            environment: str
+    ) -> None:
         responses.get(
-            url=f'{self.api_url}/v2/projects/{self.project_id}/prompt-templates/all/{self.environment}',
+            url=f'{self.api_url}/v2/projects/{project_id}/prompt-templates/all/{environment}',
             status=200,
-            body=self.__get_templates_response()
+            body=self.__get_templates_response(project_id)
         )
 
     def __mock_freeplay_api_invalid_project(self) -> None:
@@ -114,10 +186,10 @@ class TestFreeplayCLI(TestCase):
             body='{"message": "Project not found"}'
         )
 
-    def __get_templates_response(self) -> str:
-        return json.dumps(self.__templates_as_dict())
+    def __get_templates_response(self, project_id: str) -> str:
+        return json.dumps(self.__templates_as_dict(project_id))
 
-    def __templates_as_dict(self) -> Dict[str, Any]:
+    def __templates_as_dict(self, project_id: str) -> Dict[str, Any]:
         return {
             "prompt_templates": [{
                 "content": [{
@@ -134,9 +206,9 @@ class TestFreeplayCLI(TestCase):
                         "anthropic_endpoint": "https://example.com/anthropic"
                     }
                 },
-                "project_id": self.project_id,
+                "project_id": project_id,
                 "prompt_template_id": self.prompt_template_id_1,
-                "prompt_template_name": 'my-prompt',
+                "prompt_template_name": self.prompt_name_1,
                 "prompt_template_version_id": self.prompt_template_version_id_1
             }, {
                 "content": [
@@ -167,9 +239,27 @@ class TestFreeplayCLI(TestCase):
                         "anthropic_endpoint": "https://example.com/anthropic"
                     }
                 },
-                "project_id": self.project_id,
+                "project_id": project_id,
                 "prompt_template_id": self.prompt_template_id_2,
-                "prompt_template_name": 'my-second-prompt',
+                "prompt_template_name": self.prompt_name_2,
                 "prompt_template_version_id": self.prompt_template_version_id_2
             }]
+        }
+
+    def __mock_freeplay_projects_api_success(self) -> None:
+        responses.get(
+            url=f'{self.api_url}/v2/projects/all',
+            status=200,
+            body=self.__get_projects_response()
+        )
+
+    def __get_projects_response(self) -> str:
+        return json.dumps(self.__projects_as_dict())
+
+    def __projects_as_dict(self) -> Dict[str, Any]:
+        return {
+            "projects": [
+                {"id": str(self.project_id_1), "name": self.project_name_1},
+                {"id": str(self.project_id_2), "name": self.project_name_2},
+            ]
         }

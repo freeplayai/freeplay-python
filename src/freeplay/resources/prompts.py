@@ -557,6 +557,9 @@ class Prompts:
 
         return TemplatePrompt(prompt_info, prompt.content, prompt.tool_schema)
 
+    def get_all_for_environment(self, environment: str) -> PromptTemplates:
+        return self.call_support.get_prompts_for_environment(environment=environment)
+
     def get_by_version_id(self, project_id: str, template_id: str, version_id: str) -> TemplatePrompt:
         prompt = self.template_resolver.get_prompt_version_id(project_id, template_id, version_id)
 

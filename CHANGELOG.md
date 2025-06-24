@@ -2,6 +2,15 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
+## 0.3.25 - 2025-06-24
+
+### Added
+- New `download-all` CLI command that downloads all prompts across all projects within an account for bundling. Example:
+    ```bash
+    freeplay download-all --environment latest --output-dir ./prompts
+    ```
+    This command automatically downloads all of prompts from all projects tagged with the given [environment](https://docs.freeplay.ai/docs/managing-prompts#specifying-environments).
+
 ## 0.3.24 - 2025-05-29
 
 ### Added

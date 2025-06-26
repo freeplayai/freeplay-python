@@ -2,6 +2,11 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
+## 0.4.0 - 2025-06-26
+
+### Breaking change
+- `customer_feedback.update_customer_feedback()` now requires a project_id parameter.
+
 ## 0.3.25 - 2025-06-24
 
 ### Added

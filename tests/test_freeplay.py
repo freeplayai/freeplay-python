@@ -535,7 +535,7 @@ class TestFreeplay(TestCase):
 
         self.__mock_customer_feedback_api(completion_id)
 
-        self.freeplay_thin.customer_feedback.update(completion_id, {
+        self.freeplay_thin.customer_feedback.update(self.project_id, completion_id, {
             'some-feedback': 'it is ok!',
             'float': 1.2,
             'int': 1,
@@ -568,14 +568,14 @@ class TestFreeplay(TestCase):
     @responses.activate
     def test_customer_feedback__unauthorized(self) -> None:
         completion_id = str(uuid4())
-        responses.put(
-            url=f'{self.api_base}/v1/completion_feedback/{completion_id}',
+        responses.post(
+            url=f'{self.api_base}/v2/projects/{self.project_id}/completion-feedback/id/{completion_id}',
             status=401,
             content_type='application/json'
         )
 
         with self.assertRaisesRegex(FreeplayClientError, "Error updating customer feedback \\[401\\]"):
-            self.freeplay_thin.customer_feedback.update(completion_id, {
+            self.freeplay_thin.customer_feedback.update(self.project_id, completion_id, {
                 'some-feedback': 'it is ok!'
             })
 
@@ -1526,8 +1526,8 @@ class TestFreeplay(TestCase):
         )
 
     def __mock_customer_feedback_api(self, completion_id: str) -> None:
-        responses.put(
-            url=f'{self.api_base}/v1/completion_feedback/{completion_id}',
+        responses.post(
+            url=f'{self.api_base}/v2/projects/{self.project_id}/completion-feedback/id/{completion_id}',
             status=201,
             content_type='application/json'
         )

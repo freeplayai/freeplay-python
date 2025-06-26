@@ -265,12 +265,13 @@ class CallSupport:
 
     def update_customer_feedback(
             self,
+            project_id: str,
             completion_id: str,
             feedback: Dict[str, Union[bool, str, int, float]]
     ) -> None:
-        response = api_support.put_raw(
+        response = api_support.post_raw(
             self.freeplay_api_key,
-            f'{self.api_base}/v1/completion_feedback/{completion_id}',
+            f'{self.api_base}/v2/projects/{project_id}/completion-feedback/id/{completion_id}',
             feedback
         )
         if response.status_code != 201:

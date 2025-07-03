@@ -2,6 +2,10 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
+## [0.4.1] - 2025-06-30
+
+- Create a test run from the SDK with test cases with media in them.
+
 ## 0.4.0 - 2025-06-26
 
 ### Breaking change

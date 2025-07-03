@@ -1,11 +1,18 @@
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from json import JSONEncoder
-from typing import Optional, Dict, Any, List, Union, Literal
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from freeplay import api_support
 from freeplay.api_support import try_decode
-from freeplay.errors import freeplay_response_error, FreeplayServerError
-from freeplay.model import InputVariables, FeedbackValue, NormalizedMessage, TestRunInfo
+from freeplay.errors import FreeplayServerError, freeplay_response_error
+from freeplay.model import (
+    FeedbackValue,
+    InputVariables,
+    MediaInputBase64,
+    MediaInputUrl,
+    NormalizedMessage,
+    TestRunInfo,
+)
 
 CustomMetadata = Optional[Dict[str, Union[str, int, float, bool]]]
 
@@ -99,6 +106,26 @@ class TestCaseTestRunResponse:
         self.output: Optional[str] = test_case.get('output')
         self.history: Optional[List[Dict[str, Any]]] = test_case.get('history')
         self.custom_metadata: Optional[Dict[str, str]] = test_case.get('custom_metadata')
+
+        if test_case.get("media_variables", None):
+            self.media_variables: Optional[
+                Dict[str, Union[MediaInputBase64, MediaInputUrl]]
+            ] = {}
+            for name, media_data in test_case.get("media_variables", {}).items():
+                media_type = media_data.get("type", "base64")
+                if media_type == "url":
+                    self.media_variables[name] = MediaInputUrl(
+                        type="url",
+                        url=media_data["url"],
+                    )
+                else:
+                    self.media_variables[name] = MediaInputBase64(
+                        type="base64",
+                        data=media_data["data"],
+                        content_type=media_data["content_type"],
+                    )
+        else:
+            self.media_variables = None
 
 
 class TraceTestCaseTestRunResponse:

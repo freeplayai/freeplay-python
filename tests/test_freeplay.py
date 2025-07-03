@@ -3,7 +3,7 @@ import time
 import uuid
 from dataclasses import asdict
 from pathlib import Path
-from typing import Tuple, Any, Dict, List, cast, Optional
+from typing import Any, Dict, List, Optional, Tuple, cast
 from unittest import TestCase
 from uuid import uuid4
 
@@ -14,19 +14,41 @@ from openai.types.chat.chat_completion_message_tool_call import Function
 from requests import PreparedRequest
 from responses import matchers
 
-from freeplay import CustomMetadata
-from freeplay import Freeplay
-from freeplay.errors import (FreeplayClientError,
-                             FreeplayConfigurationError, FreeplayClientWarning)
+from freeplay import CustomMetadata, Freeplay
+from freeplay.errors import (
+    FreeplayClientError,
+    FreeplayClientWarning,
+    FreeplayConfigurationError,
+)
 from freeplay.llm_parameters import LLMParameters
-from freeplay.model import OpenAIFunctionCall, TestRunInfo
-from freeplay.resources.prompts import FormattedPrompt, PromptInfo, TemplatePrompt, FilesystemTemplateResolver, \
-    BoundPrompt, MediaInputMap, MediaInputBase64
-from freeplay.resources.recordings import RecordPayload, RecordUpdatePayload, ResponseInfo, CallInfo, \
-    UsageTokens
+from freeplay.model import (
+    MediaInputBase64,
+    MediaInputMap,
+    OpenAIFunctionCall,
+    TestRunInfo,
+)
+from freeplay.resources.prompts import (
+    BoundPrompt,
+    FilesystemTemplateResolver,
+    FormattedPrompt,
+    PromptInfo,
+    TemplatePrompt,
+)
+from freeplay.resources.recordings import (
+    CallInfo,
+    RecordPayload,
+    RecordUpdatePayload,
+    ResponseInfo,
+    UsageTokens,
+)
 from freeplay.resources.sessions import Session, SessionInfo
 from freeplay.resources.test_cases import DatasetTestCase
-from freeplay.support import ToolSchema, TemplateChatMessage, HistoryTemplateMessage, TemplateMessage
+from freeplay.support import (
+    HistoryTemplateMessage,
+    TemplateChatMessage,
+    TemplateMessage,
+    ToolSchema,
+)
 
 
 class PromptInfoMatcher:

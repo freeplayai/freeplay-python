@@ -1,7 +1,7 @@
 import json
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union, Literal
+from typing import Any, Dict, List, Literal, Optional, Union
 from uuid import UUID
 
 from requests import HTTPError
@@ -9,11 +9,19 @@ from requests import HTTPError
 from freeplay import api_support
 from freeplay.errors import FreeplayClientError, FreeplayError
 from freeplay.llm_parameters import LLMParameters
-from freeplay.model import InputVariables, OpenAIFunctionCall, TestRunInfo
-from freeplay.resources.prompts import PromptInfo, MediaInputMap, MediaInput, MediaInputUrl
+from freeplay.model import (
+    InputVariables,
+    MediaInput,
+    MediaInputMap,
+    MediaInputUrl,
+    OpenAIFunctionCall,
+    TestRunInfo,
+)
+from freeplay.resources.prompts import (
+    PromptInfo,
+)
 from freeplay.resources.sessions import SessionInfo, TraceInfo
 from freeplay.support import CallSupport
-
 
 logger = logging.getLogger(__name__)
 

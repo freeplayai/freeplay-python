@@ -1,10 +1,27 @@
 from dataclasses import dataclass
-from typing import List, Union, Any, Dict, Mapping, TypedDict, Literal
+from typing import Any, Dict, List, Literal, Mapping, TypedDict, Union
 
 InputValue = Union[str, int, bool, float, Dict[str, Any], List[Any]]
 InputVariables = Mapping[str, InputValue]
 TestRunInput = Mapping[str, InputValue]
 FeedbackValue = Union[bool, str, int, float]
+
+
+@dataclass
+class MediaInputUrl:
+    type: Literal["url"]
+    url: str
+
+
+@dataclass
+class MediaInputBase64:
+    type: Literal["base64"]
+    data: str
+    content_type: str
+
+
+MediaInput = Union[MediaInputUrl, MediaInputBase64]
+MediaInputMap = Dict[str, MediaInput]
 
 
 @dataclass

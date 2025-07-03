@@ -24,7 +24,11 @@ from freeplay.errors import (
     log_freeplay_client_warning,
 )
 from freeplay.llm_parameters import LLMParameters
-from freeplay.model import InputVariables
+from freeplay.model import (
+    InputVariables,
+    MediaInputMap,
+    MediaInputUrl,
+)
 from freeplay.resources.adapters import (
     MediaContentBase64,
     MediaContentUrl,
@@ -214,22 +218,6 @@ class BoundPrompt:
             )
 
 
-@dataclass
-class MediaInputUrl:
-    type: Literal["url"]
-    url: str
-
-
-@dataclass
-class MediaInputBase64:
-    type: Literal["base64"]
-    data: str
-    content_type: str
-
-
-MediaInput = Union[MediaInputUrl, MediaInputBase64]
-
-MediaInputMap = Dict[str, MediaInput]
 
 
 def extract_media_content(media_inputs: MediaInputMap, media_slots: List[MediaSlot]) -> List[

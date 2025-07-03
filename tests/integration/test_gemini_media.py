@@ -5,8 +5,8 @@ import unittest
 
 import requests
 
-from freeplay import Freeplay, CallInfo, RecordPayload
-from freeplay.resources.prompts import MediaInputBase64, MediaInputMap
+from freeplay import CallInfo, Freeplay, RecordPayload
+from freeplay.model import MediaInputBase64, MediaInputMap
 from tests.integration.data_support import encode_test_data
 from tests.slow_test_support import slow
 

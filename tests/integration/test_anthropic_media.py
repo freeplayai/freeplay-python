@@ -5,9 +5,8 @@ from typing import cast
 
 from anthropic import Anthropic, NotGiven
 
-from freeplay import Freeplay, CallInfo, RecordPayload
-from freeplay.model import TextBlock
-from freeplay.resources.prompts import MediaInputBase64, MediaInputMap
+from freeplay import CallInfo, Freeplay, RecordPayload
+from freeplay.model import MediaInputBase64, MediaInputMap, TextBlock
 from tests.integration.data_support import encode_test_data
 from tests.slow_test_support import slow
 

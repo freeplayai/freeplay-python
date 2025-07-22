@@ -5,7 +5,14 @@ from typing import Optional
 
 from anthropic import Anthropic, NotGiven
 
-from freeplay import Freeplay, RecordPayload, ResponseInfo, CallInfo, SessionInfo, TraceInfo
+from freeplay import (
+    CallInfo,
+    Freeplay,
+    RecordPayload,
+    ResponseInfo,
+    SessionInfo,
+    TraceInfo,
+)
 
 fpclient = Freeplay(
     freeplay_api_key=os.environ['FREEPLAY_API_KEY'],
@@ -95,11 +102,12 @@ for question in user_questions:
 
     print(f"Sending customer feedback for completion id: {bot_response['completion_id']}")
     fpclient.customer_feedback.update(
-        bot_response['completion_id'],
-        {
-            'is_it_good': random.choice(["nah", "yuh"]),
-            'topic': categorization_result['llm_response'],
-        }
+        project_id=project_id,
+        completion_id=bot_response["completion_id"],
+        feedback={
+            "is_it_good": random.choice(["nah", "yuh"]),
+            "topic": categorization_result["llm_response"],
+        },
     )
 
     trace_info.record_output(

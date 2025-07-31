@@ -48,17 +48,18 @@ for test_case in test_run.test_cases:
 
     record_results_messages(
         fp_client,
-        formatted_prompt,
+        project_id,
         all_messages,
         test_case.variables,
         session,
         start,
         end,
-        test_run_info,
-        {
+        test_run_info=test_run_info,
+        eval_results={
             'f1-score': 0.48,
             'is_non_empty': True
-        }
+        },
+        formatted_prompt=formatted_prompt
     )
 
     new_prompt = template_prompt.bind(test_case.variables, history=all_messages).format()
@@ -88,6 +89,7 @@ for test_case in test_run.test_cases:
 
     fp_client.recordings.create(
         RecordPayload(
+            project_id=project_id,
             all_messages=final_messages,
             session_info=session.session_info,
             inputs=test_case.variables,

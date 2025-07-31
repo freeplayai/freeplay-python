@@ -46,6 +46,7 @@ class TestBedrockConverse(unittest.TestCase):
 
         record_response = self.freeplay_client.recordings.create(
             RecordPayload(
+                project_id=self.project_id,
                 all_messages=[
                     *formatted_prompt.llm_prompt,
                     output_message,
@@ -85,6 +86,7 @@ class TestBedrockConverse(unittest.TestCase):
 
         record_response = self.freeplay_client.recordings.create(
             RecordPayload(
+                project_id=self.project_id,
                 all_messages=[
                     *formatted_prompt.llm_prompt,
                     output_message,

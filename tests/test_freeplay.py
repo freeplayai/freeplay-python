@@ -124,9 +124,7 @@ class TestFreeplay(TestCase):
             provider_info=None,
             provider='openai',
             model='model-name',
-            flavor_name='openai_chat',
-            project_id=self.project_id
-
+            flavor_name='openai_chat'
         )
         self.anthropic_prompt_info = PromptInfo(
             prompt_template_id=str(uuid.uuid4()),
@@ -137,8 +135,7 @@ class TestFreeplay(TestCase):
             provider_info=None,
             provider='anthropic',
             model='model-name',
-            flavor_name='anthropic_chat',
-            project_id=self.project_id
+            flavor_name='anthropic_chat'
         )
         self.sagemaker_llama_3_prompt_info = PromptInfo(
             prompt_template_id=str(uuid.uuid4()),
@@ -149,8 +146,7 @@ class TestFreeplay(TestCase):
             provider_info=None,
             provider='sagemaker',
             model='sagemaker-llama-3-model-name',
-            flavor_name='llama_3_chat',
-            project_id=self.project_id
+            flavor_name='llama_3_chat'
         )
         self.baseten_mistral_prompt_info = PromptInfo(
             prompt_template_id=str(uuid.uuid4()),
@@ -161,8 +157,7 @@ class TestFreeplay(TestCase):
             provider_info=None,
             provider='baseten',
             model='baseten-mistral-model-name',
-            flavor_name='baseten_mistral_chat',
-            project_id=self.project_id
+            flavor_name='baseten_mistral_chat'
         )
         self.mistral_prompt_info = PromptInfo(
             prompt_template_id=str(uuid.uuid4()),
@@ -173,8 +168,7 @@ class TestFreeplay(TestCase):
             provider_info=None,
             provider='bedrock',
             model='mistral-model-name',
-            flavor_name='mistral_chat',
-            project_id=self.project_id
+            flavor_name='mistral_chat'
         )
 
     @responses.activate
@@ -194,6 +188,7 @@ class TestFreeplay(TestCase):
 
         self.freeplay_thin.recordings.create(
             RecordPayload(
+                project_id=self.project_id,
                 all_messages=all_messages,
                 inputs=input_variables,
                 session_info=self.session_info,
@@ -322,6 +317,7 @@ class TestFreeplay(TestCase):
 
         self.freeplay_thin.recordings.create(
             RecordPayload(
+                project_id=self.project_id,
                 all_messages=[*formatted_prompt.llm_prompt, {"role": "assistant", "content": llm_response}],
                 inputs=input_variables,
                 media_inputs=media_inputs,
@@ -385,6 +381,7 @@ class TestFreeplay(TestCase):
         completion_id = uuid4()
         self.freeplay_thin.recordings.create(
             RecordPayload(
+                project_id=self.project_id,
                 completion_id=completion_id,
                 all_messages=all_messages,
                 inputs=input_variables,
@@ -463,6 +460,7 @@ class TestFreeplay(TestCase):
         # make initial record call
         record_response = self.freeplay_thin.recordings.create(
             RecordPayload(
+                project_id=self.project_id,
                 all_messages=formatted_prompt.llm_prompt,
                 # mimic state where we don't yet have the LLM response like batch api
                 inputs=input_variables,
@@ -525,6 +523,7 @@ class TestFreeplay(TestCase):
         )
         record_response = self.freeplay_thin.recordings.create(
             RecordPayload(
+                project_id=self.project_id,
                 # Function call has empty 'content'
                 all_messages=formatted_prompt.all_messages({'role': 'assistant'}),
                 inputs=input_variables,
@@ -1179,8 +1178,7 @@ class TestFreeplay(TestCase):
                 provider='openai',
                 provider_info=None,
                 model='gpt-3.5-turbo-1106',
-                flavor_name='openai_chat',
-                project_id=self.bundle_project_id
+                flavor_name='openai_chat'
             ),
             messages=[
                 TemplateChatMessage(role='system', content='You are a support agent'),
@@ -1204,8 +1202,7 @@ class TestFreeplay(TestCase):
                 provider='openai',
                 provider_info=None,
                 model='gpt-3.5-turbo-1106',
-                flavor_name='openai_chat',
-                project_id=self.bundle_project_id
+                flavor_name='openai_chat'
             ),
             messages=[
                 TemplateChatMessage(role='user', content='You are a support agent.'),
@@ -1230,8 +1227,7 @@ class TestFreeplay(TestCase):
                 provider='openai',
                 provider_info=None,
                 model='gpt-3.5-turbo-1106',
-                flavor_name='openai_chat',
-                project_id=self.bundle_project_id
+                flavor_name='openai_chat'
             ),
             messages=[
                 TemplateChatMessage(role='system', content='You are a support agent'),
@@ -1255,8 +1251,7 @@ class TestFreeplay(TestCase):
                 provider='openai',
                 provider_info={"anthropic_endpoint": "https://example2.com/anthropic"},
                 model='gpt-3.5-turbo-1106',
-                flavor_name='openai_chat',
-                project_id=self.bundle_project_id
+                flavor_name='openai_chat'
             ),
             messages=[
                 TemplateChatMessage(role='system', content='You are a support agent'),
@@ -1315,8 +1310,7 @@ class TestFreeplay(TestCase):
                 provider='openai',
                 provider_info={"anthropic_endpoint": "https://example2.com/anthropic"},
                 model='gpt-3.5-turbo-1106',
-                flavor_name='openai_chat',
-                project_id=self.bundle_project_id
+                flavor_name='openai_chat'
             ),
             messages=[
                 TemplateChatMessage(role='system', content='You are a support agent'),
@@ -1338,8 +1332,7 @@ class TestFreeplay(TestCase):
                 provider='openai',
                 provider_info={"anthropic_endpoint": "https://example2.com/anthropic"},
                 model='gpt-3.5-turbo-1106',
-                flavor_name='openai_chat',
-                project_id=self.bundle_project_id
+                flavor_name='openai_chat'
             ),
             messages=[
                 TemplateChatMessage(role='system', content='You are a support agent'),
@@ -1368,8 +1361,7 @@ class TestFreeplay(TestCase):
                 provider='openai',
                 provider_info={"anthropic_endpoint": "https://example2.com/anthropic"},
                 model='gpt-3.5-turbo-1106',
-                flavor_name='openai_chat',
-                project_id=self.bundle_project_id
+                flavor_name='openai_chat'
             ),
             messages=[{'content': 'You are a support agent', 'role': 'system'},
                       {'content': 'How can I help you?', 'role': 'assistant'},

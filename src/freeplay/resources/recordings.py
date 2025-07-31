@@ -1,8 +1,8 @@
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Literal, Optional, Union
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from requests import HTTPError
 
@@ -37,11 +37,11 @@ ApiStyle = Union[Literal['batch'], Literal['default']]
 
 @dataclass
 class CallInfo:
-    provider: str
-    model: str
-    start_time: float
-    end_time: float
-    model_parameters: LLMParameters
+    provider: Optional[str] = None
+    model: Optional[str] = None
+    start_time: Optional[float] = None
+    end_time: Optional[float] = None
+    model_parameters: Optional[LLMParameters] = None
     provider_info: Optional[Dict[str, Any]] = None
     usage: Optional[UsageTokens] = None
     api_style: Optional[ApiStyle] = None
@@ -77,12 +77,15 @@ class ResponseInfo:
 
 @dataclass
 class RecordPayload:
+    project_id: str
     all_messages: List[Dict[str, Any]]
-    inputs: InputVariables
 
-    session_info: SessionInfo
-    prompt_info: PromptInfo
-    call_info: CallInfo
+    session_info: SessionInfo = field(
+        default_factory=lambda: SessionInfo(session_id=str(uuid4()), custom_metadata=None)
+    )
+    inputs: Optional[InputVariables] = None
+    prompt_info: Optional[PromptInfo] = None
+    call_info: Optional[CallInfo] = None
     media_inputs: Optional[MediaInputMap] = None
     tool_schema: Optional[List[Dict[str, Any]]] = None
     response_info: Optional[ResponseInfo] = None
@@ -132,19 +135,25 @@ class Recordings:
             "inputs": record_payload.inputs,
             "tool_schema": record_payload.tool_schema,
             "session_info": {"custom_metadata": record_payload.session_info.custom_metadata},
-            "prompt_info": {
+            
+        }
+
+        if record_payload.prompt_info is not None:
+            record_api_payload["prompt_info"] = {
                 "environment": record_payload.prompt_info.environment,
                 "prompt_template_version_id": record_payload.prompt_info.prompt_template_version_id,
-            },
-            "call_info": {
+            }
+        
+        if record_payload.call_info is not None:
+            record_api_payload["call_info"] = {
                 "start_time": record_payload.call_info.start_time,
                 "end_time": record_payload.call_info.end_time,
                 "model": record_payload.call_info.model,
                 "provider": record_payload.call_info.provider,
                 "provider_info": record_payload.call_info.provider_info,
                 "llm_parameters": record_payload.call_info.model_parameters,
+                "api_style": record_payload.call_info.api_style,
             }
-        }
 
         if record_payload.completion_id is not None:
             record_api_payload['completion_id'] = str(record_payload.completion_id)
@@ -175,14 +184,11 @@ class Recordings:
                 "trace_id": record_payload.trace_info.trace_id
             }
 
-        if record_payload.call_info.usage is not None:
+        if record_payload.call_info is not None and record_payload.call_info.usage is not None:
             record_api_payload['call_info']['usage'] = {
                 "prompt_tokens": record_payload.call_info.usage.prompt_tokens,
                 "completion_tokens": record_payload.call_info.usage.completion_tokens,
             }
-
-        if record_payload.call_info.api_style is not None:
-            record_api_payload['call_info']['api_style'] = record_payload.call_info.api_style
 
         if record_payload.media_inputs is not None:
             record_api_payload['media_inputs'] = {
@@ -193,7 +199,7 @@ class Recordings:
         try:
             recorded_response = api_support.post_raw(
                 api_key=self.call_support.freeplay_api_key,
-                url=f'{self.call_support.api_base}/v2/projects/{record_payload.prompt_info.project_id}/sessions/{record_payload.session_info.session_id}/completions',
+                url=f'{self.call_support.api_base}/v2/projects/{record_payload.project_id}/sessions/{record_payload.session_info.session_id}/completions',
                 payload=record_api_payload
             )
             recorded_response.raise_for_status()

@@ -2,6 +2,19 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
+## [0.5.0] - TBD
+
+### Breaking changes
+- `RecordPayload` now requires `project_id` as the first parameter. All code creating `RecordPayload` instances must be updated to include this field.
+- `PromptInfo` no longer contains a `project_id` field. The project ID must now be accessed from the project context instead.
+
+### Changed
+- In `RecordPayload`, the following fields are now optional:
+  - `inputs` (Optional)
+  - `prompt_info` (Optional) 
+  - `call_info` (Optional)
+- `session_info` in `RecordPayload` now has a default value and will be automatically generated if not provided.
+
 ## [0.4.1] - 2025-06-30
 
 - Create a test run from the SDK with test cases with media in them.

@@ -48,6 +48,7 @@ for question in questions:
     session_id = fp_client.sessions.create()
     completion_info = fp_client.recordings.create(
         RecordPayload(
+            project_id=project_id,
             all_messages=formatted_prompt.messages,
             inputs=input_vars,
             session_info=session_id,

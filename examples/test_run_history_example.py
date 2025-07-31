@@ -106,6 +106,7 @@ def call_and_record(
 
     record_response = fpclient.recordings.create(
         RecordPayload(
+            project_id=project_id,
             all_messages=all_messages,
             session_info=session_info,
             inputs=input_variables,

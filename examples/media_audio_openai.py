@@ -54,6 +54,7 @@ response_info = ResponseInfo(is_complete=completion.choices[0].finish_reason == 
 
 record_response = fpclient.recordings.create(
     RecordPayload(
+        project_id=os.environ["FREEPLAY_PROJECT_ID"],
         all_messages=[
             *formatted_prompt.llm_prompt,
             {"role": "assistant", "content": response_content}

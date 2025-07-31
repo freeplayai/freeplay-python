@@ -44,6 +44,7 @@ response_info = ResponseInfo(
 
 record_response = fpclient.recordings.create(
     RecordPayload(
+        project_id=os.environ['FREEPLAY_PROJECT_ID'],
         all_messages=all_messages,
         session_info=session.session_info,
         inputs=input_variables,

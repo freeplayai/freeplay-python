@@ -55,18 +55,19 @@ for test_case in test_run.get_trace_test_cases():
 
     record_results_messages(
         fp_client,
-        formatted_prompt,
+        project_id,
         all_messages,
         {"name": test_case.input},
         session,
         start,
         end,
-        trace_info,
-        test_run_info,
-        {
+        trace_info=trace_info,
+        test_run_info=test_run_info,
+        eval_results={
             'f1-score': 0.48,
             'is_non_empty': True
-        }
+        },
+        formatted_prompt=formatted_prompt
     )
 
     new_prompt = template_prompt.bind({"name": test_case.input}).format()
@@ -96,6 +97,7 @@ for test_case in test_run.get_trace_test_cases():
 
     fp_client.recordings.create(
         RecordPayload(
+            project_id=project_id,
             all_messages=final_messages,
             session_info=session.session_info,
             inputs={"name": test_case.input},

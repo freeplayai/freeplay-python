@@ -73,6 +73,7 @@ for test_case in test_run.test_cases:
 
     fp_client.recordings.create(
         RecordPayload(
+            project_id=project_id,
             all_messages=all_messages,
             session_info=session.session_info,
             inputs=test_case.variables,

@@ -21,7 +21,7 @@ def get_freeplay_thin_client() -> Freeplay:
 
 def record_results_messages(
         client: Freeplay,
-        formatted_prompt: FormattedPrompt,
+        project_id: str,
         all_messages: Any,
         variables: Mapping[str, Any],
         session: Session,
@@ -29,14 +29,16 @@ def record_results_messages(
         end: float,
         trace_info: Optional[TraceInfo] = None,
         test_run_info: Optional[TestRunInfo] = None,
-        eval_results: Optional[Dict[str, Union[bool, float]]] = None
+        eval_results: Optional[Dict[str, Union[bool, float]]] = None,
+        formatted_prompt: Optional[FormattedPrompt] = None
 ) -> RecordResponse:
-    call_info = CallInfo(
-        formatted_prompt.prompt_info.provider,
-        model=formatted_prompt.prompt_info.model,
-        start_time=start,
-        end_time=end,
-        model_parameters=formatted_prompt.prompt_info.model_parameters)
+    if formatted_prompt is not None or (start is not None and end is not None):
+        call_info = CallInfo(
+            formatted_prompt.prompt_info.provider if formatted_prompt is not None else None,
+            model=formatted_prompt.prompt_info.model if formatted_prompt is not None else None,
+            start_time=start,
+            end_time=end,
+            model_parameters=formatted_prompt.prompt_info.model_parameters if formatted_prompt is not None else None)
 
     response_info = ResponseInfo(
         is_complete=True
@@ -44,10 +46,11 @@ def record_results_messages(
 
     return client.recordings.create(
         RecordPayload(
+            project_id=project_id,
             all_messages=all_messages,
             session_info=session.session_info,
             inputs=variables,
-            prompt_info=formatted_prompt.prompt_info,
+            prompt_info=formatted_prompt.prompt_info if formatted_prompt is not None else None,
             call_info=call_info,
             response_info=response_info,
             test_run_info=test_run_info,
@@ -59,6 +62,7 @@ def record_results_messages(
 
 def record_results(
         client: Freeplay,
+        project_id: str,
         formatted_prompt: FormattedPrompt,
         completion_content: MessageParam,
         variables: Dict[str, str],
@@ -84,6 +88,7 @@ def record_results(
 
     return client.recordings.create(
         RecordPayload(
+            project_id=project_id,
             all_messages=all_messages,
             session_info=session.session_info,
             inputs=variables,
@@ -98,6 +103,7 @@ def record_results(
 
 def record_results_from_bound(
         client: Freeplay,
+        project_id: str,
         prompt_info: PromptInfo,
         prompt_messages: List[Dict[str, str]],
         completion_content: str,
@@ -122,6 +128,7 @@ def record_results_from_bound(
 
     return client.recordings.create(
         RecordPayload(
+            project_id=project_id,
             all_messages=all_messages,
             session_info=session.session_info,
             inputs=variables,

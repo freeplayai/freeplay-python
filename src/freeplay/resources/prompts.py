@@ -100,8 +100,6 @@ class PromptInfo:
     provider: str
     model: str
     flavor_name: str
-    project_id: str
-
 
 class FormattedPrompt:
     def __init__(
@@ -540,7 +538,6 @@ class Prompts:
             model=model,
             flavor_name=prompt.metadata.flavor,
             provider_info=prompt.metadata.provider_info,
-            project_id=prompt.project_id
         )
 
         return TemplatePrompt(prompt_info, prompt.content, prompt.tool_schema)
@@ -576,7 +573,6 @@ class Prompts:
             model=model,
             flavor_name=prompt.metadata.flavor,
             provider_info=prompt.metadata.provider_info,
-            project_id=prompt.project_id
         )
 
         return TemplatePrompt(prompt_info, prompt.content, prompt.tool_schema)

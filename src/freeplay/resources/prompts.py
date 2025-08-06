@@ -191,7 +191,7 @@ class BoundPrompt:
             }
         elif flavor_name == "gemini_chat":
             try:
-                from vertexai.generative_models import Tool, FunctionDeclaration
+                from vertexai.generative_models import Tool, FunctionDeclaration  # type: ignore[import-untyped]
                 
                 function_declarations = [
                     FunctionDeclaration(

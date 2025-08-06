@@ -928,7 +928,7 @@ class TestFreeplay(TestCase):
     def test_prompt_format_with_tool_schema_gemini(self) -> None:
         # Import Vertex AI types for this test
         try:
-            from vertexai.generative_models import Tool
+            from vertexai.generative_models import Tool  # type: ignore[import-untyped]
             
             messages: List[TemplateMessage] = [
                 TemplateChatMessage(role='system', content='System message'),

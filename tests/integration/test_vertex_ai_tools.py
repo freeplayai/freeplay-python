@@ -1,8 +1,8 @@
 import os
 import unittest
+from typing import Any
 
 from freeplay import CallInfo, Freeplay, RecordPayload
-from freeplay.support import ToolSchema
 from tests.slow_test_support import slow
 
 
@@ -19,8 +19,8 @@ class TestVertexAITools(unittest.TestCase):
     def test_vertex_ai_function_calling(self) -> None:
         """Test that Vertex AI tool schema is properly formatted and can be used with the SDK."""
         try:
-            import vertexai
-            from vertexai.generative_models import Part, Content
+            import vertexai  # type: ignore[import-untyped]
+            from vertexai.generative_models import Part, Content  # type: ignore[import-untyped]
         except ImportError:
             self.skipTest("Vertex AI SDK not installed")
 
@@ -34,27 +34,28 @@ class TestVertexAITools(unittest.TestCase):
         input_variables = {'location': "San Francisco"}
         
         # Create a prompt with tool schema using Freeplay's format
-        tool_schemas = [
-            ToolSchema(
-                name='get_weather',
-                description='Get the current weather in a given location',
-                parameters={
-                    'type': 'object',
-                    'properties': {
-                        'location': {
-                            'type': 'string',
-                            'description': 'The city and state, e.g. San Francisco, CA'
-                        },
-                        'unit': {
-                            'type': 'string',
-                            'enum': ['celsius', 'fahrenheit'],
-                            'description': 'The unit of temperature'
-                        }
-                    },
-                    'required': ['location']
-                }
-            )
-        ]
+        # Expected tool schema with the prompt:
+        # tool_schemas = [
+        #     {
+        #         name='get_weather',
+        #         description='Get the current weather in a given location',
+        #         parameters={
+        #             'type': 'object',
+        #             'properties': {
+        #                 'location': {
+        #                     'type': 'string',
+        #                     'description': 'The city and state, e.g. San Francisco, CA'
+        #                 },
+        #                 'unit': {
+        #                     'type': 'string',
+        #                     'enum': ['celsius', 'fahrenheit'],
+        #                     'description': 'The unit of temperature'
+        #                 }
+        #             },
+        #             'required': ['location']
+        #         }
+        #     }
+        # ]
         
         # Get formatted prompt with tool schema
         formatted_prompt = self.freeplay_client.prompts.get_formatted(
@@ -63,7 +64,6 @@ class TestVertexAITools(unittest.TestCase):
             environment="latest",
             variables=input_variables,
             flavor_name="gemini_chat",
-            tool_schema=tool_schemas
         )
         
         # Override model to use a Gemini model
@@ -158,31 +158,32 @@ class TestVertexAITools(unittest.TestCase):
         except ImportError:
             self.skipTest("Vertex AI SDK not installed")
         
-        tool_schemas = [
-            ToolSchema(
-                name='get_weather',
-                description='Get the current weather',
-                parameters={
-                    'type': 'object',
-                    'properties': {
-                        'location': {'type': 'string', 'description': 'The location'}
-                    },
-                    'required': ['location']
-                }
-            ),
-            ToolSchema(
-                name='get_news',
-                description='Get the latest news',
-                parameters={
-                    'type': 'object',
-                    'properties': {
-                        'topic': {'type': 'string', 'description': 'The news topic'},
-                        'limit': {'type': 'integer', 'description': 'Number of articles'}
-                    },
-                    'required': ['topic']
-                }
-            )
-        ]
+        # Expected tool schema with the prompt:
+        # tool_schemas = [
+        #     {
+        #         name='get_weather',
+        #         description='Get the current weather',
+        #         parameters={
+        #             'type': 'object',
+        #             'properties': {
+        #                 'location': {'type': 'string', 'description': 'The location'}
+        #             },
+        #             'required': ['location']
+        #         }
+        #     },
+        #     {
+        #         name='get_news',
+        #         description='Get the latest news',
+        #         parameters={
+        #             'type': 'object',
+        #             'properties': {
+        #                 'topic': {'type': 'string', 'description': 'The news topic'},
+        #                 'limit': {'type': 'integer', 'description': 'Number of articles'}
+        #             },
+        #             'required': ['topic']
+        #         }
+        #     }
+        # ]
         
         # Get formatted prompt with multiple tools
         formatted_prompt = self.freeplay_client.prompts.get_formatted(
@@ -191,7 +192,6 @@ class TestVertexAITools(unittest.TestCase):
             environment="latest",
             variables={'query': 'test'},
             flavor_name="gemini_chat",
-            tool_schema=tool_schemas
         )
         
         # Verify the tool_schema contains one Tool with multiple FunctionDeclarations
@@ -224,7 +224,7 @@ class TestVertexAITools(unittest.TestCase):
         import builtins
         original_import = builtins.__import__
         
-        def mock_import(name, *args, **kwargs):
+        def mock_import(name: str, *args: Any, **kwargs: Any) -> Any:
             if 'vertexai' in name:
                 raise ImportError("No module named 'vertexai'")
             return original_import(name, *args, **kwargs)
@@ -235,14 +235,6 @@ class TestVertexAITools(unittest.TestCase):
         try:
             from freeplay.resources.prompts import VertexAIToolSchemaError
             
-            tool_schemas = [
-                ToolSchema(
-                    name='test_tool',
-                    description='Test tool',
-                    parameters={'type': 'object', 'properties': {}}
-                )
-            ]
-            
             # This should raise VertexAIToolSchemaError
             with self.assertRaises(VertexAIToolSchemaError):
                 self.freeplay_client.prompts.get_formatted(
@@ -251,7 +243,6 @@ class TestVertexAITools(unittest.TestCase):
                     environment="latest",
                     variables={},
                     flavor_name="gemini_chat",
-                    tool_schema=tool_schemas
                 )
         finally:
             # Restore original import

@@ -1,12 +1,10 @@
 import os
 import time
 
-from openai import OpenAI
-
-from freeplay import Freeplay, RecordPayload, ResponseInfo, CallInfo
+from freeplay import Freeplay, RecordPayload, CallInfo
 from freeplay.resources.recordings import UsageTokens
-
-# logging.basicConfig(level=logging.NOTSET)
+from openai import OpenAI
+from openai.types.responses import WebSearchToolParam
 
 fpclient = Freeplay(
     freeplay_api_key=os.environ['FREEPLAY_API_KEY'],
@@ -16,61 +14,58 @@ client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY")
 )
 
-input_variables = {'question': "why is the sky blue?"}
+input_variables = {'question': "search the internet and tell me about Freeplay's latest funding round"}
 
 project_id = os.environ['FREEPLAY_PROJECT_ID']
-prompt = fpclient.prompts.get(
-    project_id=os.environ['FREEPLAY_PROJECT_ID'],
-    template_name='my-openai-prompt',
-    environment='latest'
-)
-
-print(f"Tool Schema from simple prompt: {prompt.tool_schema}")
 
 formatted_prompt = fpclient.prompts.get_formatted(
     project_id=project_id,
-    template_name='my-openai-prompt',
+    template_name='witty-question',
     environment='latest',
     variables=input_variables
 )
 
-print(f"Tool schema: {formatted_prompt.tool_schema}")
-
 start = time.time()
-completion = client.chat.completions.create(
-    messages=formatted_prompt.llm_prompt,
+completion = client.responses.create(
+    input=formatted_prompt.llm_prompt,
     model=formatted_prompt.prompt_info.model,
-    tools=formatted_prompt.tool_schema,
+    include=["code_interpreter_call.outputs"],
+    tools=[WebSearchToolParam(type="web_search_preview")],
+    # TODO: Tool schema from prompt can't be used -- format has changed from chat completions API...
+    # FIX => format tool schema for responses API. Likely need a new flavor for the Openai Responses API
+    # tools=formatted_prompt.tool_schema,
     **formatted_prompt.prompt_info.model_parameters
 )
 end = time.time()
 print("Completion: %s" % completion)
 
 session = fpclient.sessions.create()
-messages = formatted_prompt.all_messages(completion.choices[0].message)
+# TODO: Rough edge: requires constructing a message format from text. This would drop tool calls, etc.
+# Fix => We could update our record payload to accept these messages/tool calls, etc.
+out_msg = {
+    'role': 'assistant',
+    'content': completion.output_text
+}
+
+messages = formatted_prompt.all_messages(out_msg)
 print(f"All messages: {messages}")
 call_info = CallInfo.from_prompt_info(
     formatted_prompt.prompt_info,
     start,
     end,
-    UsageTokens(completion.usage.prompt_tokens, completion.usage.completion_tokens),
+    UsageTokens(completion.usage.input_tokens, completion.usage.output_tokens),
     api_style='batch'
 )
-response_info = ResponseInfo(
-    is_complete=completion.choices[0].finish_reason == 'stop'
-)
-
 print(f"Messages: {messages}")
 record_response = fpclient.recordings.create(
     RecordPayload(
-        project_id=os.environ['FREEPLAY_PROJECT_ID'],
+        project_id=project_id,
         all_messages=messages,
         session_info=session.session_info,
         inputs=input_variables,
         prompt_info=formatted_prompt.prompt_info,
         call_info=call_info,
         tool_schema=formatted_prompt.tool_schema,
-        response_info=response_info,
     )
 )
 

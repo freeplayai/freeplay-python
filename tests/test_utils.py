@@ -4,7 +4,7 @@ from typing import Any, Dict
 
 from freeplay.errors import FreeplayError
 from freeplay.model import InputVariables
-from freeplay.utils import bind_template_variables, all_valid
+from freeplay.utils import bind_template_variables, all_valid, convert_provider_message_to_dict
 
 
 class TestUtils(unittest.TestCase):
@@ -151,3 +151,83 @@ class TestUtils(unittest.TestCase):
         variables = {'foo': [1, 'two', 3, 'four']}
         formatted = bind_template_variables(template, variables)
         self.assertEqual(formatted, '1two3four')
+
+    def test_convert_provider_message_to_dict_with_vertex_ai(self) -> None:
+        """Test that convert_provider_message_to_dict handles Vertex AI objects with to_dict() method."""
+        
+        # Mock a Vertex AI object with to_dict method
+        class MockVertexAIMessage:
+            def __init__(self, content: str):
+                self.content = content
+                self.role = "model"
+            
+            def to_dict(self) -> Dict[str, Any]:
+                return {"content": self.content, "role": self.role}
+        
+        # Test with Vertex AI mock object
+        vertex_msg = MockVertexAIMessage("Hello from Vertex AI")
+        result = convert_provider_message_to_dict(vertex_msg)
+        self.assertEqual(result, {"content": "Hello from Vertex AI", "role": "model"})
+        
+        # Test with regular dict (should pass through)
+        regular_dict = {"content": "Regular message", "role": "user"}
+        result = convert_provider_message_to_dict(regular_dict)
+        self.assertEqual(result, regular_dict)
+        
+        # Test with list of mixed objects
+        mixed_list = [
+            MockVertexAIMessage("First message"),
+            {"content": "Second message", "role": "user"},
+            MockVertexAIMessage("Third message")
+        ]
+        result = convert_provider_message_to_dict(mixed_list)
+        self.assertEqual(result, [
+            {"content": "First message", "role": "model"},
+            {"content": "Second message", "role": "user"},
+            {"content": "Third message", "role": "model"}
+        ])
+
+    def test_convert_provider_message_to_dict_with_pydantic(self) -> None:
+        """Test that convert_provider_message_to_dict handles Pydantic models."""
+        try:
+            from pydantic import BaseModel
+            
+            class PydanticMessage(BaseModel):
+                content: str
+                role: str
+            
+            # Test with Pydantic v2 model
+            pydantic_msg = PydanticMessage(content="Pydantic message", role="assistant")
+            result = convert_provider_message_to_dict(pydantic_msg)
+            self.assertEqual(result, {"content": "Pydantic message", "role": "assistant"})
+        except ImportError:
+            self.skipTest("Pydantic not installed")
+
+    def test_convert_provider_message_to_dict_with_nested_structures(self) -> None:
+        """Test conversion of nested structures with provider objects."""
+        
+        class MockProviderObject:
+            def __init__(self, data: Dict[str, Any]):
+                self.data = data
+            
+            def to_dict(self) -> Dict[str, Any]:
+                return self.data
+        
+        # Test nested structure
+        nested = {
+            "messages": [
+                MockProviderObject({"text": "Hello", "type": "text"}),
+                {"text": "World", "type": "text"}
+            ],
+            "metadata": MockProviderObject({"timestamp": 12345, "source": "test"})
+        }
+        
+        result = convert_provider_message_to_dict(nested)
+        expected = {
+            "messages": [
+                {"text": "Hello", "type": "text"},
+                {"text": "World", "type": "text"}
+            ],
+            "metadata": {"timestamp": 12345, "source": "test"}
+        }
+        self.assertEqual(result, expected)

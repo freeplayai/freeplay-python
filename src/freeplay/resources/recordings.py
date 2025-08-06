@@ -22,6 +22,7 @@ from freeplay.resources.prompts import (
 )
 from freeplay.resources.sessions import SessionInfo, TraceInfo
 from freeplay.support import CallSupport
+from freeplay.utils import convert_provider_message_to_dict
 
 logger = logging.getLogger(__name__)
 
@@ -129,6 +130,9 @@ class Recordings:
         if len(record_payload.all_messages) < 1:
             raise FreeplayClientError("Messages list must have at least one message. "
                                       "The last message should be the current response.")
+        
+        if record_payload.tool_schema is not None:
+            record_payload.tool_schema = [convert_provider_message_to_dict(tool) for tool in record_payload.tool_schema]
 
         record_api_payload: Dict[str, Any] = {
             "messages": record_payload.all_messages,

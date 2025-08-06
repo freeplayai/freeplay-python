@@ -8,7 +8,6 @@ from typing import (
     Any,
     Dict,
     List,
-    Literal,
     Optional,
     Protocol,
     Sequence,
@@ -56,7 +55,12 @@ logger = logging.getLogger(__name__)
 class UnsupportedToolSchemaError(FreeplayConfigurationError):
     def __init__(self) -> None:
         super().__init__(
-            f'Tool schema not supported for this model and provider.'
+            'Tool schema not supported for this model and provider.'
+        )
+class VertexAIToolSchemaError(FreeplayConfigurationError):
+    def __init__(self) -> None:
+        super().__init__(
+            'Vertex AI SDK not found. Install google-cloud-aiplatform to get proper Tool objects.'
         )
 
 
@@ -185,6 +189,21 @@ class BoundPrompt:
                     for tool_schema in tool_schema
                 ]
             }
+        elif flavor_name == "gemini_chat":
+            try:
+                from vertexai.generative_models import Tool, FunctionDeclaration
+                
+                function_declarations = [
+                    FunctionDeclaration(
+                        name=tool_schema.name,
+                        description=tool_schema.description,
+                        parameters=tool_schema.parameters
+                    )
+                    for tool_schema in tool_schema
+                ]
+                return [Tool(function_declarations=function_declarations)]
+            except ImportError:
+                raise VertexAIToolSchemaError()
 
         raise UnsupportedToolSchemaError()
 

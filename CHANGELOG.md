@@ -8,6 +8,25 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
 - `RecordPayload` now requires `project_id` as the first parameter. All code creating `RecordPayload` instances must be updated to include this field.
 - `PromptInfo` no longer contains a `project_id` field. The project ID must now be accessed from the project context instead.
 
+### Added
+- Support for Vertex AI tool calling. Example:
+  ```python
+  from vertexai.generative_models import GenerativeModel
+  
+  # Get formatted prompt with tool schema
+  formatted_prompt = fp_client.prompts.get(
+      project_id=project_id,
+      template_name='my-prompt',
+      environment='latest'
+  ).bind(input_variables).format()
+  
+  # Tool schema automatically converted to Vertex AI format
+  model = GenerativeModel(
+      model_name=formatted_prompt.prompt_info.model,
+      tools=formatted_prompt.tool_schema  # Returns list[Tool] for Vertex AI
+  )
+  ```
+
 ### Changed
 - In `RecordPayload`, the following fields are now optional:
   - `inputs` (Optional)

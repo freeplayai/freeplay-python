@@ -925,6 +925,70 @@ class TestFreeplay(TestCase):
             'type': 'function'
         } for tool_schema in tool_schema])
 
+    def test_prompt_format_with_tool_schema_gemini(self) -> None:
+        # Import Vertex AI types for this test
+        try:
+            from vertexai.generative_models import Tool
+            
+            messages: List[TemplateMessage] = [
+                TemplateChatMessage(role='system', content='System message'),
+                TemplateChatMessage(role='user', content='User message {{number}}')
+            ]
+            tool_schema = [
+                ToolSchema(name='get_weather', description='Get weather information',
+                          parameters={
+                              'type': 'object',
+                              'properties': {
+                                  'location': {'type': 'string', 'description': 'The city and state'},
+                                  'unit': {'type': 'string', 'description': 'Temperature unit', 'enum': ['celsius', 'fahrenheit']}
+                              },
+                              'required': ['location']
+                          })
+            ]
+
+            gemini_prompt_info = PromptInfo(
+                prompt_template_id=str(uuid.uuid4()),
+                prompt_template_version_id=str(uuid.uuid4()),
+                template_name='template-name',
+                environment='environment',
+                model_parameters=LLMParameters({}),
+                provider_info=None,
+                provider='vertex',
+                model='gemini-pro',
+                flavor_name='gemini_chat'
+            )
+
+            template_prompt = TemplatePrompt(
+                gemini_prompt_info,
+                messages=messages,
+                tool_schema=tool_schema
+            )
+
+            bound_prompt = template_prompt.bind({'number': 1})
+            formatted_prompt = bound_prompt.format()
+            
+            # Verify that the tool_schema is a list with one Tool object
+            self.assertIsInstance(formatted_prompt.tool_schema, list)
+            self.assertEqual(len(formatted_prompt.tool_schema), 1)
+            self.assertIsInstance(formatted_prompt.tool_schema[0], Tool)
+            
+            # Verify the function declarations within the Tool
+            # Access function declarations through _raw_tool (protobuf representation)
+            function_declarations = formatted_prompt.tool_schema[0]._raw_tool.function_declarations
+            self.assertEqual(len(function_declarations), 1)
+            
+            # Check the function declaration attributes
+            fd = function_declarations[0]
+            self.assertEqual(fd.name, 'get_weather')
+            self.assertEqual(fd.description, 'Get weather information')
+            
+            # The parameters are stored as protobuf Schema object
+            # We verify the structure exists rather than comparing deeply
+            self.assertIsNotNone(fd.parameters)
+            self.assertIn('location', str(fd.parameters))
+        except ImportError:
+            self.skipTest("Vertex AI SDK not installed")
+
     def test_anthropic_system_prompt_formatting__multiple_system_messages(self) -> None:
         bound_prompt = BoundPrompt(
             self.anthropic_prompt_info,

@@ -75,7 +75,10 @@ def get_user_agent() -> str:
 # Recursively convert Pydantic models, lists, and dicts to dict compatible format -- used to allow us to accept
 # provider message shapes (usually generated types) or the default {'content': ..., 'role': ...} shape.
 def convert_provider_message_to_dict(obj: Any) -> Any:
-    if hasattr(obj, 'model_dump'):
+    if hasattr(obj, 'to_dict') and callable(getattr(obj, 'to_dict')):
+        # Vertex AI has a to_dict method
+        return obj.to_dict()
+    elif hasattr(obj, 'model_dump'):
         # Pydantic v2
         return obj.model_dump(mode='json')
     elif hasattr(obj, 'dict'):

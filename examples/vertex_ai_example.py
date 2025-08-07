@@ -1,7 +1,7 @@
 import os
 
 import vertexai
-from vertexai.generative_models import GenerativeModel, Part
+from vertexai.generative_models import GenerativeModel, Part, Content
 
 from freeplay import Freeplay, RecordPayload, CallInfo
 from freeplay.utils import convert_provider_message_to_dict
@@ -56,7 +56,10 @@ if content.parts[0].function_call:
     # Build complete message history for recording
     all_messages = list(formatted_prompt.llm_prompt)  # Start with initial messages
     all_messages.append(content)
-    all_messages.append({'role': 'user', 'parts': [function_response_part]})
+    all_messages.append(Content(
+        role="user",
+        parts=[function_response_part]
+    ))
     all_messages.append(function_response.candidates[0].content)
 else:
     # For non-function-call responses

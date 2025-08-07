@@ -75,8 +75,42 @@ def get_user_agent() -> str:
 # Recursively convert Pydantic models, lists, and dicts to dict compatible format -- used to allow us to accept
 # provider message shapes (usually generated types) or the default {'content': ..., 'role': ...} shape.
 def convert_provider_message_to_dict(obj: Any) -> Any:
+    """
+    Convert provider message objects to dictionaries.
+    For Vertex AI objects, automatically converts to camelCase.
+    """
+    # List of possible raw attribute names in Vertex AI objects
+    vertex_raw_attrs = [
+        '_raw_content',      # For Content objects
+        '_raw_tool',         # For Tool objects  
+        '_raw_message',      # For message objects
+        '_raw_candidate',    # For Candidate objects
+        '_raw_response',     # For response objects
+        '_raw_function_declaration',  # For FunctionDeclaration
+        '_raw_generation_config',     # For GenerationConfig
+        '_pb',              # Generic protobuf attribute
+    ]
+    
+    # Check for Vertex AI objects with raw protobuf attributes
+    for attr_name in vertex_raw_attrs:
+        if hasattr(obj, attr_name):
+            raw_obj = getattr(obj, attr_name)
+            if raw_obj is not None:
+                try:
+                    # Use the metaclass to_dict with camelCase conversion
+                    return type(raw_obj).to_dict(
+                        raw_obj,
+                        preserving_proto_field_name=False,  # camelCase
+                        use_integers_for_enums=False,  # Keep as strings (we'll lowercase them)
+                        including_default_value_fields=False  # Exclude defaults
+                    )
+                except:  # noqa: E722
+                    # If we can't convert, continue to the next attribute
+                    pass
+    
+    # For non-Vertex AI objects, use their standard to_dict methods
     if hasattr(obj, 'to_dict') and callable(getattr(obj, 'to_dict')):
-        # Vertex AI has a to_dict method
+        # Regular to_dict (for Vertex AI wrappers without _raw_* attributes)
         return obj.to_dict()
     elif hasattr(obj, 'model_dump'):
         # Pydantic v2
@@ -85,7 +119,11 @@ def convert_provider_message_to_dict(obj: Any) -> Any:
         # Pydantic v1
         return obj.dict(encode_json=True)
     elif isinstance(obj, dict):
+        # Handle dictionaries recursively
         return {k: convert_provider_message_to_dict(v) for k, v in obj.items()}
     elif isinstance(obj, list):
+        # Handle lists recursively
         return [convert_provider_message_to_dict(item) for item in obj]
+    
+    # Return as-is for primitive types
     return obj

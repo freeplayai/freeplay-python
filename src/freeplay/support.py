@@ -1,6 +1,7 @@
 from dataclasses import asdict, dataclass, field
 from json import JSONEncoder
 from typing import Any, Dict, List, Literal, Optional, Union
+from uuid import UUID
 
 from freeplay import api_support
 from freeplay.api_support import try_decode
@@ -325,7 +326,8 @@ class CallSupport:
             include_outputs: bool = False,
             name: Optional[str] = None,
             description: Optional[str] = None,
-            flavor_name: Optional[str] = None
+            flavor_name: Optional[str] = None,
+            target_evaluation_ids: Optional[List[UUID]] = None
     ) -> TestRunResponse:
         response = api_support.post_raw(
             api_key=self.freeplay_api_key,
@@ -335,7 +337,8 @@ class CallSupport:
                 'include_outputs': include_outputs,
                 'test_run_name': name,
                 'test_run_description': description,
-                'flavor_name': flavor_name
+                'flavor_name': flavor_name,
+                'eval_criteria_ids': [str(id) for id in target_evaluation_ids] if target_evaluation_ids is not None else None
             },
         )
 

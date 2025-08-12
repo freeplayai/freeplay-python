@@ -1,5 +1,6 @@
 import warnings
 from dataclasses import dataclass
+from uuid import UUID
 from typing import Any, Dict, List, Optional, Union
 
 from freeplay.model import InputVariables, MediaInputBase64, MediaInputUrl, TestRunInfo
@@ -117,10 +118,11 @@ class TestRuns:
             include_outputs: bool = False,
             name: Optional[str] = None,
             description: Optional[str] = None,
-            flavor_name: Optional[str] = None
+            flavor_name: Optional[str] = None,
+            target_evaluation_ids: Optional[List[UUID]] = None,
     ) -> TestRun:
         test_run = self.call_support.create_test_run(
-            project_id, testlist, include_outputs, name, description, flavor_name)
+            project_id, testlist, include_outputs, name, description, flavor_name, target_evaluation_ids)
         test_cases = [
             CompletionTestCase(
                 test_case_id=test_case.id,

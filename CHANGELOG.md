@@ -26,6 +26,7 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
       tools=formatted_prompt.tool_schema  # Returns list[Tool] for Vertex AI
   )
   ```
+- Add new optional field `target_evaluation_ids` to `TestRuns.create()` to control which evaluations run as part of a test.
 
 ### Changed
 - In `RecordPayload`, the following fields are now optional:

@@ -338,7 +338,7 @@ class CallSupport:
                 'test_run_name': name,
                 'test_run_description': description,
                 'flavor_name': flavor_name,
-                'eval_criteria_ids': [str(id) for id in target_evaluation_ids] if target_evaluation_ids is not None else None
+                'target_evaluation_ids': [str(id) for id in target_evaluation_ids] if target_evaluation_ids is not None else None
             },
         )
 

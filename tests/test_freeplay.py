@@ -1635,7 +1635,7 @@ class TestFreeplay(TestCase):
 
         # Verify media_inputs is empty dict when None
         self.assertIn("media_inputs", example)
-        self.assertEqual(example["media_inputs"], {})
+        self.assertIsNone(example["media_inputs"])
 
     def __mock_freeplay_apis(self, template_name: str, environment: str = 'latest') -> None:
         responses.get(

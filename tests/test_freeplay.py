@@ -282,28 +282,29 @@ class TestFreeplay(TestCase):
             status=200,
             match=[matchers.query_param_matcher({'environment': 'some-tag'})],
             body=json.dumps({
-            "content": [
-                {"role": "system", "content": "Respond to the user's query"},
-                {"role": "user", "content": "{{query}}", "media_slots": [{"type": "image", "placeholder_name": "subject-image"}]}
-            ],
-            "format_version": 2,
-            "metadata": {
-                "flavor": "anthropic_chat",
-                "model": "claude-2.1",
-                "params": {
-                    "max_tokens_to_sample": 50,
-                    "temperature": 0.7
+                "content": [
+                    {"role": "system", "content": "Respond to the user's query"},
+                    {"role": "user", "content": "{{query}}",
+                     "media_slots": [{"type": "image", "placeholder_name": "subject-image"}]}
+                ],
+                "format_version": 2,
+                "metadata": {
+                    "flavor": "anthropic_chat",
+                    "model": "claude-2.1",
+                    "params": {
+                        "max_tokens_to_sample": 50,
+                        "temperature": 0.7
+                    },
+                    "provider": "anthropic",
+                    "provider_info": {
+                        "anthropic_endpoint": "https://example.com/anthropic"
+                    }
                 },
-                "provider": "anthropic",
-                "provider_info": {
-                    "anthropic_endpoint": "https://example.com/anthropic"
-                }
-            },
-            "project_id": self.project_id,
-            "prompt_template_id": str(uuid4()),
-            "prompt_template_name": "template-with-image",
-            "prompt_template_version_id": str(uuid4())
-        }))
+                "project_id": self.project_id,
+                "prompt_template_id": str(uuid4()),
+                "prompt_template_name": "template-with-image",
+                "prompt_template_version_id": str(uuid4())
+            }))
 
         _, call_info, formatted_prompt, response_info, session = self.__make_call(
             input_variables,
@@ -929,21 +930,22 @@ class TestFreeplay(TestCase):
         # Import Vertex AI types for this test
         try:
             from vertexai.generative_models import Tool  # type: ignore[import-untyped]
-            
+
             messages: List[TemplateMessage] = [
                 TemplateChatMessage(role='system', content='System message'),
                 TemplateChatMessage(role='user', content='User message {{number}}')
             ]
             tool_schema = [
                 ToolSchema(name='get_weather', description='Get weather information',
-                          parameters={
-                              'type': 'object',
-                              'properties': {
-                                  'location': {'type': 'string', 'description': 'The city and state'},
-                                  'unit': {'type': 'string', 'description': 'Temperature unit', 'enum': ['celsius', 'fahrenheit']}
-                              },
-                              'required': ['location']
-                          })
+                           parameters={
+                               'type': 'object',
+                               'properties': {
+                                   'location': {'type': 'string', 'description': 'The city and state'},
+                                   'unit': {'type': 'string', 'description': 'Temperature unit',
+                                            'enum': ['celsius', 'fahrenheit']}
+                               },
+                               'required': ['location']
+                           })
             ]
 
             gemini_prompt_info = PromptInfo(
@@ -966,22 +968,22 @@ class TestFreeplay(TestCase):
 
             bound_prompt = template_prompt.bind({'number': 1})
             formatted_prompt = bound_prompt.format()
-            
+
             # Verify that the tool_schema is a list with one Tool object
             self.assertIsInstance(formatted_prompt.tool_schema, list)
             self.assertEqual(len(formatted_prompt.tool_schema), 1)
             self.assertIsInstance(formatted_prompt.tool_schema[0], Tool)
-            
+
             # Verify the function declarations within the Tool
             # Access function declarations through _raw_tool (protobuf representation)
             function_declarations = formatted_prompt.tool_schema[0]._raw_tool.function_declarations
             self.assertEqual(len(function_declarations), 1)
-            
+
             # Check the function declaration attributes
             fd = function_declarations[0]
             self.assertEqual(fd.name, 'get_weather')
             self.assertEqual(fd.description, 'Get weather information')
-            
+
             # The parameters are stored as protobuf Schema object
             # We verify the structure exists rather than comparing deeply
             self.assertIsNotNone(fd.parameters)
@@ -1550,6 +1552,90 @@ class TestFreeplay(TestCase):
         self.assertEqual(dataset_result.test_cases[0].inputs, test_case.inputs)
         self.assertEqual(dataset_result.test_cases[0].output, test_case.output)
         self.assertEqual(dataset_result.test_cases[0].metadata, test_case.metadata)
+
+    @responses.activate
+    def test_insert_test_cases_with_media_inputs(self) -> None:
+        """Test creating test cases with media_inputs parameter."""
+        one_pixel_png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+
+        # Mock the API to capture the request body
+        self.__mock_test_case_insert_api()
+
+        # Create test cases with media inputs
+        media_inputs: MediaInputMap = {
+            "subject_image": MediaInputBase64(
+                type="base64",
+                content_type="image/png",
+                data=one_pixel_png
+            )
+        }
+
+        test_case: DatasetTestCase = DatasetTestCase(
+            history=None,
+            metadata={"test_type": "visual"},
+            inputs={"query": "What do you see in this image?"},
+            output="I see a test image.",
+            media_inputs=media_inputs
+        )
+
+        test_case_result = self.freeplay_thin.test_cases.create_many(self.project_id, self.dataset_id, [test_case])
+        self.assertEqual(test_case_result.dataset_id, self.dataset_id)
+
+        # Verify the request payload includes properly serialized media_inputs
+        create_test_cases_request = responses.calls[0].request
+        request_body = json.loads(create_test_cases_request.body)
+        self.assertIn("examples", request_body)
+
+        examples = request_body["examples"]
+        self.assertEqual(len(examples), 1)
+
+        example = examples[0]
+        self.assertEqual(example["inputs"], {"query": "What do you see in this image?"})
+        self.assertEqual(example["output"], "I see a test image.")
+        self.assertEqual(example["metadata"], {"test_type": "visual"})
+        self.assertIsNone(example["history"])
+
+        # Verify media_inputs serialization
+        self.assertIn("media_inputs", example)
+        media_inputs_json = example["media_inputs"]
+
+        expected_media_input = {
+            "type": "base64",
+            "content_type": "image/png",
+            "data": one_pixel_png
+        }
+        self.assertEqual(media_inputs_json["subject_image"], expected_media_input)
+
+    @responses.activate
+    def test_insert_test_cases_without_media_inputs(self) -> None:
+        """Test creating test cases without media_inputs parameter (None case)."""
+        self.__mock_test_case_insert_api()
+
+        # Create test case without media inputs  
+        test_case: DatasetTestCase = DatasetTestCase(
+            history=None,
+            metadata={"test_type": "text"},
+            inputs={"question": "Simple question"},
+            output="Simple answer"
+        )
+
+        test_case_result = self.freeplay_thin.test_cases.create_many(self.project_id, self.dataset_id, [test_case])
+        self.assertEqual(test_case_result.dataset_id, self.dataset_id)
+
+        # Verify the request payload
+        create_test_cases_request = responses.calls[0].request
+        request_body = json.loads(create_test_cases_request.body)
+        examples = request_body["examples"]
+        example = examples[0]
+
+        self.assertEqual(example["inputs"], {"question": "Simple question"})
+        self.assertEqual(example["output"], "Simple answer")
+        self.assertEqual(example["metadata"], {"test_type": "text"})
+        self.assertIsNone(example["history"])
+
+        # Verify media_inputs is empty dict when None
+        self.assertIn("media_inputs", example)
+        self.assertEqual(example["media_inputs"], {})
 
     def __mock_freeplay_apis(self, template_name: str, environment: str = 'latest') -> None:
         responses.get(

@@ -12,7 +12,7 @@ from freeplay.model import (
     MediaInputBase64,
     MediaInputUrl,
     NormalizedMessage,
-    TestRunInfo,
+    TestRunInfo, MediaInputMap, MediaInput,
 )
 
 CustomMetadata = Optional[Dict[str, Union[str, int, float, bool]]]
@@ -36,7 +36,6 @@ class ToolSchema:
 
 Role = Literal['system', 'user', 'assistant']
 
-
 MediaType = Literal["image", "audio", "video", "file"]
 
 
@@ -56,6 +55,7 @@ class TemplateChatMessage:
 @dataclass
 class HistoryTemplateMessage:
     kind: Literal["history"]
+
 
 TemplateMessage = Union[HistoryTemplateMessage, TemplateChatMessage]
 
@@ -93,6 +93,20 @@ class ProjectInfo:
 @dataclass
 class ProjectInfos:
     projects: List[ProjectInfo]
+
+
+def media_inputs_to_json(media_input: MediaInput) -> Dict[str, Any]:
+    if isinstance(media_input, MediaInputUrl):
+        return {
+            "type": media_input.type,
+            "url": media_input.url
+        }
+    else:
+        return {
+            "type": media_input.type,
+            "data": media_input.data,
+            "content_type": media_input.content_type
+        }
 
 
 class PromptTemplateEncoder(JSONEncoder):
@@ -177,12 +191,19 @@ class TestRunRetrievalResponse:
 
 
 class DatasetTestCaseRequest:
-    def __init__(self, history: Optional[List[NormalizedMessage]], inputs: InputVariables,
-                 metadata: Optional[Dict[str, str]], output: Optional[str]) -> None:
+    def __init__(
+            self,
+            history: Optional[List[NormalizedMessage]],
+            inputs: InputVariables,
+            metadata: Optional[Dict[str, str]],
+            output: Optional[str],
+            media_inputs: Optional[MediaInputMap] = None,
+    ) -> None:
         self.history: Optional[List[NormalizedMessage]] = history
         self.inputs: InputVariables = inputs
         self.metadata: Optional[Dict[str, str]] = metadata
         self.output: Optional[str] = output
+        self.media_inputs = media_inputs
 
 
 class DatasetTestCaseResponse:
@@ -338,7 +359,9 @@ class CallSupport:
                 'test_run_name': name,
                 'test_run_description': description,
                 'flavor_name': flavor_name,
-                'target_evaluation_ids': [str(id) for id in target_evaluation_ids] if target_evaluation_ids is not None else None
+                'target_evaluation_ids': [
+                    str(id) for id in target_evaluation_ids
+                ] if target_evaluation_ids is not None else None
             },
         )
 
@@ -406,13 +429,22 @@ class CallSupport:
         if response.status_code != 201:
             raise freeplay_response_error('Error while deleting session.', response)
 
-    def create_test_cases(self, project_id: str, dataset_id: str, test_cases: List[DatasetTestCaseRequest]) -> None:
+    def create_test_cases(
+            self,
+            project_id: str,
+            dataset_id: str,
+            test_cases: List[DatasetTestCaseRequest]
+    ) -> None:
         examples = [
             {
                 "history": test_case.history,
                 "output": test_case.output,
                 "metadata": test_case.metadata,
-                "inputs": test_case.inputs
+                "inputs": test_case.inputs,
+                "media_inputs": {
+                    name: media_inputs_to_json(media_input)
+                    for name, media_input in test_case.media_inputs.items()
+                } if test_case.media_inputs is not None else None
             } for test_case in test_cases]
         payload: Dict[str, Any] = {"examples": examples}
         url = f'{self.api_base}/v2/projects/{project_id}/datasets/id/{dataset_id}/test-cases'

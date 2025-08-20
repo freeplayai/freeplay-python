@@ -5,6 +5,7 @@ from openai import OpenAI
 
 from freeplay import Freeplay, CallInfo, ResponseInfo, RecordPayload
 from freeplay.resources.prompts import MediaInputUrl
+from freeplay.resources.test_cases import DatasetTestCase
 
 fpclient = Freeplay(
     freeplay_api_key=os.environ["FREEPLAY_API_KEY"],
@@ -61,5 +62,9 @@ record_response = fpclient.recordings.create(
         response_info=response_info,
     )
 )
+
+fpclient.test_cases.create_many(
+    os.environ["FREEPLAY_PROJECT_ID"], '6b3a0bbe-34dd-4773-8456-cd52305358ca',
+                                [DatasetTestCase(input_variables, response_content, [], {}, media_inputs)])
 
 print(f"Recorded completion ID: {record_response.completion_id}")

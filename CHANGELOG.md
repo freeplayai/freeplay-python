@@ -5,10 +5,14 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
 ## [0.5.0] - TBD
 
 ### Breaking changes
-- `RecordPayload` now requires `project_id` as the first parameter. All code creating `RecordPayload` instances must be updated to include this field.
-- `PromptInfo` no longer contains a `project_id` field. The project ID must now be accessed from the project context instead.
+
+- `RecordPayload` now requires `project_id` as the first parameter. All code creating `RecordPayload` instances must be
+  updated to include this field.
+- `PromptInfo` no longer contains a `project_id` field. The project ID must now be accessed from the project context
+  instead.
 
 ### Added
+
 - Support for Vertex AI tool calling. Example:
   ```python
   from vertexai.generative_models import GenerativeModel
@@ -26,13 +30,17 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
       tools=formatted_prompt.tool_schema  # Returns list[Tool] for Vertex AI
   )
   ```
-- Add new optional field `target_evaluation_ids` to `TestRuns.create()` to control which evaluations run as part of a test.
+- Add new optional field `target_evaluation_ids` to `TestRuns.create()` to control which evaluations run as part of a
+  test.
+- Test cases created via `create` or `create_many` may now specify `media_inputs` to programmatically create test cases
+  with images, audio, and other files.
 
 ### Changed
+
 - In `RecordPayload`, the following fields are now optional:
-  - `inputs` (Optional)
-  - `prompt_info` (Optional) 
-  - `call_info` (Optional)
+    - `inputs` (Optional)
+    - `prompt_info` (Optional)
+    - `call_info` (Optional)
 - `session_info` in `RecordPayload` now has a default value and will be automatically generated if not provided.
 
 ## [0.4.1] - 2025-06-30
@@ -42,21 +50,25 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
 ## 0.4.0 - 2025-06-26
 
 ### Breaking change
+
 - `customer_feedback.update_customer_feedback()` now requires a project_id parameter.
 
 ## 0.3.25 - 2025-06-24
 
 ### Added
+
 - New `download-all` CLI command that downloads all prompts across all projects within an account for bundling. Example:
     ```bash
     freeplay download-all --environment latest --output-dir ./prompts
     ```
-    This command automatically downloads all of prompts from all projects tagged with the given [environment](https://docs.freeplay.ai/docs/managing-prompts#specifying-environments).
+  This command automatically downloads all of prompts from all projects tagged with the
+  given [environment](https://docs.freeplay.ai/docs/managing-prompts#specifying-environments).
 
 ## 0.3.24 - 2025-05-29
 
 ### Added
-- Create test run with dataset that targets agent. Example: 
+
+- Create test run with dataset that targets agent. Example:
     ```python
     test_run = fp_client.test_runs.create(
         project_id,
@@ -81,9 +93,11 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
     ```
 
 ### Updated
-- Renamed `TestCase` dataclass to `CompletionTestCase` dataclass. The old `TestCase` is still exported as `TestCase` for backwards-compatibility, but is deprecated.
-- Both `CompletionTestCase` and `TraceTestCase` now surface `custom_metadata` field if it was supplied when the dataset was built.
 
+- Renamed `TestCase` dataclass to `CompletionTestCase` dataclass. The old `TestCase` is still exported as `TestCase` for
+  backwards-compatibility, but is deprecated.
+- Both `CompletionTestCase` and `TraceTestCase` now surface `custom_metadata` field if it was supplied when the dataset
+  was built.
 
 ## [0.3.22] - 2025-05-22
 
@@ -96,7 +110,6 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
 ### Added
 
 - Add support for Amazon Bedrock Converse flavor
-
 
 ## [0.3.21] - 2025-05-08
 
@@ -114,7 +127,9 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
 ### Added
 
-- Added support for images in prompt templates. Prompt templates created with media slots can be formatted using the Python SDK and sent as images to LLM providers using the media_inputs parameter:
+- Added support for images in prompt templates. Prompt templates created with media slots can be formatted using the
+  Python SDK and sent as images to LLM providers using the media_inputs parameter:
+
 ```
 self.freeplay_thin.prompts.get_formatted(
     project_id=self.project_id,
@@ -124,8 +139,8 @@ self.freeplay_thin.prompts.get_formatted(
     media_inputs=media_inputs,
 )
 ```
-Future releases will include file inputs and audio inputs.
 
+Future releases will include file inputs and audio inputs.
 
 ## [0.3.18] - 2025-04-30
 

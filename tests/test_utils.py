@@ -154,26 +154,26 @@ class TestUtils(unittest.TestCase):
 
     def test_convert_provider_message_to_dict_with_vertex_ai(self) -> None:
         """Test that convert_provider_message_to_dict handles Vertex AI objects with to_dict() method."""
-        
+
         # Mock a Vertex AI object with to_dict method
         class MockVertexAIMessage:
             def __init__(self, content: str):
                 self.content = content
                 self.role = "model"
-            
+
             def to_dict(self) -> Dict[str, Any]:
                 return {"content": self.content, "role": self.role}
-        
+
         # Test with Vertex AI mock object
         vertex_msg = MockVertexAIMessage("Hello from Vertex AI")
         result = convert_provider_message_to_dict(vertex_msg)
         self.assertEqual(result, {"content": "Hello from Vertex AI", "role": "model"})
-        
+
         # Test with regular dict (should pass through)
         regular_dict = {"content": "Regular message", "role": "user"}
         result = convert_provider_message_to_dict(regular_dict)
         self.assertEqual(result, regular_dict)
-        
+
         # Test with list of mixed objects
         mixed_list = [
             MockVertexAIMessage("First message"),
@@ -191,11 +191,11 @@ class TestUtils(unittest.TestCase):
         """Test that convert_provider_message_to_dict handles Pydantic models."""
         try:
             from pydantic import BaseModel
-            
+
             class PydanticMessage(BaseModel):
                 content: str
                 role: str
-            
+
             # Test with Pydantic v2 model
             pydantic_msg = PydanticMessage(content="Pydantic message", role="assistant")
             result = convert_provider_message_to_dict(pydantic_msg)
@@ -205,14 +205,14 @@ class TestUtils(unittest.TestCase):
 
     def test_convert_provider_message_to_dict_with_nested_structures(self) -> None:
         """Test conversion of nested structures with provider objects."""
-        
+
         class MockProviderObject:
             def __init__(self, data: Dict[str, Any]):
                 self.data = data
-            
+
             def to_dict(self) -> Dict[str, Any]:
                 return self.data
-        
+
         # Test nested structure
         nested = {
             "messages": [
@@ -221,7 +221,7 @@ class TestUtils(unittest.TestCase):
             ],
             "metadata": MockProviderObject({"timestamp": 12345, "source": "test"})
         }
-        
+
         result = convert_provider_message_to_dict(nested)
         expected = {
             "messages": [

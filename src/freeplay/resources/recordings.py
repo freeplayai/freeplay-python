@@ -21,7 +21,7 @@ from freeplay.resources.prompts import (
     PromptInfo,
 )
 from freeplay.resources.sessions import SessionInfo, TraceInfo
-from freeplay.support import CallSupport
+from freeplay.support import CallSupport, media_inputs_to_json
 from freeplay.utils import convert_provider_message_to_dict
 
 logger = logging.getLogger(__name__)
@@ -109,18 +109,7 @@ class RecordResponse:
     completion_id: str
 
 
-def media_inputs_to_json(media_input: MediaInput) -> Dict[str, Any]:
-    if isinstance(media_input, MediaInputUrl):
-        return {
-            "type": media_input.type,
-            "url": media_input.url
-        }
-    else:
-        return {
-            "type": media_input.type,
-            "data": media_input.data,
-            "content_type": media_input.content_type
-        }
+
 
 class Recordings:
     def __init__(self, call_support: CallSupport):

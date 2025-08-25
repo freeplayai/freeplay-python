@@ -10,9 +10,26 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
   updated to include this field.
 - `PromptInfo` no longer contains a `project_id` field. The project ID must now be accessed from the project context
   instead.
+- `RecordPayload.prompt_info` field has been renamed to `RecordPayload.prompt_version_info` and now accepts `PromptVersionInfo` objects. Existing `PromptInfo` objects can still be passed, but the field name must be updated:
+  ```python
+  # Before:
+  RecordPayload(
+      project_id=project_id,
+      all_messages=messages,
+      prompt_info=formatted_prompt.prompt_info
+  )
+  
+  # After:
+  RecordPayload(
+      project_id=project_id,
+      all_messages=messages,
+      prompt_version_info=formatted_prompt.prompt_info
+  )
+  ```
 
 ### Added
 
+- New `PromptVersionInfo` class that provides lightweight prompt version information with only `prompt_template_version_id` and optional `environment` fields. `PromptInfo` now inherits from this class.
 - Support for Vertex AI tool calling. Example:
   ```python
   from vertexai.generative_models import GenerativeModel
@@ -39,7 +56,7 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
 - In `RecordPayload`, the following fields are now optional:
     - `inputs` (Optional)
-    - `prompt_info` (Optional)
+    - `prompt_version_info` (Optional, renamed from `prompt_info`)
     - `call_info` (Optional)
 - `session_info` in `RecordPayload` now has a default value and will be automatically generated if not provided.
 

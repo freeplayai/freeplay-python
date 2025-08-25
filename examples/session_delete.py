@@ -48,7 +48,7 @@ record_response = fpclient.recordings.create(
         all_messages=all_messages,
         session_info=session.session_info,
         inputs=input_variables,
-        prompt_info=formatted_prompt.prompt_info,
+        prompt_version_info=formatted_prompt.prompt_info,
         call_info=call_info,
         response_info=response_info
     )

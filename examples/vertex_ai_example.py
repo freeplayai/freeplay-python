@@ -73,7 +73,7 @@ fp_client.recordings.create(
         project_id=os.environ['FREEPLAY_PROJECT_ID'],
         all_messages=all_messages_dict,
         inputs=input_variables,
-        prompt_info=formatted_prompt.prompt_info,
+        prompt_version_info=formatted_prompt.prompt_info,
         tool_schema=formatted_prompt.tool_schema,
         call_info=CallInfo(
             provider="vertex",

@@ -11,14 +11,13 @@ from freeplay.errors import FreeplayClientError, FreeplayError
 from freeplay.llm_parameters import LLMParameters
 from freeplay.model import (
     InputVariables,
-    MediaInput,
     MediaInputMap,
-    MediaInputUrl,
     OpenAIFunctionCall,
     TestRunInfo,
 )
 from freeplay.resources.prompts import (
     PromptInfo,
+    PromptVersionInfo,
 )
 from freeplay.resources.sessions import SessionInfo, TraceInfo
 from freeplay.support import CallSupport, media_inputs_to_json
@@ -85,7 +84,7 @@ class RecordPayload:
         default_factory=lambda: SessionInfo(session_id=str(uuid4()), custom_metadata=None)
     )
     inputs: Optional[InputVariables] = None
-    prompt_info: Optional[PromptInfo] = None
+    prompt_version_info: Optional[PromptVersionInfo] = None
     call_info: Optional[CallInfo] = None
     media_inputs: Optional[MediaInputMap] = None
     tool_schema: Optional[List[Dict[str, Any]]] = None
@@ -128,13 +127,12 @@ class Recordings:
             "inputs": record_payload.inputs,
             "tool_schema": record_payload.tool_schema,
             "session_info": {"custom_metadata": record_payload.session_info.custom_metadata},
-            
         }
 
-        if record_payload.prompt_info is not None:
+        if record_payload.prompt_version_info is not None:
             record_api_payload["prompt_info"] = {
-                "environment": record_payload.prompt_info.environment,
-                "prompt_template_version_id": record_payload.prompt_info.prompt_template_version_id,
+                "environment": record_payload.prompt_version_info.environment,
+                "prompt_template_version_id": record_payload.prompt_version_info.prompt_template_version_id,
             }
         
         if record_payload.call_info is not None:

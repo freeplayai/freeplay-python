@@ -103,7 +103,7 @@ for test_case in test_run.test_cases:
             all_messages=final_messages,
             session_info=session.session_info,
             inputs=test_case.variables,
-            prompt_info=formatted_prompt.prompt_info,
+            prompt_version_info=formatted_prompt.prompt_info,
             call_info=call_info,
             response_info=response_info,
             test_run_info=test_run_info,

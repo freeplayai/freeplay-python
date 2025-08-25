@@ -60,7 +60,7 @@ class TestOpenAIMedia(unittest.TestCase):
                 session_info=self.freeplay_client.sessions.create().session_info,
                 inputs=input_variables,
                 media_inputs=media_inputs,
-                prompt_info=formatted_prompt.prompt_info,
+                prompt_version_info=formatted_prompt.prompt_info,
                 call_info=CallInfo.from_prompt_info(formatted_prompt.prompt_info, time.time(), time.time() + 1),
             )
         )
@@ -106,7 +106,7 @@ class TestOpenAIMedia(unittest.TestCase):
                 session_info=self.freeplay_client.sessions.create().session_info,
                 inputs=input_variables,
                 media_inputs=media_inputs,
-                prompt_info=formatted_prompt.prompt_info,
+                prompt_version_info=formatted_prompt.prompt_info,
                 call_info=CallInfo.from_prompt_info(formatted_prompt.prompt_info, time.time(), time.time() + 1),
             )
         )
@@ -152,7 +152,7 @@ class TestOpenAIMedia(unittest.TestCase):
                 session_info=self.freeplay_client.sessions.create().session_info,
                 inputs=input_variables,
                 media_inputs=media_inputs,
-                prompt_info=formatted_prompt.prompt_info,
+                prompt_version_info=formatted_prompt.prompt_info,
                 call_info=CallInfo.from_prompt_info(formatted_prompt.prompt_info, time.time(), time.time() + 1),
             )
         )

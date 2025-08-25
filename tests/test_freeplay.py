@@ -192,7 +192,7 @@ class TestFreeplay(TestCase):
                 all_messages=all_messages,
                 inputs=input_variables,
                 session_info=self.session_info,
-                prompt_info=formatted_prompt.prompt_info,
+                prompt_version_info=formatted_prompt.prompt_info,
                 call_info=call_info,
                 tool_schema=formatted_prompt.tool_schema,
                 response_info=response_info,
@@ -323,7 +323,7 @@ class TestFreeplay(TestCase):
                 inputs=input_variables,
                 media_inputs=media_inputs,
                 session_info=self.session_info,
-                prompt_info=formatted_prompt.prompt_info,
+                prompt_version_info=formatted_prompt.prompt_info,
                 call_info=call_info,
                 tool_schema=formatted_prompt.tool_schema,
                 response_info=response_info,
@@ -387,7 +387,7 @@ class TestFreeplay(TestCase):
                 all_messages=all_messages,
                 inputs=input_variables,
                 session_info=self.session_info,
-                prompt_info=formatted_prompt.prompt_info,
+                prompt_version_info=formatted_prompt.prompt_info,
                 call_info=call_info,
                 response_info=response_info,
                 trace_info=trace_info,
@@ -466,7 +466,7 @@ class TestFreeplay(TestCase):
                 # mimic state where we don't yet have the LLM response like batch api
                 inputs=input_variables,
                 session_info=self.session_info,
-                prompt_info=formatted_prompt.prompt_info,
+                prompt_version_info=formatted_prompt.prompt_info,
                 call_info=call_info,
                 response_info=response_info,
             )
@@ -529,7 +529,7 @@ class TestFreeplay(TestCase):
                 all_messages=formatted_prompt.all_messages({'role': 'assistant'}),
                 inputs=input_variables,
                 session_info=self.session_info,
-                prompt_info=formatted_prompt.prompt_info,
+                prompt_version_info=formatted_prompt.prompt_info,
                 call_info=call_info,
                 response_info=response_info
             )

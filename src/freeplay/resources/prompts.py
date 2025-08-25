@@ -93,12 +93,17 @@ GenericProviderMessage = ProviderMessage
 
 
 # SDK-Exposed Classes
+
 @dataclass
-class PromptInfo:
+class PromptVersionInfo:
+    prompt_template_version_id: str
+    environment: Optional[str]
+
+@dataclass
+class PromptInfo(PromptVersionInfo):
     prompt_template_id: str
     prompt_template_version_id: str
     template_name: str
-    environment: Optional[str]
     model_parameters: LLMParameters
     provider_info: Optional[Dict[str, Any]]
     provider: str

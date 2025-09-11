@@ -2,7 +2,7 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
-## [0.5.1] - Unreleased
+## [0.5.2] - Unreleased
 
 ### Added
 

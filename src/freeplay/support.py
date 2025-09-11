@@ -400,6 +400,7 @@ class CallSupport:
             trace_id: str,
             input: str,
             output: str,
+            parent_id: Optional[UUID] = None,
             agent_name: Optional[str] = None,
             custom_metadata: CustomMetadata = None,
             eval_results: Optional[Dict[str, Union[bool, float]]] = None,
@@ -409,6 +410,7 @@ class CallSupport:
             'agent_name': agent_name,
             'input': input,
             'output': output,
+            'parent_id': str(parent_id) if parent_id else None,
             'custom_metadata': custom_metadata,
             'eval_results': eval_results,
             'test_run_info': asdict(test_run_info) if test_run_info else None

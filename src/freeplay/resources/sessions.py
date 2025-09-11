@@ -1,4 +1,4 @@
-import uuid
+from uuid import UUID, uuid4
 from dataclasses import dataclass
 from typing import Optional, Dict, Union
 
@@ -18,6 +18,7 @@ class TraceInfo:
     trace_id: str
     input: Optional[str] = None
     agent_name: Optional[str] = None
+    parent_id: Optional[UUID] = None
     custom_metadata: CustomMetadata = None
     _call_support: CallSupport
 
@@ -28,12 +29,14 @@ class TraceInfo:
             _call_support: CallSupport,
             input: Optional[str] = None,
             agent_name: Optional[str] = None,
+            parent_id: Optional[UUID] = None,
             custom_metadata: CustomMetadata = None,
     ):
         self.trace_id = trace_id
         self.session_id = session_id
         self.input = input
         self.agent_name = agent_name
+        self.parent_id = parent_id
         self.custom_metadata = custom_metadata
         self._call_support = _call_support
 
@@ -53,6 +56,7 @@ class TraceInfo:
             self.input,
             output,
             agent_name=self.agent_name,
+            parent_id=self.parent_id,
             custom_metadata=self.custom_metadata,
             eval_results=eval_results,
             test_run_info=test_run_info
@@ -78,11 +82,13 @@ class Session:
             self,
             input: str,
             agent_name: Optional[str] = None,
+            parent_id: Optional[UUID] = None,
             custom_metadata: CustomMetadata = None
     ) -> TraceInfo:
         return TraceInfo(
-            trace_id=str(uuid.uuid4()),
+            trace_id=str(uuid4()),
             session_id=self.session_id,
+            parent_id=parent_id,
             input=input,
             agent_name=agent_name,
             custom_metadata=custom_metadata,
@@ -91,9 +97,10 @@ class Session:
 
     def restore_trace(
             self,
-            trace_id: uuid.UUID,
+            trace_id: UUID,
             input: Optional[str],
             agent_name: Optional[str] = None,
+            parent_id: Optional[UUID] = None,
             custom_metadata: CustomMetadata = None
     ) -> TraceInfo:
         return TraceInfo(
@@ -101,6 +108,7 @@ class Session:
             session_id=self.session_id,
             input=input,
             agent_name=agent_name,
+            parent_id=parent_id,
             custom_metadata=custom_metadata,
             _call_support=self._call_support
         )
@@ -112,7 +120,7 @@ class Sessions:
 
     def create(self, custom_metadata: CustomMetadata = None) -> Session:
         return Session(
-            session_id=str(uuid.uuid4()),
+            session_id=str(uuid4()),
             custom_metadata=custom_metadata,
             _call_support=self.call_support,
         )

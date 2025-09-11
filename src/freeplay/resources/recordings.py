@@ -1,5 +1,6 @@
 import json
 import logging
+import warnings
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Literal, Optional, Union
 from uuid import UUID, uuid4
@@ -91,9 +92,11 @@ class RecordPayload:
     response_info: Optional[ResponseInfo] = None
     test_run_info: Optional[TestRunInfo] = None
     eval_results: Optional[Dict[str, Union[bool, float]]] = None
-    trace_info: Optional[TraceInfo] = None
+    parent_id: Optional[UUID] = None
     completion_id: Optional[UUID] = None
-
+    # Deprecated field support for backward compatibility
+    # This field will be removed in v0.6.0
+    trace_info: Optional[TraceInfo] = None
 
 @dataclass
 class RecordUpdatePayload:
@@ -114,7 +117,7 @@ class Recordings:
     def __init__(self, call_support: CallSupport):
         self.call_support = call_support
 
-    def create(self, record_payload: RecordPayload) -> RecordResponse:  # type: ignore
+    def create(self, record_payload: RecordPayload) -> RecordResponse:
         if len(record_payload.all_messages) < 1:
             raise FreeplayClientError("Messages list must have at least one message. "
                                       "The last message should be the current response.")
@@ -127,6 +130,7 @@ class Recordings:
             "inputs": record_payload.inputs,
             "tool_schema": record_payload.tool_schema,
             "session_info": {"custom_metadata": record_payload.session_info.custom_metadata},
+            "parent_id": str(record_payload.parent_id) if record_payload.parent_id is not None else None,
         }
 
         if record_payload.prompt_version_info is not None:
@@ -171,6 +175,7 @@ class Recordings:
             record_api_payload['eval_results'] = record_payload.eval_results
 
         if record_payload.trace_info is not None:
+            warnings.warn("trace_info in RecordPayload is deprecated and will be removed in v0.6.0. Use parent_id instead.", DeprecationWarning)
             record_api_payload['trace_info'] = {
                 "trace_id": record_payload.trace_info.trace_id
             }
@@ -211,6 +216,8 @@ class Recordings:
                       f'Status: {status_code}. {e.__class__}'
 
             raise FreeplayError(message) from e
+        
+        raise FreeplayError("Unexpected error occurred while recording to Freeplay.") 
 
     def update(self, record_update_payload: RecordUpdatePayload) -> RecordResponse:  # type: ignore
         record_update_api_payload: Dict[str, Any] = {

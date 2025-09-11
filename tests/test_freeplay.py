@@ -1,6 +1,7 @@
 import json
 import time
 import uuid
+import warnings
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, cast
@@ -41,7 +42,7 @@ from freeplay.resources.recordings import (
     ResponseInfo,
     UsageTokens,
 )
-from freeplay.resources.sessions import Session, SessionInfo
+from freeplay.resources.sessions import Session, SessionInfo, TraceInfo
 from freeplay.resources.test_cases import DatasetTestCase
 from freeplay.support import (
     HistoryTemplateMessage,
@@ -49,6 +50,7 @@ from freeplay.support import (
     TemplateMessage,
     ToolSchema,
 )
+from freeplay.support import CallSupport
 
 
 class PromptInfoMatcher:
@@ -380,19 +382,22 @@ class TestFreeplay(TestCase):
             custom_metadata=trace_metadata
         )
         completion_id = uuid4()
-        self.freeplay_thin.recordings.create(
-            RecordPayload(
-                project_id=self.project_id,
-                completion_id=completion_id,
-                all_messages=all_messages,
-                inputs=input_variables,
-                session_info=self.session_info,
-                prompt_version_info=formatted_prompt.prompt_info,
-                call_info=call_info,
-                response_info=response_info,
-                trace_info=trace_info,
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            
+            self.freeplay_thin.recordings.create(
+                RecordPayload(
+                    project_id=self.project_id,
+                    completion_id=completion_id,
+                    all_messages=all_messages,
+                    inputs=input_variables,
+                    session_info=self.session_info,
+                    prompt_version_info=formatted_prompt.prompt_info,
+                    call_info=call_info,
+                    response_info=response_info,
+                    trace_info=trace_info,
+                )
             )
-        )
 
         record_api_request = responses.calls[1].request
         recorded_body_dom = json.loads(record_api_request.body)
@@ -445,6 +450,195 @@ class TestFreeplay(TestCase):
             "test_case_id",
             recorded_trace_body_dom['test_run_info']['test_case_id']
         )
+
+    @responses.activate
+    def test_record_trace_deprecation_warning(self) -> None:
+        """Test that using trace_info parameter issues deprecation warning."""
+        self.__mock_freeplay_apis(self.prompt_template_name, self.tag)
+
+        input_variables = {"name": "Sparkles", "question": "Why isn't my door working"}
+        llm_response = 'This is the response from the LLM'
+
+        all_messages, call_info, formatted_prompt, response_info, session = self.__make_call(
+            input_variables=input_variables,
+            llm_response=llm_response
+        )
+
+        trace_metadata: CustomMetadata = {'bool_field': True, 'float_field': 1.2}
+        trace_info = session.create_trace(
+            input=input_variables['question'],
+            agent_name='agent_name',
+            custom_metadata=trace_metadata
+        )
+
+        # Test that using trace_info issues deprecation warning when creating record
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            
+            record_payload = RecordPayload(
+                project_id=self.project_id,
+                completion_id=uuid4(),
+                all_messages=all_messages,
+                inputs=input_variables,
+                session_info=self.session_info,
+                prompt_version_info=formatted_prompt.prompt_info,
+                call_info=call_info,
+                response_info=response_info,
+                trace_info=trace_info,
+            )
+            
+            # Create the record - this is where the deprecation warning is issued
+            self.freeplay_thin.recordings.create(record_payload)
+            
+            # Verify deprecation warning was issued
+            self.assertTrue(len(w) > 0)
+            self.assertTrue(any("trace_info in RecordPayload is deprecated" in str(warning.message) for warning in w))
+
+    @responses.activate
+    def test_record_trace_with_parent_id(self) -> None:
+        self.__mock_freeplay_apis(self.prompt_template_name, self.tag)
+
+        input_variables = {"name": "Sparkles", "question": "Why isn't my door working"}
+        llm_response = 'This is the response from the LLM'
+
+        all_messages, call_info, formatted_prompt, response_info, session = self.__make_call(
+            input_variables=input_variables,
+            llm_response=llm_response
+        )
+
+        parent_id = uuid4()
+        completion_id = uuid4()
+        
+        self.freeplay_thin.recordings.create(
+            RecordPayload(
+                project_id=self.project_id,
+                completion_id=completion_id,
+                all_messages=all_messages,
+                inputs=input_variables,
+                session_info=self.session_info,
+                prompt_version_info=formatted_prompt.prompt_info,
+                call_info=call_info,
+                response_info=response_info,
+                parent_id=parent_id,
+            )
+        )
+
+        record_api_request = responses.calls[1].request
+        recorded_body_dom = json.loads(record_api_request.body)
+
+        self.assertEqual(
+            str(completion_id),
+            recorded_body_dom['completion_id']
+        )
+        self.assertEqual(
+            str(parent_id),
+            recorded_body_dom['parent_id']
+        )
+
+    def test_trace_hierarchy_creation(self) -> None:
+        session = self.freeplay_thin.sessions.create(custom_metadata={'test': 'metadata'})
+        
+        # Create parent trace
+        parent_trace = session.create_trace(
+            input="Parent question",
+            agent_name="parent_agent",
+            custom_metadata={"level": "parent"}
+        )
+        
+        # Create child trace with parent_id using the parent trace's ID
+        parent_id_uuid = uuid.UUID(parent_trace.trace_id)
+        child_trace = session.create_trace(
+            input="Child question",
+            agent_name="child_agent", 
+            parent_id=parent_id_uuid,
+            custom_metadata={"level": "child"}
+        )
+        
+        # Verify parent trace was created correctly
+        self.assertEqual(parent_trace.agent_name, "parent_agent")
+        self.assertEqual(parent_trace.input, "Parent question")
+        self.assertIsNone(parent_trace.parent_id)  # Parent has no parent
+        
+        # Verify child trace has parent_id set correctly
+        self.assertIsNotNone(child_trace.parent_id)
+        self.assertEqual(child_trace.parent_id, parent_id_uuid)
+        self.assertEqual(child_trace.agent_name, "child_agent")
+        self.assertEqual(child_trace.input, "Child question")
+
+    def test_trace_info_with_parent_id(self) -> None:
+        mock_call_support = CallSupport(
+            api_base="http://test", 
+            freeplay_api_key="test_key"
+        )
+        
+        parent_id = uuid4()
+        trace_info = TraceInfo(
+            trace_id="test_trace_id",
+            session_id="test_session_id",
+            input="test input",
+            agent_name="test_agent",
+            parent_id=parent_id,
+            custom_metadata={"test": "value"},
+            _call_support=mock_call_support
+        )
+        
+        # Verify all fields are properly set
+        self.assertEqual(trace_info.trace_id, "test_trace_id")
+        self.assertEqual(trace_info.session_id, "test_session_id")
+        self.assertEqual(trace_info.input, "test input")
+        self.assertEqual(trace_info.agent_name, "test_agent")
+        self.assertEqual(trace_info.parent_id, parent_id)
+        self.assertEqual(trace_info.custom_metadata, {"test": "value"})
+
+    @responses.activate
+    def test_trace_info_vs_parent_id_equivalence(self) -> None:
+        self.__mock_freeplay_apis(self.prompt_template_name, self.tag)
+
+        input_variables = {"name": "Sparkles", "question": "Why isn't my door working"}
+        llm_response = 'This is the response from the LLM'
+
+        all_messages, call_info, formatted_prompt, response_info, session = self.__make_call(
+            input_variables=input_variables,
+            llm_response=llm_response
+        )
+
+        trace_info = session.create_trace(
+            input=input_variables['question'],
+            agent_name='agent_name',
+            custom_metadata={'bool_field': True, 'float_field': 1.2}
+        )
+
+        # Using deprecated trace_info
+        record_payload_old = RecordPayload(
+            project_id=self.project_id,
+            completion_id=uuid4(),
+            all_messages=all_messages,
+            inputs=input_variables,
+            session_info=self.session_info,
+            prompt_version_info=formatted_prompt.prompt_info,
+            call_info=call_info,
+            response_info=response_info,
+            trace_info=trace_info,
+        )
+            
+        # Using new parent_id (extract trace_id from trace_info)
+        record_payload_new = RecordPayload(
+            project_id=self.project_id,
+            completion_id=uuid4(),
+            all_messages=all_messages,
+            inputs=input_variables,
+            session_info=self.session_info,
+            prompt_version_info=formatted_prompt.prompt_info,
+            call_info=call_info,
+            response_info=response_info,
+            parent_id=uuid.UUID(trace_info.trace_id),
+        )
+
+        # Both should have the same trace information (though accessed differently)
+        self.assertIsNotNone(record_payload_old.trace_info)
+        assert record_payload_old.trace_info is not None  # type guard
+        self.assertEqual(record_payload_old.trace_info.trace_id, trace_info.trace_id)
+        self.assertEqual(str(record_payload_new.parent_id), trace_info.trace_id)
 
     @responses.activate
     def test_update_record(self) -> None:

@@ -2,6 +2,40 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
+## [0.5.1] - Unreleased
+
+### Added
+
+- New `parent_id` parameter in `RecordPayload` to replace the deprecated `trace_info` parameter. This UUID field enables direct parent-child trace/completions relationships:
+  ```python
+  # Before (deprecated):
+  RecordPayload(
+      project_id=project_id,
+      all_messages=messages,
+      trace_info=trace_info
+  )
+  
+  # After:
+  RecordPayload(
+      project_id=project_id,
+      all_messages=messages,
+      parent_id=parent_id  # UUID of parent trace or completion
+  )
+  ```
+- `parent_id` parameter support in `Session.create_trace()`:
+  ```python
+  parent_trace = session.create_trace(input="Parent question", agent_name="parent_agent")
+  child_trace = session.create_trace(
+      input="Child question", 
+      agent_name="child_agent",
+      parent_id=uuid.UUID(parent_trace.trace_id) # Or it can be an ID of a completion
+  )
+  ```
+- `parent_id` parameter in `Session.restore_trace()` method
+
+### Change
+- `RecordPayload.trace_info` parameter is deprecated and will be removed in v0.6.0. Use `parent_id` instead for trace hierarchy management.
+
 ## [0.5.0] - 2025-08-28
 
 ### Breaking changes

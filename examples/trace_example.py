@@ -1,6 +1,7 @@
 import os
 import random
 import time
+from uuid import UUID
 from typing import Optional
 
 from anthropic import Anthropic, NotGiven
@@ -11,7 +12,6 @@ from freeplay import (
     RecordPayload,
     ResponseInfo,
     SessionInfo,
-    TraceInfo,
 )
 
 fpclient = Freeplay(
@@ -31,7 +31,7 @@ def call_and_record(
         env: str,
         input_variables: dict,
         session_info: SessionInfo,
-        trace_info: Optional[TraceInfo] = None
+        parent_id: Optional[UUID] = None
 ) -> dict:
     formatted_prompt = fpclient.prompts.get_formatted(
         project_id=project_id,
@@ -71,7 +71,7 @@ def call_and_record(
             prompt_version_info=formatted_prompt.prompt_info,
             call_info=call_info,
             response_info=response_info,
-            trace_info=trace_info,
+            parent_id=parent_id,
         )
     )
 
@@ -82,15 +82,16 @@ def call_and_record(
 user_questions = ["answer life's most existential questions", "what is sand?", "how tall are lions?"]
 
 session = fpclient.sessions.create({"metadata_123": "blah"})
+last_trace_id = None
 for question in user_questions:
-    trace_info = session.create_trace(agent_name="mr-secret-agent", input=question, custom_metadata={"metadata_key": "hello"})
+    trace_info = session.create_trace(agent_name="mr-secret-agent", input=question, custom_metadata={"metadata_key": "hello"}, parent_id=last_trace_id)
     bot_response = call_and_record(
         project_id=project_id,
         template_name='my-anthropic-prompt',
         env='latest',
         input_variables={'question': question},
         session_info=session.session_info,
-        trace_info=trace_info
+        parent_id=last_trace_id if last_trace_id else trace_info.trace_id
     )
     categorization_result = call_and_record(
         project_id=project_id,
@@ -98,7 +99,7 @@ for question in user_questions:
         env='latest',
         input_variables={'question': question},
         session_info=session.session_info,
-        trace_info=trace_info
+        parent_id=bot_response['completion_id']
     )
 
     print(f"Sending customer feedback for completion id: {bot_response['completion_id']}")
@@ -122,3 +123,4 @@ for question in user_questions:
     }
     fpclient.customer_feedback.update_trace(project_id, trace_info.trace_id, trace_feedback)
     print(f"Trace info id: {trace_info.trace_id}")
+    last_trace_id = trace_info.trace_id

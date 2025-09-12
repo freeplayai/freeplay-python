@@ -9,25 +9,25 @@ from freeplay import Freeplay
 from freeplay.resources.prompts import FilesystemTemplateResolver
 
 fp_client = Freeplay(
-    freeplay_api_key=os.environ['FREEPLAY_API_KEY'],
+    freeplay_api_key=os.environ["FREEPLAY_API_KEY"],
     api_base=f"{os.environ['FREEPLAY_API_URL']}/api",
-    template_resolver=FilesystemTemplateResolver(Path(os.environ['FREEPLAY_TEMPLATE_DIRECTORY']))
+    template_resolver=FilesystemTemplateResolver(
+        Path(os.environ["FREEPLAY_TEMPLATE_DIRECTORY"])
+    ),
 )
-client = Anthropic(
-    api_key=os.environ.get("ANTHROPIC_API_KEY")
-)
+client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
-input_variables = {'question': "Why isn't my door working?"}
+input_variables = {"question": "Why isn't my door working?"}
 history = [
     {"role": "user", "content": "User message 1"},
-    {"role": "assistant", "content": "Assistant message 1"}
+    {"role": "assistant", "content": "Assistant message 1"},
 ]
 formatted_prompt = fp_client.prompts.get_formatted(
-    project_id=os.environ['FREEPLAY_PROJECT_ID'],
-    template_name='my-anthropic-history-prompt',
-    environment='latest',
+    project_id=os.environ["FREEPLAY_PROJECT_ID"],
+    template_name="my-anthropic-history-prompt",
+    environment="latest",
     variables=input_variables,
-    history=history
+    history=history,
 )
 
 print(f"Ready for LLM: {formatted_prompt.llm_prompt}")
@@ -37,7 +37,7 @@ completion = client.messages.create(
     system=formatted_prompt.system_content or NotGiven(),
     messages=formatted_prompt.llm_prompt,
     model=formatted_prompt.prompt_info.model,
-    **formatted_prompt.prompt_info.model_parameters
+    **formatted_prompt.prompt_info.model_parameters,
 )
 end = time.time()
 print("Completion: %s" % completion.content[0].text)
@@ -51,5 +51,5 @@ record_results(
     input_variables,
     session,
     start,
-    end
+    end,
 )

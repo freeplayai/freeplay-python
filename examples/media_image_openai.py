@@ -17,18 +17,13 @@ input_variables = {"question": "Describe what's in this image"}
 
 image_url = "https://images.pexels.com/photos/30614903/pexels-photo-30614903/free-photo-of-aerial-view-of-bilbao-city-and-guggenheim-museum.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
 
-media_inputs = {
-    'some-image': MediaInputUrl(
-        type="url",
-        url=image_url
-    )
-}
+media_inputs = {"some-image": MediaInputUrl(type="url", url=image_url)}
 formatted_prompt = fpclient.prompts.get_formatted(
     project_id=os.environ["FREEPLAY_PROJECT_ID"],
     template_name="media",
     environment="latest",
     variables=input_variables,
-    media_inputs=media_inputs
+    media_inputs=media_inputs,
 )
 
 start = time.time()
@@ -51,7 +46,7 @@ record_response = fpclient.recordings.create(
         project_id=os.environ["FREEPLAY_PROJECT_ID"],
         all_messages=[
             *formatted_prompt.llm_prompt,
-            {"role": "assistant", "content": response_content}
+            {"role": "assistant", "content": response_content},
         ],
         session_info=session.session_info,
         inputs=input_variables,
@@ -64,7 +59,9 @@ record_response = fpclient.recordings.create(
 )
 
 fpclient.test_cases.create_many(
-    os.environ["FREEPLAY_PROJECT_ID"], '6b3a0bbe-34dd-4773-8456-cd52305358ca',
-                                [DatasetTestCase(input_variables, response_content, [], {}, media_inputs)])
+    os.environ["FREEPLAY_PROJECT_ID"],
+    "6b3a0bbe-34dd-4773-8456-cd52305358ca",
+    [DatasetTestCase(input_variables, response_content, [], {}, media_inputs)],
+)
 
 print(f"Recorded completion ID: {record_response.completion_id}")

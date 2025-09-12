@@ -1,25 +1,21 @@
 #!/usr/bin/env bash
 
-echo "Checking Python version..."
+echo "Setting up uv environment..."
 echo
 
-if ! which pyenv > /dev/null 2>&1; then
-  echo "No pyenv found. Please install."
+if ! which uv > /dev/null 2>&1; then
+  echo "No uv found. Please install uv first:"
+  echo "brew install uv"
+  exit 1
 fi
 
-if pyenv versions | grep '^[*]*\s*3.8.*' > /dev/null 2>&1; then
-  echo "Python 3.8 is installed."
-else
-  echo "Installing Python 3.8..."
-  pyenv install 3.8
-fi
-
-pyenv local
-
-poetry env use $(pyenv which python)
+echo "Installing dependencies with uv..."
+uv sync --group dev
 
 echo
-echo "Poetry Environment"
+echo "UV Environment Info"
 echo "=================="
-poetry env info
+echo "uv version: $(uv --version)"
+echo "Python version: $(uv run python --version)"
+echo "Virtual environment: $(uv venv --help > /dev/null 2>&1 && echo 'Managed by uv' || echo 'Not found')"
 echo

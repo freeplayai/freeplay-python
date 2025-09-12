@@ -23,14 +23,14 @@ class TraceInfo:
     _call_support: CallSupport
 
     def __init__(
-            self,
-            trace_id: str,
-            session_id: str,
-            _call_support: CallSupport,
-            input: Optional[str] = None,
-            agent_name: Optional[str] = None,
-            parent_id: Optional[UUID] = None,
-            custom_metadata: CustomMetadata = None,
+        self,
+        trace_id: str,
+        session_id: str,
+        _call_support: CallSupport,
+        input: Optional[str] = None,
+        agent_name: Optional[str] = None,
+        parent_id: Optional[UUID] = None,
+        custom_metadata: CustomMetadata = None,
     ):
         self.trace_id = trace_id
         self.session_id = session_id
@@ -41,11 +41,11 @@ class TraceInfo:
         self._call_support = _call_support
 
     def record_output(
-            self,
-            project_id: str,
-            output: str,
-            eval_results: Optional[Dict[str, Union[bool, float]]] = None,
-            test_run_info: Optional[TestRunInfo] = None
+        self,
+        project_id: str,
+        output: str,
+        eval_results: Optional[Dict[str, Union[bool, float]]] = None,
+        test_run_info: Optional[TestRunInfo] = None,
     ) -> None:
         if self.input is None:
             raise FreeplayClientError("Input must be set before recording output")
@@ -59,7 +59,7 @@ class TraceInfo:
             parent_id=self.parent_id,
             custom_metadata=self.custom_metadata,
             eval_results=eval_results,
-            test_run_info=test_run_info
+            test_run_info=test_run_info,
         )
 
 
@@ -68,7 +68,12 @@ class Session:
     session_id: str
     custom_metadata: CustomMetadata
 
-    def __init__(self, session_id: str, custom_metadata: CustomMetadata, _call_support: CallSupport):
+    def __init__(
+        self,
+        session_id: str,
+        custom_metadata: CustomMetadata,
+        _call_support: CallSupport,
+    ):
         self.session_id = session_id
         self.custom_metadata = custom_metadata
         self._session_info = SessionInfo(self.session_id, self.custom_metadata)
@@ -79,11 +84,11 @@ class Session:
         return self._session_info
 
     def create_trace(
-            self,
-            input: str,
-            agent_name: Optional[str] = None,
-            parent_id: Optional[UUID] = None,
-            custom_metadata: CustomMetadata = None
+        self,
+        input: str,
+        agent_name: Optional[str] = None,
+        parent_id: Optional[UUID] = None,
+        custom_metadata: CustomMetadata = None,
     ) -> TraceInfo:
         return TraceInfo(
             trace_id=str(uuid4()),
@@ -92,16 +97,16 @@ class Session:
             input=input,
             agent_name=agent_name,
             custom_metadata=custom_metadata,
-            _call_support=self._call_support
+            _call_support=self._call_support,
         )
 
     def restore_trace(
-            self,
-            trace_id: UUID,
-            input: Optional[str],
-            agent_name: Optional[str] = None,
-            parent_id: Optional[UUID] = None,
-            custom_metadata: CustomMetadata = None
+        self,
+        trace_id: UUID,
+        input: Optional[str],
+        agent_name: Optional[str] = None,
+        parent_id: Optional[UUID] = None,
+        custom_metadata: CustomMetadata = None,
     ) -> TraceInfo:
         return TraceInfo(
             trace_id=str(trace_id),
@@ -110,7 +115,7 @@ class Session:
             agent_name=agent_name,
             parent_id=parent_id,
             custom_metadata=custom_metadata,
-            _call_support=self._call_support
+            _call_support=self._call_support,
         )
 
 
@@ -128,7 +133,9 @@ class Sessions:
     def delete(self, project_id: str, session_id: str) -> None:
         self.call_support.delete_session(project_id, session_id)
 
-    def restore_session(self, session_id: str, custom_metadata: CustomMetadata = None) -> Session:
+    def restore_session(
+        self, session_id: str, custom_metadata: CustomMetadata = None
+    ) -> Session:
         return Session(
             session_id=session_id,
             custom_metadata=custom_metadata,

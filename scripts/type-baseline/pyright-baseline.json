@@ -1,0 +1,860 @@
+{
+  "generalDiagnostics": [
+    {
+      "file": "src/freeplay/resources/adapters.py",
+      "line": 40,
+      "character": 9,
+      "message": "Function with declared return type \"str | List[Dict[str, Any]]\" must return value on all code paths\n\u00a0\u00a0Type \"None\" is not assignable to type \"str | List[Dict[str, Any]]\"\n\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"List[Dict[str, Any]]\"",
+      "rule": "reportReturnType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/adapters.py",
+      "line": 62,
+      "character": 16,
+      "message": "Type of \"append\" is partially unknown\n\u00a0\u00a0Type of \"append\" is \"(object: Unknown, /) -> None\"",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/adapters.py",
+      "line": 72,
+      "character": 16,
+      "message": "Type of \"append\" is partially unknown\n\u00a0\u00a0Type of \"append\" is \"(object: Unknown, /) -> None\"",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/adapters.py",
+      "line": 74,
+      "character": 15,
+      "message": "Return type, \"list[Unknown]\", is partially unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/adapters.py",
+      "line": 95,
+      "character": 13,
+      "message": "Unnecessary isinstance call; \"MediaContentUrl\" is always an instance of \"MediaContentUrl\"",
+      "rule": "reportUnnecessaryIsInstance",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/adapters.py",
+      "line": 115,
+      "character": 16,
+      "message": "Type of \"append\" is partially unknown\n\u00a0\u00a0Type of \"append\" is \"(object: Unknown, /) -> None\"",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/adapters.py",
+      "line": 125,
+      "character": 16,
+      "message": "Type of \"append\" is partially unknown\n\u00a0\u00a0Type of \"append\" is \"(object: Unknown, /) -> None\"",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/adapters.py",
+      "line": 127,
+      "character": 15,
+      "message": "Return type, \"list[Unknown]\", is partially unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/adapters.py",
+      "line": 137,
+      "character": 13,
+      "message": "Unnecessary isinstance call; \"MediaContentUrl\" is always an instance of \"MediaContentUrl\"",
+      "rule": "reportUnnecessaryIsInstance",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/adapters.py",
+      "line": 205,
+      "character": 16,
+      "message": "Type of \"append\" is partially unknown\n\u00a0\u00a0Type of \"append\" is \"(object: Unknown, /) -> None\"",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/adapters.py",
+      "line": 215,
+      "character": 16,
+      "message": "Type of \"append\" is partially unknown\n\u00a0\u00a0Type of \"append\" is \"(object: Unknown, /) -> None\"",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/adapters.py",
+      "line": 222,
+      "character": 16,
+      "message": "Type of \"append\" is partially unknown\n\u00a0\u00a0Type of \"append\" is \"(object: Unknown, /) -> None\"",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/adapters.py",
+      "line": 224,
+      "character": 15,
+      "message": "Return type, \"list[Unknown]\", is partially unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/adapters.py",
+      "line": 239,
+      "character": 13,
+      "message": "Unnecessary isinstance call; \"MediaContentUrl\" is always an instance of \"MediaContentUrl\"",
+      "rule": "reportUnnecessaryIsInstance",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/adapters.py",
+      "line": 271,
+      "character": 12,
+      "message": "Type of \"append\" is partially unknown\n\u00a0\u00a0Type of \"append\" is \"(object: Unknown, /) -> None\"",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/adapters.py",
+      "line": 272,
+      "character": 15,
+      "message": "Return type, \"list[Unknown]\", is partially unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/prompts.py",
+      "line": 75,
+      "character": 28,
+      "message": "Function with declared return type \"Dict[str, Any]\" must return value on all code paths\n\u00a0\u00a0\"None\" is not assignable to \"Dict[str, Any]\"",
+      "rule": "reportReturnType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/prompts.py",
+      "line": 308,
+      "character": 20,
+      "message": "Type of \"append\" is partially unknown\n\u00a0\u00a0Type of \"append\" is \"(object: Unknown, /) -> None\"",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/prompts.py",
+      "line": 327,
+      "character": 38,
+      "message": "Argument type is partially unknown\n\u00a0\u00a0Argument corresponds to parameter \"iterable\" in function \"extend\"\n\u00a0\u00a0Argument type is \"list[Unknown]\"",
+      "rule": "reportUnknownArgumentType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/prompts.py",
+      "line": 390,
+      "character": 12,
+      "message": "Type of \"append\" is partially unknown\n\u00a0\u00a0Type of \"append\" is \"(object: Unknown, /) -> None\"",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/prompts.py",
+      "line": 392,
+      "character": 31,
+      "message": "Argument type is partially unknown\n\u00a0\u00a0Argument corresponds to parameter \"prompt_templates\" in function \"__init__\"\n\u00a0\u00a0Argument type is \"list[Unknown]\"",
+      "rule": "reportUnknownArgumentType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/recordings.py",
+      "line": 234,
+      "character": 50,
+      "message": "Type of \"response\" is unknown",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/recordings.py",
+      "line": 234,
+      "character": 50,
+      "message": "Argument type is unknown\n\u00a0\u00a0Argument corresponds to parameter \"obj\" in function \"hasattr\"",
+      "rule": "reportUnknownArgumentType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/recordings.py",
+      "line": 234,
+      "character": 52,
+      "message": "Cannot access attribute \"response\" for class \"Exception\"\n\u00a0\u00a0Attribute \"response\" is unknown",
+      "rule": "reportAttributeAccessIssue",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/recordings.py",
+      "line": 235,
+      "character": 16,
+      "message": "Type of \"status_code\" is unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/recordings.py",
+      "line": 235,
+      "character": 30,
+      "message": "Type of \"response\" is unknown",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/recordings.py",
+      "line": 235,
+      "character": 30,
+      "message": "Type of \"status_code\" is unknown",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/resources/recordings.py",
+      "line": 235,
+      "character": 32,
+      "message": "Cannot access attribute \"response\" for class \"Exception\"\n\u00a0\u00a0Attribute \"response\" is unknown",
+      "rule": "reportAttributeAccessIssue",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/support.py",
+      "line": 53,
+      "character": 4,
+      "message": "Type of \"media_slots\" is partially unknown\n\u00a0\u00a0Type of \"media_slots\" is \"list[Unknown]\"",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/support.py",
+      "line": 111,
+      "character": 8,
+      "message": "Method \"default\" overrides class \"JSONEncoder\" in an incompatible manner\n\u00a0\u00a0Parameter 2 name mismatch: base parameter is named \"o\", override parameter is named \"prompt_template\"",
+      "rule": "reportIncompatibleMethodOverride",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/support.py",
+      "line": 169,
+      "character": 15,
+      "message": "Condition will always evaluate to True since the types \"Dict[str, Any]\" and \"None\" have no overlap",
+      "rule": "reportUnnecessaryComparison",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/support.py",
+      "line": 174,
+      "character": 15,
+      "message": "Condition will always evaluate to True since the types \"Dict[str, Any]\" and \"None\" have no overlap",
+      "rule": "reportUnnecessaryComparison",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/utils.py",
+      "line": 16,
+      "character": 39,
+      "message": "Type of \"item\" is unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/utils.py",
+      "line": 19,
+      "character": 58,
+      "message": "Type of \"key\" is unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/utils.py",
+      "line": 19,
+      "character": 63,
+      "message": "Type of \"value\" is unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/utils.py",
+      "line": 27,
+      "character": 8,
+      "message": "Type of \"__init__\" is partially unknown\n\u00a0\u00a0Type of \"__init__\" is \"(file_encoding: Unknown | None = None, string_encoding: Unknown | None = None, decode_errors: Unknown | None = None, search_dirs: Unknown | None = None, file_extension: Unknown | None = None, escape: Unknown | None = None, partials: Unknown | None = None, missing_tags: Unknown | None = None) -> None\"",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/utils.py",
+      "line": 27,
+      "character": 39,
+      "message": "Type of parameter \"s\" is unknown",
+      "rule": "reportUnknownLambdaType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/utils.py",
+      "line": 27,
+      "character": 42,
+      "message": "Return type of lambda is unknown",
+      "rule": "reportUnknownLambdaType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/utils.py",
+      "line": 44,
+      "character": 4,
+      "message": "Type of \"rendered\" is partially unknown\n\u00a0\u00a0Type of \"rendered\" is \"Unknown | str\"",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/utils.py",
+      "line": 44,
+      "character": 20,
+      "message": "Type of \"render\" is partially unknown\n\u00a0\u00a0Type of \"render\" is \"(template: Unknown, ...) -> (Unknown | str)\"",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/utils.py",
+      "line": 45,
+      "character": 11,
+      "message": "Return type, \"Unknown | str\", is partially unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/utils.py",
+      "line": 53,
+      "character": 19,
+      "message": "Unnecessary isinstance call; \"str | int | float\" is always an instance of \"str | int | float\"",
+      "rule": "reportUnnecessaryIsInstance",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/utils.py",
+      "line": 102,
+      "character": 27,
+      "message": "Type of \"to_dict\" is unknown",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/utils.py",
+      "line": 102,
+      "character": 27,
+      "message": "Return type is unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/utils.py",
+      "line": 126,
+      "character": 15,
+      "message": "Return type, \"dict[Unknown, Any]\", is partially unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/utils.py",
+      "line": 126,
+      "character": 59,
+      "message": "Type of \"k\" is unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/utils.py",
+      "line": 126,
+      "character": 62,
+      "message": "Type of \"v\" is unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "src/freeplay/utils.py",
+      "line": 129,
+      "character": 59,
+      "message": "Type of \"item\" is unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/__init__.py",
+      "line": 10,
+      "character": 22,
+      "message": "Argument type is unknown\n\u00a0\u00a0Argument corresponds to parameter \"self\" in function \"startTestRun\"",
+      "rule": "reportUnknownArgumentType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_anthropic_media.py",
+      "line": 44,
+      "character": 8,
+      "message": "Type of \"completion\" is unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_anthropic_media.py",
+      "line": 51,
+      "character": 43,
+      "message": "Type of \"content\" is unknown",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_anthropic_media.py",
+      "line": 94,
+      "character": 8,
+      "message": "Type of \"completion\" is unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_anthropic_media.py",
+      "line": 101,
+      "character": 43,
+      "message": "Type of \"content\" is unknown",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_bedrock_converse.py",
+      "line": 18,
+      "character": 8,
+      "message": "Type of \"converse_client\" is partially unknown\n\u00a0\u00a0Type of \"converse_client\" is \"_ | Unknown\"",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_bedrock_converse.py",
+      "line": 18,
+      "character": 31,
+      "message": "Type of \"client\" is partially unknown\n\u00a0\u00a0Type of \"client\" is \"(...) -> (_ | Unknown)\"",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_bedrock_converse.py",
+      "line": 35,
+      "character": 8,
+      "message": "Type of \"response\" is unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_bedrock_converse.py",
+      "line": 35,
+      "character": 19,
+      "message": "Type of \"converse_client\" is partially unknown\n\u00a0\u00a0Type of \"converse_client\" is \"_ | Unknown\"",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_bedrock_converse.py",
+      "line": 35,
+      "character": 19,
+      "message": "Type of \"converse\" is unknown",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_bedrock_converse.py",
+      "line": 41,
+      "character": 8,
+      "message": "Type of \"output_message\" is unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_bedrock_converse.py",
+      "line": 42,
+      "character": 8,
+      "message": "Type of \"response_content\" is unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_bedrock_converse.py",
+      "line": 44,
+      "character": 31,
+      "message": "Argument type is unknown\n\u00a0\u00a0Argument corresponds to parameter \"obj\" in function \"len\"",
+      "rule": "reportUnknownArgumentType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_bedrock_converse.py",
+      "line": 74,
+      "character": 8,
+      "message": "Type of \"response\" is unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_bedrock_converse.py",
+      "line": 74,
+      "character": 19,
+      "message": "Type of \"converse_client\" is partially unknown\n\u00a0\u00a0Type of \"converse_client\" is \"_ | Unknown\"",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_bedrock_converse.py",
+      "line": 74,
+      "character": 19,
+      "message": "Type of \"converse\" is unknown",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_bedrock_converse.py",
+      "line": 82,
+      "character": 8,
+      "message": "Type of \"output_message\" is unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_bedrock_converse.py",
+      "line": 83,
+      "character": 8,
+      "message": "Type of \"tool_call\" is unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_bedrock_converse.py",
+      "line": 84,
+      "character": 31,
+      "message": "Argument type is unknown\n\u00a0\u00a0Argument corresponds to parameter \"obj\" in function \"len\"",
+      "rule": "reportUnknownArgumentType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_openai_media.py",
+      "line": 43,
+      "character": 8,
+      "message": "Type of \"completion\" is unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_openai_media.py",
+      "line": 49,
+      "character": 37,
+      "message": "Type of \"choices\" is unknown",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_openai_media.py",
+      "line": 49,
+      "character": 37,
+      "message": "Type of \"message\" is unknown",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_openai_media.py",
+      "line": 49,
+      "character": 37,
+      "message": "Type of \"content\" is unknown",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_openai_media.py",
+      "line": 91,
+      "character": 8,
+      "message": "Type of \"completion\" is unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_openai_media.py",
+      "line": 97,
+      "character": 37,
+      "message": "Type of \"choices\" is unknown",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_openai_media.py",
+      "line": 97,
+      "character": 37,
+      "message": "Type of \"message\" is unknown",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_openai_media.py",
+      "line": 97,
+      "character": 37,
+      "message": "Type of \"content\" is unknown",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_openai_media.py",
+      "line": 139,
+      "character": 8,
+      "message": "Type of \"completion\" is unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_openai_media.py",
+      "line": 145,
+      "character": 37,
+      "message": "Type of \"choices\" is unknown",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_openai_media.py",
+      "line": 145,
+      "character": 37,
+      "message": "Type of \"message\" is unknown",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_openai_media.py",
+      "line": 145,
+      "character": 37,
+      "message": "Type of \"content\" is unknown",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_vertex_ai_tools.py",
+      "line": 76,
+      "character": 13,
+      "message": "Stub file not found for \"vertexai.generative_models\"",
+      "rule": "reportMissingTypeStubs",
+      "severity": "error"
+    },
+    {
+      "file": "tests/integration/test_vertex_ai_tools.py",
+      "line": 163,
+      "character": 17,
+      "message": "Stub file not found for \"vertexai.generative_models\"",
+      "rule": "reportMissingTypeStubs",
+      "severity": "error"
+    },
+    {
+      "file": "tests/slow_test_support.py",
+      "line": 9,
+      "character": 12,
+      "message": "Type of \"skipTest\" is unknown",
+      "rule": "reportUnknownMemberType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/slow_test_support.py",
+      "line": 11,
+      "character": 11,
+      "message": "Return type, \"(self: Unknown, ...) -> None\", is partially unknown",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/test_freeplay.py",
+      "line": 196,
+      "character": 66,
+      "message": "Variable \"session\" is not accessed",
+      "rule": "reportUnusedVariable",
+      "severity": "error"
+    },
+    {
+      "file": "tests/test_freeplay.py",
+      "line": 230,
+      "character": 39,
+      "message": "Argument of type \"bytes | str | None\" cannot be assigned to parameter \"s\" of type \"str | bytes | bytearray\" in function \"loads\"\n\u00a0\u00a0Type \"bytes | str | None\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0Type \"None\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"bytes\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"bytearray\"",
+      "rule": "reportArgumentType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/test_freeplay.py",
+      "line": 340,
+      "character": 55,
+      "message": "Variable \"session\" is not accessed",
+      "rule": "reportUnusedVariable",
+      "severity": "error"
+    },
+    {
+      "file": "tests/test_freeplay.py",
+      "line": 378,
+      "character": 39,
+      "message": "Argument of type \"bytes | str | None\" cannot be assigned to parameter \"s\" of type \"str | bytes | bytearray\" in function \"loads\"\n\u00a0\u00a0Type \"bytes | str | None\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0Type \"None\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"bytes\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"bytearray\"",
+      "rule": "reportArgumentType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/test_freeplay.py",
+      "line": 445,
+      "character": 39,
+      "message": "Argument of type \"bytes | str | None\" cannot be assigned to parameter \"s\" of type \"str | bytes | bytearray\" in function \"loads\"\n\u00a0\u00a0Type \"bytes | str | None\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0Type \"None\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"bytes\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"bytearray\"",
+      "rule": "reportArgumentType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/test_freeplay.py",
+      "line": 462,
+      "character": 45,
+      "message": "Argument of type \"bytes | str | None\" cannot be assigned to parameter \"s\" of type \"str | bytes | bytearray\" in function \"loads\"\n\u00a0\u00a0Type \"bytes | str | None\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0Type \"None\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"bytes\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"bytearray\"",
+      "rule": "reportArgumentType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/test_freeplay.py",
+      "line": 529,
+      "character": 66,
+      "message": "Variable \"session\" is not accessed",
+      "rule": "reportUnusedVariable",
+      "severity": "error"
+    },
+    {
+      "file": "tests/test_freeplay.py",
+      "line": 551,
+      "character": 39,
+      "message": "Argument of type \"bytes | str | None\" cannot be assigned to parameter \"s\" of type \"str | bytes | bytearray\" in function \"loads\"\n\u00a0\u00a0Type \"bytes | str | None\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0Type \"None\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"bytes\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"bytearray\"",
+      "rule": "reportArgumentType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/test_freeplay.py",
+      "line": 668,
+      "character": 8,
+      "message": "Variable \"all_messages\" is not accessed",
+      "rule": "reportUnusedVariable",
+      "severity": "error"
+    },
+    {
+      "file": "tests/test_freeplay.py",
+      "line": 668,
+      "character": 66,
+      "message": "Variable \"session\" is not accessed",
+      "rule": "reportUnusedVariable",
+      "severity": "error"
+    },
+    {
+      "file": "tests/test_freeplay.py",
+      "line": 703,
+      "character": 39,
+      "message": "Argument of type \"bytes | str | None\" cannot be assigned to parameter \"s\" of type \"str | bytes | bytearray\" in function \"loads\"\n\u00a0\u00a0Type \"bytes | str | None\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0Type \"None\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"bytes\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"bytearray\"",
+      "rule": "reportArgumentType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/test_freeplay.py",
+      "line": 725,
+      "character": 8,
+      "message": "Variable \"all_messages\" is not accessed",
+      "rule": "reportUnusedVariable",
+      "severity": "error"
+    },
+    {
+      "file": "tests/test_freeplay.py",
+      "line": 725,
+      "character": 66,
+      "message": "Variable \"session\" is not accessed",
+      "rule": "reportUnusedVariable",
+      "severity": "error"
+    },
+    {
+      "file": "tests/test_freeplay.py",
+      "line": 754,
+      "character": 39,
+      "message": "Argument of type \"bytes | str | None\" cannot be assigned to parameter \"s\" of type \"str | bytes | bytearray\" in function \"loads\"\n\u00a0\u00a0Type \"bytes | str | None\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0Type \"None\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"bytes\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"bytearray\"",
+      "rule": "reportArgumentType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/test_freeplay.py",
+      "line": 781,
+      "character": 39,
+      "message": "Argument of type \"bytes | str | None\" cannot be assigned to parameter \"s\" of type \"str | bytes | bytearray\" in function \"loads\"\n\u00a0\u00a0Type \"bytes | str | None\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0Type \"None\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"bytes\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"bytearray\"",
+      "rule": "reportArgumentType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/test_freeplay.py",
+      "line": 800,
+      "character": 39,
+      "message": "Argument of type \"bytes | str | None\" cannot be assigned to parameter \"s\" of type \"str | bytes | bytearray\" in function \"loads\"\n\u00a0\u00a0Type \"bytes | str | None\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0Type \"None\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"bytes\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"bytearray\"",
+      "rule": "reportArgumentType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/test_freeplay.py",
+      "line": 1487,
+      "character": 16,
+      "message": "Condition will always evaluate to True since the types \"str\" and \"None\" have no overlap",
+      "rule": "reportUnnecessaryComparison",
+      "severity": "error"
+    },
+    {
+      "file": "tests/test_freeplay.py",
+      "line": 1536,
+      "character": 118,
+      "message": "Unsupported escape sequence in string literal",
+      "rule": "reportInvalidStringEscapeSequence",
+      "severity": "error"
+    },
+    {
+      "file": "tests/test_freeplay.py",
+      "line": 1536,
+      "character": 123,
+      "message": "Unsupported escape sequence in string literal",
+      "rule": "reportInvalidStringEscapeSequence",
+      "severity": "error"
+    },
+    {
+      "file": "tests/test_freeplay.py",
+      "line": 1549,
+      "character": 118,
+      "message": "Unsupported escape sequence in string literal",
+      "rule": "reportInvalidStringEscapeSequence",
+      "severity": "error"
+    },
+    {
+      "file": "tests/test_freeplay.py",
+      "line": 1549,
+      "character": 123,
+      "message": "Unsupported escape sequence in string literal",
+      "rule": "reportInvalidStringEscapeSequence",
+      "severity": "error"
+    },
+    {
+      "file": "tests/test_freeplay.py",
+      "line": 1987,
+      "character": 34,
+      "message": "Argument of type \"bytes | str | None\" cannot be assigned to parameter \"s\" of type \"str | bytes | bytearray\" in function \"loads\"\n\u00a0\u00a0Type \"bytes | str | None\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0Type \"None\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"bytes\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"bytearray\"",
+      "rule": "reportArgumentType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/test_freeplay.py",
+      "line": 2030,
+      "character": 34,
+      "message": "Argument of type \"bytes | str | None\" cannot be assigned to parameter \"s\" of type \"str | bytes | bytearray\" in function \"loads\"\n\u00a0\u00a0Type \"bytes | str | None\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0Type \"None\" is not assignable to type \"str | bytes | bytearray\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"bytes\"\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"bytearray\"",
+      "rule": "reportArgumentType",
+      "severity": "error"
+    },
+    {
+      "file": "tests/test_freeplay.py",
+      "line": 2117,
+      "character": 16,
+      "message": "Type of \"payload\" is partially unknown\n\u00a0\u00a0Type of \"payload\" is \"dict[Unknown, Unknown]\"",
+      "rule": "reportUnknownVariableType",
+      "severity": "error"
+    }
+  ]
+}

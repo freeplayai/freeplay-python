@@ -1,22 +1,24 @@
 import json
 import os
 from openai import OpenAI
-from freeplay import Freeplay, RecordPayload, ResponseInfo, CallInfo, SessionInfo, TraceInfo
+from freeplay import (
+    Freeplay,
+    RecordPayload,
+    CallInfo,
+)
 import time
 
 from freeplay.resources.recordings import RecordUpdatePayload
 
 
 fp_client = Freeplay(
-    freeplay_api_key=os.environ['FREEPLAY_API_KEY'],
-    api_base=f"{os.environ['FREEPLAY_API_URL']}/api"
+    freeplay_api_key=os.environ["FREEPLAY_API_KEY"],
+    api_base=f"{os.environ['FREEPLAY_API_URL']}/api",
 )
-project_id = '8f93dd00-2eb5-4ba2-9354-86d5c6831dfd'
-environment = 'latest'
+project_id = "8f93dd00-2eb5-4ba2-9354-86d5c6831dfd"
+environment = "latest"
 
-openai_client = OpenAI(
-    api_key=os.environ.get("OPENAI_API_KEY")
-)
+openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 questions = [
     "What is the capital of France?",
@@ -41,7 +43,7 @@ batch_file_data = []
 for question in questions:
     # format the prompt with the input
     input_vars = {
-        'question': question,
+        "question": question,
     }
     formatted_prompt = prompt_template.bind(input_vars).format()
     # create the completion in freeplay in order to get a completion id
@@ -53,20 +55,26 @@ for question in questions:
             inputs=input_vars,
             session_info=session_id,
             prompt_info=prompt_template.prompt_info,
-            call_info=CallInfo.from_prompt_info(prompt_template.prompt_info, start_time=time.time(), end_time=time.time()), # need to figure out a good way to handle latency here since normal latency is not relevant
+            call_info=CallInfo.from_prompt_info(
+                prompt_template.prompt_info,
+                start_time=time.time(),
+                end_time=time.time(),
+            ),  # need to figure out a good way to handle latency here since normal latency is not relevant
         )
     )
     # add a line to the batch file using the completion id as the id
-    batch_file_data.append({
-        "custom_id": completion_info.completion_id,
-        "method": "POST",
-        "url": "/v1/chat/completions",
-        "body": {
-            "model": prompt_template.prompt_info.model,
-            "messages": formatted_prompt.messages,
-            **formatted_prompt.prompt_info.model_parameters,
+    batch_file_data.append(
+        {
+            "custom_id": completion_info.completion_id,
+            "method": "POST",
+            "url": "/v1/chat/completions",
+            "body": {
+                "model": prompt_template.prompt_info.model,
+                "messages": formatted_prompt.messages,
+                **formatted_prompt.prompt_info.model_parameters,
+            },
         }
-    })
+    )
 
 # write the batch file somewhere persistent
 with open("batch_file.jsonl", "w") as f:
@@ -76,8 +84,7 @@ with open("batch_file.jsonl", "w") as f:
 
 ## Upload the batch file to the OpenAI API ##
 batch_input_file = openai_client.files.create(
-    file=open("batch_file.jsonl", "rb"),
-    purpose="batch"
+    file=open("batch_file.jsonl", "rb"), purpose="batch"
 )
 
 ## Create the batch request ##
@@ -85,9 +92,7 @@ batch_request = openai_client.batches.create(
     input_file_id=batch_input_file.id,
     endpoint="/v1/chat/completions",
     completion_window="24h",
-    metadata={
-      "description": "nightly job"
-    }
+    metadata={"description": "nightly job"},
 )
 print(batch_request)
 
@@ -109,10 +114,12 @@ with open("batch_output.jsonl", "wb") as f:
     f.write(file_response.content)
 
 # loop over each line and update the completion in freeplay
-for line in file_response.text.strip().split('\n'):
+for line in file_response.text.strip().split("\n"):
     response_data = json.loads(line)
-    completion_id = response_data['custom_id'] # this is the completion id for the partial completion in freeplay
-    output = response_data['response']['body']['choices'][0]['message']['content']
+    completion_id = response_data[
+        "custom_id"
+    ]  # this is the completion id for the partial completion in freeplay
+    output = response_data["response"]["body"]["choices"][0]["message"]["content"]
     print(completion_id, output)
     # this is new functionality to update the completion output in freeplay
     fp_client.recordings.update(
@@ -125,6 +132,6 @@ for line in file_response.text.strip().split('\n'):
                     "content": output,
                 }
             ],
-            eval_results={'is_batch_completion': True}
+            eval_results={"is_batch_completion": True},
         )
     )

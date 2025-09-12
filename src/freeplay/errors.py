@@ -27,7 +27,7 @@ class LLMServerError(FreeplayError):
 
 
 def freeplay_response_error(message: str, response: Response) -> FreeplayError:
-    full_message = f'{message} [{response.status_code}]'
+    full_message = f"{message} [{response.status_code}]"
 
     if response.status_code in range(400, 500):
         return FreeplayClientError(full_message)

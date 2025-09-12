@@ -12,18 +12,17 @@ from freeplay.support import CallSupport
 
 class Freeplay:
     def __init__(
-            self,
-            freeplay_api_key: str,
-            api_base: str,
-            template_resolver: Optional[TemplateResolver] = None
+        self,
+        freeplay_api_key: str,
+        api_base: str,
+        template_resolver: Optional[TemplateResolver] = None,
     ) -> None:
         if not freeplay_api_key or not freeplay_api_key.strip():
-            raise FreeplayConfigurationError("Freeplay API key not set. It must be set to the Freeplay API.")
+            raise FreeplayConfigurationError(
+                "Freeplay API key not set. It must be set to the Freeplay API."
+            )
 
-        self.call_support = CallSupport(
-            freeplay_api_key,
-            api_base
-        )
+        self.call_support = CallSupport(freeplay_api_key, api_base)
         self.freeplay_api_key = freeplay_api_key
         self.api_base = api_base
 

@@ -13,17 +13,17 @@ from customer_utils import get_freeplay_thin_client, record_results
 # Setup guide (including AWS credentials): https://docs.anthropic.com/claude/reference/claude-on-amazon-bedrock
 
 # These live at ~/.aws/credentials or the "AWS_SECRET_ACCESS_KEY" and "AWS_ACCESS_KEY_ID" environment variables.
-AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
-AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
+AWS_ACCESS_KEY_ID = os.environ["AWS_ACCESS_KEY_ID"]
+AWS_SECRET_ACCESS_KEY = os.environ["AWS_SECRET_ACCESS_KEY"]
 
 fp_client = get_freeplay_thin_client()
 
-input_variables = {'question': 'why is the sky blue?'}
+input_variables = {"question": "why is the sky blue?"}
 formatted_prompt = fp_client.prompts.get_formatted(
-    project_id=os.environ['FREEPLAY_PROJECT_ID'],
-    template_name='my-anthropic-prompt',
-    environment='latest',
-    variables=input_variables
+    project_id=os.environ["FREEPLAY_PROJECT_ID"],
+    template_name="my-anthropic-prompt",
+    environment="latest",
+    variables=input_variables,
 )
 
 print(f"Ready for LLM: {formatted_prompt.llm_prompt}")
@@ -40,7 +40,7 @@ response = client.messages.create(
     model=bedrock_claude_model_name,
     system=formatted_prompt.system_content or NotGiven(),
     messages=formatted_prompt.llm_prompt,
-    **formatted_prompt.prompt_info.model_parameters
+    **formatted_prompt.prompt_info.model_parameters,
 )
 end = time.time()
 
@@ -52,5 +52,5 @@ record_results(
     input_variables,
     fp_client.sessions.create(),
     start,
-    end
+    end,
 )

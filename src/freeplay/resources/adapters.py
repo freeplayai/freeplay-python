@@ -29,47 +29,57 @@ class MediaContentBase64:
 class MissingFlavorError(FreeplayConfigurationError):
     def __init__(self, flavor_name: str):
         super().__init__(
-            f'Configured flavor ({flavor_name}) not found in SDK. Please update your SDK version or configure '
-            'a different model in the Freeplay UI.'
+            f"Configured flavor ({flavor_name}) not found in SDK. Please update your SDK version or configure "
+            "a different model in the Freeplay UI."
         )
 
 
 class LLMAdapter(Protocol):
     # This method must handle BOTH prompt template messages and provider specific messages.
-    def to_llm_syntax(self, messages: List[Dict[str, Any]]) -> Union[str, List[Dict[str, Any]]]:
+    def to_llm_syntax(
+        self, messages: List[Dict[str, Any]]
+    ) -> Union[str, List[Dict[str, Any]]]:
         pass
 
 
 class PassthroughAdapter(LLMAdapter):
-    def to_llm_syntax(self, messages: List[Dict[str, Any]]) -> Union[str, List[Dict[str, Any]]]:
+    def to_llm_syntax(
+        self, messages: List[Dict[str, Any]]
+    ) -> Union[str, List[Dict[str, Any]]]:
         # We need a deepcopy here to avoid referential equality with the llm_prompt
         return copy.deepcopy(messages)
 
 
 class AnthropicAdapter(LLMAdapter):
-    def to_llm_syntax(self, messages: List[Dict[str, Any]]) -> Union[str, List[Dict[str, Any]]]:
+    def to_llm_syntax(
+        self, messages: List[Dict[str, Any]]
+    ) -> Union[str, List[Dict[str, Any]]]:
         anthropic_messages = []
 
         for message in messages:
-            if message['role'] == 'system':
+            if message["role"] == "system":
                 continue
             if "has_media" in message and message["has_media"]:
-                anthropic_messages.append({
-                    'role': message['role'],
-                    'content': [self.__map_content(content) for content in message['content']]
-                })
+                anthropic_messages.append(
+                    {
+                        "role": message["role"],
+                        "content": [
+                            self.__map_content(content)
+                            for content in message["content"]
+                        ],
+                    }
+                )
             else:
                 anthropic_messages.append(copy.deepcopy(message))
 
         return anthropic_messages
 
     @staticmethod
-    def __map_content(content: Union[TextContent, MediaContentBase64, MediaContentUrl]) -> Dict[str, Any]:
+    def __map_content(
+        content: Union[TextContent, MediaContentBase64, MediaContentUrl],
+    ) -> Dict[str, Any]:
         if isinstance(content, TextContent):
-            return {
-                "type": "text",
-                "text": content.text
-            }
+            return {"type": "text", "text": content.text}
         if content.type == "audio" or content.type == "video":
             raise ValueError("Anthropic does not support audio or video content")
 
@@ -81,7 +91,7 @@ class AnthropicAdapter(LLMAdapter):
                     "type": "base64",
                     "media_type": content.content_type,
                     "data": content.data,
-                }
+                },
             }
         elif isinstance(content, MediaContentUrl):
             return {
@@ -89,46 +99,49 @@ class AnthropicAdapter(LLMAdapter):
                 "source": {
                     "type": "url",
                     "url": content.url,
-                }
+                },
             }
         else:
             raise ValueError(f"Unexpected content type {type(content)}")
 
 
 class OpenAIAdapter(LLMAdapter):
-    def to_llm_syntax(self, messages: List[Dict[str, Any]]) -> Union[str, List[Dict[str, Any]]]:
+    def to_llm_syntax(
+        self, messages: List[Dict[str, Any]]
+    ) -> Union[str, List[Dict[str, Any]]]:
         openai_messages = []
 
         for message in messages:
             if "has_media" in message and message["has_media"]:
-                openai_messages.append({
-                    'role': message['role'],
-                    'content': [self.__map_content(content) for content in message['content']]
-                })
+                openai_messages.append(
+                    {
+                        "role": message["role"],
+                        "content": [
+                            self.__map_content(content)
+                            for content in message["content"]
+                        ],
+                    }
+                )
             else:
                 openai_messages.append(copy.deepcopy(message))
 
         return openai_messages
 
     @staticmethod
-    def __map_content(content: Union[TextContent, MediaContentBase64, MediaContentUrl]) -> Dict[str, Any]:
+    def __map_content(
+        content: Union[TextContent, MediaContentBase64, MediaContentUrl],
+    ) -> Dict[str, Any]:
         if isinstance(content, TextContent):
-            return {
-                "type": "text",
-                "text": content.text
-            }
+            return {"type": "text", "text": content.text}
         elif isinstance(content, MediaContentBase64):
             return OpenAIAdapter.__format_base64_content(content)
         elif isinstance(content, MediaContentUrl):
             if content.type != "image":
-                raise ValueError("Message contains a non-image URL, but OpenAI only supports image URLs.")
+                raise ValueError(
+                    "Message contains a non-image URL, but OpenAI only supports image URLs."
+                )
 
-            return {
-                "type": "image_url",
-                "image_url": {
-                    "url": content.url
-                }
-            }
+            return {"type": "image_url", "image_url": {"url": content.url}}
         else:
             raise ValueError(f"Unexpected content type {type(content)}")
 
@@ -139,28 +152,32 @@ class OpenAIAdapter(LLMAdapter):
                 "type": "input_audio",
                 "input_audio": {
                     "data": content.data,
-                    "format": content.content_type.split("/")[-1].replace("mpeg", "mp3")
-                }
+                    "format": content.content_type.split("/")[-1].replace(
+                        "mpeg", "mp3"
+                    ),
+                },
             }
         elif content.type == "file":
             return {
                 "type": "file",
                 "file": {
                     "filename": f"{content.slot_name}.{content.content_type.split('/')[-1]}",
-                    "file_data": f"data:{content.content_type};base64,{content.data}"
-                }
+                    "file_data": f"data:{content.content_type};base64,{content.data}",
+                },
             }
         else:
             return {
                 "type": "image_url",
                 "image_url": {
                     "url": f"data:{content.content_type};base64,{content.data}"
-                }
+                },
             }
 
 
 class Llama3Adapter(LLMAdapter):
-    def to_llm_syntax(self, messages: List[Dict[str, Any]]) -> Union[str, List[Dict[str, Any]]]:
+    def to_llm_syntax(
+        self, messages: List[Dict[str, Any]]
+    ) -> Union[str, List[Dict[str, Any]]]:
         if len(messages) < 1:
             raise ValueError("Must have at least one message to format")
 
@@ -173,33 +190,44 @@ class Llama3Adapter(LLMAdapter):
 
 
 class GeminiAdapter(LLMAdapter):
-    def to_llm_syntax(self, messages: List[Dict[str, Any]]) -> Union[str, List[Dict[str, Any]]]:
+    def to_llm_syntax(
+        self, messages: List[Dict[str, Any]]
+    ) -> Union[str, List[Dict[str, Any]]]:
         if len(messages) < 1:
             raise ValueError("Must have at least one message to format")
 
         gemini_messages = []
 
         for message in messages:
-            if message['role'] == 'system':
+            if message["role"] == "system":
                 continue
 
             if "has_media" in message and message["has_media"]:
-                gemini_messages.append({
-                    "role": self.__translate_role(message["role"]),
-                    "parts": [self.__map_content(content) for content in message['content']]
-                })
+                gemini_messages.append(
+                    {
+                        "role": self.__translate_role(message["role"]),
+                        "parts": [
+                            self.__map_content(content)
+                            for content in message["content"]
+                        ],
+                    }
+                )
             elif "content" in message:
-                gemini_messages.append({
-                    "role": self.__translate_role(message["role"]),
-                    "parts": [{"text": message["content"]}]
-                })
+                gemini_messages.append(
+                    {
+                        "role": self.__translate_role(message["role"]),
+                        "parts": [{"text": message["content"]}],
+                    }
+                )
             else:
                 gemini_messages.append(copy.deepcopy(message))
 
         return gemini_messages
 
     @staticmethod
-    def __map_content(content: Union[TextContent, MediaContentBase64, MediaContentUrl]) -> Dict[str, Any]:
+    def __map_content(
+        content: Union[TextContent, MediaContentBase64, MediaContentUrl],
+    ) -> Dict[str, Any]:
         if isinstance(content, TextContent):
             return {"text": content.text}
         elif isinstance(content, MediaContentBase64):
@@ -210,7 +238,9 @@ class GeminiAdapter(LLMAdapter):
                 }
             }
         elif isinstance(content, MediaContentUrl):
-            raise ValueError("Message contains an image URL, but image URLs are not supported by Gemini")
+            raise ValueError(
+                "Message contains an image URL, but image URLs are not supported by Gemini"
+            )
         else:
             raise ValueError(f"Unexpected content type {type(content)}")
 

@@ -47,46 +47,88 @@ class TestFreeplayCLI(TestCase):
         runner = CliRunner()
         with tempfile.TemporaryDirectory() as outDir:
             arguments = [
-                'download',
-                '--project-id=%s' % self.project_id_1,
-                '--environment=%s' % self.environment,
-                '--output-dir=%s' % outDir
+                "download",
+                "--project-id=%s" % self.project_id_1,
+                "--environment=%s" % self.environment,
+                "--output-dir=%s" % outDir,
             ]
             # noinspection PyTypeChecker
             runner.invoke(cli, arguments)
 
-            full_file_path1 = \
-                Path(outDir) / "freeplay" / "prompts" / self.project_id_1 / self.environment / f"{self.prompt_name_1}.json"
+            full_file_path1 = (
+                Path(outDir)
+                / "freeplay"
+                / "prompts"
+                / self.project_id_1
+                / self.environment
+                / f"{self.prompt_name_1}.json"
+            )
             self.assertTrue(os.path.isfile(full_file_path1))
-            with open(full_file_path1, 'r') as file:
+            with open(full_file_path1, "r") as file:
                 json_dom = json.load(file)
-                self.assertEqual(self.prompt_template_id_1, json_dom['prompt_template_id'])
-                self.assertEqual(self.prompt_template_version_id_1, json_dom['prompt_template_version_id'])
-                self.assertEqual(self.prompt_name_1, json_dom['prompt_template_name'])
-                self.assertEqual(0, len(json_dom['metadata']['params']))
                 self.assertEqual(
-                    [{"role": "system", "content": "Answer this question: {{question}}", "media_slots": []}],
-                    json_dom['content']
+                    self.prompt_template_id_1, json_dom["prompt_template_id"]
                 )
-
-            full_file_path2 = \
-                Path(outDir) / "freeplay" / "prompts" / self.project_id_1 / self.environment / f"{self.prompt_name_2}.json"
-            self.assertTrue(os.path.isfile(full_file_path2))
-            with open(full_file_path2, 'r') as file:
-                json_dom = json.load(file)
-                self.assertEqual(self.prompt_template_id_2, json_dom['prompt_template_id'])
-                self.assertEqual(self.prompt_template_version_id_2, json_dom['prompt_template_version_id'])
-                self.assertEqual(self.prompt_name_2, json_dom['prompt_template_name'])
-                self.assertEqual('claude-2', json_dom['metadata']['params']['model'])
-                self.assertEqual(0.1, json_dom['metadata']['params']['temperature'])
-                self.assertEqual(25, json_dom['metadata']['params']['max_tokens_to_sample'])
+                self.assertEqual(
+                    self.prompt_template_version_id_1,
+                    json_dom["prompt_template_version_id"],
+                )
+                self.assertEqual(self.prompt_name_1, json_dom["prompt_template_name"])
+                self.assertEqual(0, len(json_dom["metadata"]["params"]))
                 self.assertEqual(
                     [
-                        {"role": "system", "content": self.system_message, "media_slots": []},
-                        {"role": "assistant", "content": self.assistant_message, "media_slots": []},
-                        {"role": "user", "content": self.user_message, "media_slots": []}
+                        {
+                            "role": "system",
+                            "content": "Answer this question: {{question}}",
+                            "media_slots": [],
+                        }
                     ],
-                    json_dom['content']
+                    json_dom["content"],
+                )
+
+            full_file_path2 = (
+                Path(outDir)
+                / "freeplay"
+                / "prompts"
+                / self.project_id_1
+                / self.environment
+                / f"{self.prompt_name_2}.json"
+            )
+            self.assertTrue(os.path.isfile(full_file_path2))
+            with open(full_file_path2, "r") as file:
+                json_dom = json.load(file)
+                self.assertEqual(
+                    self.prompt_template_id_2, json_dom["prompt_template_id"]
+                )
+                self.assertEqual(
+                    self.prompt_template_version_id_2,
+                    json_dom["prompt_template_version_id"],
+                )
+                self.assertEqual(self.prompt_name_2, json_dom["prompt_template_name"])
+                self.assertEqual("claude-2", json_dom["metadata"]["params"]["model"])
+                self.assertEqual(0.1, json_dom["metadata"]["params"]["temperature"])
+                self.assertEqual(
+                    25, json_dom["metadata"]["params"]["max_tokens_to_sample"]
+                )
+                self.assertEqual(
+                    [
+                        {
+                            "role": "system",
+                            "content": self.system_message,
+                            "media_slots": [],
+                        },
+                        {
+                            "role": "assistant",
+                            "content": self.assistant_message,
+                            "media_slots": [],
+                        },
+                        {
+                            "role": "user",
+                            "content": self.user_message,
+                            "media_slots": [],
+                        },
+                    ],
+                    json_dom["content"],
                 )
 
     @responses.activate
@@ -99,23 +141,31 @@ class TestFreeplayCLI(TestCase):
         with tempfile.TemporaryDirectory() as outDir:
             outDir = os.path.abspath(outDir)  # Ensure absolute path
             arguments = [
-                'download-all',
-                '--environment=%s' % self.environment,
-                '--output-dir=%s' % outDir
+                "download-all",
+                "--environment=%s" % self.environment,
+                "--output-dir=%s" % outDir,
             ]
             # noinspection PyTypeChecker
             result = runner.invoke(cli, arguments, catch_exceptions=False)
             self.assertEqual(0, result.exit_code)
 
-            self.__assert_prompt_basics(outDir, self.project_id_1, self.environment, self.prompt_name_1)
-            self.__assert_prompt_basics(outDir, self.project_id_1, self.environment, self.prompt_name_2)
+            self.__assert_prompt_basics(
+                outDir, self.project_id_1, self.environment, self.prompt_name_1
+            )
+            self.__assert_prompt_basics(
+                outDir, self.project_id_1, self.environment, self.prompt_name_2
+            )
 
-            self.__assert_prompt_basics(outDir, self.project_id_2, self.environment, self.prompt_name_1)
-            self.__assert_prompt_basics(outDir, self.project_id_2, self.environment, self.prompt_name_2)
+            self.__assert_prompt_basics(
+                outDir, self.project_id_2, self.environment, self.prompt_name_1
+            )
+            self.__assert_prompt_basics(
+                outDir, self.project_id_2, self.environment, self.prompt_name_2
+            )
 
     @responses.activate
     def test_download_all_defaults_environment_to_latest(self) -> None:
-        environment = 'latest'
+        environment = "latest"
 
         self.__mock_freeplay_projects_api_success()
         self.__mock_freeplay_prompts_api_success(self.project_id_1, environment)
@@ -124,19 +174,24 @@ class TestFreeplayCLI(TestCase):
         runner = CliRunner()
         with tempfile.TemporaryDirectory() as outDir:
             outDir = os.path.abspath(outDir)  # Ensure absolute path
-            arguments = [
-                'download-all',
-                '--output-dir=%s' % outDir
-            ]
+            arguments = ["download-all", "--output-dir=%s" % outDir]
             # noinspection PyTypeChecker
             result = runner.invoke(cli, arguments, catch_exceptions=False)
             self.assertEqual(0, result.exit_code)
 
-            self.__assert_prompt_basics(outDir, self.project_id_1, environment, self.prompt_name_1)
-            self.__assert_prompt_basics(outDir, self.project_id_1, environment, self.prompt_name_2)
+            self.__assert_prompt_basics(
+                outDir, self.project_id_1, environment, self.prompt_name_1
+            )
+            self.__assert_prompt_basics(
+                outDir, self.project_id_1, environment, self.prompt_name_2
+            )
 
-            self.__assert_prompt_basics(outDir, self.project_id_2, environment, self.prompt_name_1)
-            self.__assert_prompt_basics(outDir, self.project_id_2, environment, self.prompt_name_2)
+            self.__assert_prompt_basics(
+                outDir, self.project_id_2, environment, self.prompt_name_1
+            )
+            self.__assert_prompt_basics(
+                outDir, self.project_id_2, environment, self.prompt_name_2
+            )
 
     @responses.activate
     def test_download_invalid_project(self) -> None:
@@ -145,10 +200,10 @@ class TestFreeplayCLI(TestCase):
         runner = CliRunner()
         with tempfile.TemporaryDirectory() as outDir:
             arguments = [
-                'download',
-                '--project-id=%s' % "not-a-project",
-                '--environment=%s' % self.environment,
-                '--output-dir=%s' % outDir
+                "download",
+                "--project-id=%s" % "not-a-project",
+                "--environment=%s" % self.environment,
+                "--output-dir=%s" % outDir,
             ]
             # noinspection PyTypeChecker
             result = runner.invoke(cli, arguments)
@@ -160,30 +215,34 @@ class TestFreeplayCLI(TestCase):
     def __assert_prompt_basics(
         self, out_dir: str, project_id: str, environment: str, prompt_name: str
     ) -> None:
-        full_file_path = \
-            Path(out_dir) / "freeplay" / "prompts" / project_id / environment / f"{prompt_name}.json"
+        full_file_path = (
+            Path(out_dir)
+            / "freeplay"
+            / "prompts"
+            / project_id
+            / environment
+            / f"{prompt_name}.json"
+        )
         self.assertTrue(os.path.isfile(full_file_path))
-        with open(full_file_path, 'r') as file:
+        with open(full_file_path, "r") as file:
             json_dom = json.load(file)
-            self.assertEqual(prompt_name, json_dom['prompt_template_name'])
-            self.assertEqual(project_id, json_dom['project_id'])
+            self.assertEqual(prompt_name, json_dom["prompt_template_name"])
+            self.assertEqual(project_id, json_dom["project_id"])
 
     def __mock_freeplay_prompts_api_success(
-            self,
-            project_id: str,
-            environment: str
+        self, project_id: str, environment: str
     ) -> None:
         responses.get(
-            url=f'{self.api_url}/v2/projects/{project_id}/prompt-templates/all/{environment}',
+            url=f"{self.api_url}/v2/projects/{project_id}/prompt-templates/all/{environment}",
             status=200,
-            body=self.__get_templates_response(project_id)
+            body=self.__get_templates_response(project_id),
         )
 
     def __mock_freeplay_api_invalid_project(self) -> None:
         responses.get(
-            url=f'{self.api_url}/v2/projects/not-a-project/prompt-templates/all/{self.environment}',
+            url=f"{self.api_url}/v2/projects/not-a-project/prompt-templates/all/{self.environment}",
             status=404,
-            body='{"message": "Project not found"}'
+            body='{"message": "Project not found"}',
         )
 
     def __get_templates_response(self, project_id: str) -> str:
@@ -191,66 +250,62 @@ class TestFreeplayCLI(TestCase):
 
     def __templates_as_dict(self, project_id: str) -> Dict[str, Any]:
         return {
-            "prompt_templates": [{
-                "content": [{
-                    "role": "system",
-                    "content": "Answer this question: {{question}}"
-                }],
-                "format_version": 2,
-                "metadata": {
-                    "flavor": "anthropic_chat",
-                    "model": "claude-2.1",
-                    "params": {},
-                    "provider": "anthropic",
-                    "provider_info": {
-                        "anthropic_endpoint": "https://example.com/anthropic"
-                    }
+            "prompt_templates": [
+                {
+                    "content": [
+                        {
+                            "role": "system",
+                            "content": "Answer this question: {{question}}",
+                        }
+                    ],
+                    "format_version": 2,
+                    "metadata": {
+                        "flavor": "anthropic_chat",
+                        "model": "claude-2.1",
+                        "params": {},
+                        "provider": "anthropic",
+                        "provider_info": {
+                            "anthropic_endpoint": "https://example.com/anthropic"
+                        },
+                    },
+                    "project_id": project_id,
+                    "prompt_template_id": self.prompt_template_id_1,
+                    "prompt_template_name": self.prompt_name_1,
+                    "prompt_template_version_id": self.prompt_template_version_id_1,
                 },
-                "project_id": project_id,
-                "prompt_template_id": self.prompt_template_id_1,
-                "prompt_template_name": self.prompt_name_1,
-                "prompt_template_version_id": self.prompt_template_version_id_1
-            }, {
-                "content": [
-                    {
-                        "role": "system",
-                        "content": self.system_message
+                {
+                    "content": [
+                        {"role": "system", "content": self.system_message},
+                        {"role": "assistant", "content": self.assistant_message},
+                        {"role": "user", "content": self.user_message},
+                    ],
+                    "format_version": 2,
+                    "metadata": {
+                        "flavor": "anthropic_chat",
+                        "model": "claude-2.1",
+                        "params": {
+                            "model": "claude-2",
+                            "max_tokens_to_sample": 25,
+                            "temperature": 0.1,
+                        },
+                        "provider": "anthropic",
+                        "provider_info": {
+                            "anthropic_endpoint": "https://example.com/anthropic"
+                        },
                     },
-                    {
-                        "role": "assistant",
-                        "content": self.assistant_message
-                    },
-                    {
-                        "role": "user",
-                        "content": self.user_message
-                    }
-                ],
-                "format_version": 2,
-                "metadata": {
-                    "flavor": "anthropic_chat",
-                    "model": "claude-2.1",
-                    "params": {
-                        'model': 'claude-2',
-                        'max_tokens_to_sample': 25,
-                        'temperature': 0.1,
-                    },
-                    "provider": "anthropic",
-                    "provider_info": {
-                        "anthropic_endpoint": "https://example.com/anthropic"
-                    }
+                    "project_id": project_id,
+                    "prompt_template_id": self.prompt_template_id_2,
+                    "prompt_template_name": self.prompt_name_2,
+                    "prompt_template_version_id": self.prompt_template_version_id_2,
                 },
-                "project_id": project_id,
-                "prompt_template_id": self.prompt_template_id_2,
-                "prompt_template_name": self.prompt_name_2,
-                "prompt_template_version_id": self.prompt_template_version_id_2
-            }]
+            ]
         }
 
     def __mock_freeplay_projects_api_success(self) -> None:
         responses.get(
-            url=f'{self.api_url}/v2/projects/all',
+            url=f"{self.api_url}/v2/projects/all",
             status=200,
-            body=self.__get_projects_response()
+            body=self.__get_projects_response(),
         )
 
     def __get_projects_response(self) -> str:

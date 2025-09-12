@@ -15,29 +15,27 @@ from freeplay import (
 )
 
 fpclient = Freeplay(
-    freeplay_api_key=os.environ['FREEPLAY_API_KEY'],
-    api_base=f"{os.environ['FREEPLAY_API_URL']}/api"
+    freeplay_api_key=os.environ["FREEPLAY_API_KEY"],
+    api_base=f"{os.environ['FREEPLAY_API_URL']}/api",
 )
-project_id = os.environ['FREEPLAY_PROJECT_ID']
+project_id = os.environ["FREEPLAY_PROJECT_ID"]
 
-client = Anthropic(
-    api_key=os.environ.get("ANTHROPIC_API_KEY")
-)
+client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 
 def call_and_record(
-        project_id: str,
-        template_name: str,
-        env: str,
-        input_variables: dict,
-        session_info: SessionInfo,
-        parent_id: Optional[UUID] = None
+    project_id: str,
+    template_name: str,
+    env: str,
+    input_variables: dict,
+    session_info: SessionInfo,
+    parent_id: Optional[UUID] = None,
 ) -> dict:
     formatted_prompt = fpclient.prompts.get_formatted(
         project_id=project_id,
         template_name=template_name,
         environment=env,
-        variables=input_variables
+        variables=input_variables,
     )
 
     print(f"Ready for LLM: {formatted_prompt.llm_prompt}")
@@ -47,7 +45,7 @@ def call_and_record(
         system=formatted_prompt.system_content or NotGiven(),
         messages=formatted_prompt.llm_prompt,
         model=formatted_prompt.prompt_info.model,
-        **formatted_prompt.prompt_info.model_parameters
+        **formatted_prompt.prompt_info.model_parameters,
     )
     end = time.time()
 
@@ -55,12 +53,10 @@ def call_and_record(
     print("Completion: %s" % llm_response)
 
     all_messages = formatted_prompt.all_messages(
-        new_message={'role': 'assistant', 'content': llm_response}
+        new_message={"role": "assistant", "content": llm_response}
     )
     call_info = CallInfo.from_prompt_info(formatted_prompt.prompt_info, start, end)
-    response_info = ResponseInfo(
-        is_complete=completion.stop_reason == 'stop_sequence'
-    )
+    response_info = ResponseInfo(is_complete=completion.stop_reason == "stop_sequence")
 
     record_response = fpclient.recordings.create(
         RecordPayload(
@@ -75,34 +71,48 @@ def call_and_record(
         )
     )
 
-    return {'completion_id': record_response.completion_id, 'llm_response': llm_response}
+    return {
+        "completion_id": record_response.completion_id,
+        "llm_response": llm_response,
+    }
 
 
 # send 3 questions to the model encapsulated into a trace
-user_questions = ["answer life's most existential questions", "what is sand?", "how tall are lions?"]
+user_questions = [
+    "answer life's most existential questions",
+    "what is sand?",
+    "how tall are lions?",
+]
 
 session = fpclient.sessions.create({"metadata_123": "blah"})
 last_trace_id = None
 for question in user_questions:
-    trace_info = session.create_trace(agent_name="mr-secret-agent", input=question, custom_metadata={"metadata_key": "hello"}, parent_id=last_trace_id)
+    trace_info = session.create_trace(
+        agent_name="mr-secret-agent",
+        input=question,
+        custom_metadata={"metadata_key": "hello"},
+        parent_id=last_trace_id,
+    )
     bot_response = call_and_record(
         project_id=project_id,
-        template_name='my-anthropic-prompt',
-        env='latest',
-        input_variables={'question': question},
+        template_name="my-anthropic-prompt",
+        env="latest",
+        input_variables={"question": question},
         session_info=session.session_info,
-        parent_id=last_trace_id if last_trace_id else trace_info.trace_id
+        parent_id=last_trace_id if last_trace_id else trace_info.trace_id,
     )
     categorization_result = call_and_record(
         project_id=project_id,
-        template_name='question-classifier',
-        env='latest',
-        input_variables={'question': question},
+        template_name="question-classifier",
+        env="latest",
+        input_variables={"question": question},
         session_info=session.session_info,
-        parent_id=bot_response['completion_id']
+        parent_id=bot_response["completion_id"],
     )
 
-    print(f"Sending customer feedback for completion id: {bot_response['completion_id']}")
+    print(
+        f"Sending customer feedback for completion id: {bot_response['completion_id']}"
+    )
     fpclient.customer_feedback.update(
         project_id=project_id,
         completion_id=bot_response["completion_id"],
@@ -114,13 +124,16 @@ for question in user_questions:
 
     trace_info.record_output(
         project_id,
-        bot_response['llm_response'],
-        eval_results={"bool_field": False, "num_field": 0.9})
+        bot_response["llm_response"],
+        eval_results={"bool_field": False, "num_field": 0.9},
+    )
     # record feedback for the trace
     trace_feedback = {
-        'is_it_good': random.choice([True, False]),
-        'freeplay_feedback': random.choice(["positive", "negative"])
+        "is_it_good": random.choice([True, False]),
+        "freeplay_feedback": random.choice(["positive", "negative"]),
     }
-    fpclient.customer_feedback.update_trace(project_id, trace_info.trace_id, trace_feedback)
+    fpclient.customer_feedback.update_trace(
+        project_id, trace_info.trace_id, trace_feedback
+    )
     print(f"Trace info id: {trace_info.trace_id}")
     last_trace_id = trace_info.trace_id

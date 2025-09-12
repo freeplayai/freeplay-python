@@ -18,13 +18,11 @@ input_variables = {"query": "Describe this document"}
 
 response = requests.get("https://arxiv.org/pdf/1706.03762")
 response.raise_for_status()
-encoded_pdf = base64.b64encode(response.content).decode('utf-8')
+encoded_pdf = base64.b64encode(response.content).decode("utf-8")
 
 media_inputs = {
-    'some-file': MediaInputBase64(
-        type="base64",
-        content_type="application/pdf",
-        data=encoded_pdf
+    "some-file": MediaInputBase64(
+        type="base64", content_type="application/pdf", data=encoded_pdf
     )
 }
 formatted_prompt = fpclient.prompts.get_formatted(
@@ -32,7 +30,7 @@ formatted_prompt = fpclient.prompts.get_formatted(
     template_name="pdf",
     environment="latest",
     variables=input_variables,
-    media_inputs=media_inputs
+    media_inputs=media_inputs,
 )
 
 start = time.time()
@@ -55,7 +53,7 @@ record_response = fpclient.recordings.create(
         project_id=os.environ["FREEPLAY_PROJECT_ID"],
         all_messages=[
             *formatted_prompt.llm_prompt,
-            {"role": "assistant", "content": response_content}
+            {"role": "assistant", "content": response_content},
         ],
         session_info=session.session_info,
         inputs=input_variables,

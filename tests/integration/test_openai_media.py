@@ -25,10 +25,10 @@ class TestOpenAIMedia(unittest.TestCase):
     def test_openai_audio(self) -> None:
         input_variables = {"query": "Describe what you hear"}
         media_inputs: MediaInputMap = {
-            'some-audio': MediaInputBase64(
+            "some-audio": MediaInputBase64(
                 type="base64",
                 content_type="audio/mpeg",
-                data=encode_test_data("birds.mp3")
+                data=encode_test_data("birds.mp3"),
             )
         }
         formatted_prompt = self.freeplay_client.prompts.get_formatted(
@@ -37,7 +37,7 @@ class TestOpenAIMedia(unittest.TestCase):
             environment="latest",
             variables=input_variables,
             media_inputs=media_inputs,
-            flavor_name="openai_chat"
+            flavor_name="openai_chat",
         )
         formatted_prompt.prompt_info.model = "gpt-4o-audio-preview"
         formatted_prompt.prompt_info.model_parameters["max_tokens"] = 2000
@@ -55,13 +55,15 @@ class TestOpenAIMedia(unittest.TestCase):
                 project_id=self.project_id,
                 all_messages=[
                     *formatted_prompt.llm_prompt,
-                    {"role": "assistant", "content": response_content}
+                    {"role": "assistant", "content": response_content},
                 ],
                 session_info=self.freeplay_client.sessions.create().session_info,
                 inputs=input_variables,
                 media_inputs=media_inputs,
                 prompt_version_info=formatted_prompt.prompt_info,
-                call_info=CallInfo.from_prompt_info(formatted_prompt.prompt_info, time.time(), time.time() + 1),
+                call_info=CallInfo.from_prompt_info(
+                    formatted_prompt.prompt_info, time.time(), time.time() + 1
+                ),
             )
         )
 
@@ -71,10 +73,10 @@ class TestOpenAIMedia(unittest.TestCase):
     def test_openai_image(self) -> None:
         input_variables = {"query": "Describe what you see"}
         media_inputs: MediaInputMap = {
-            'some-image': MediaInputBase64(
+            "some-image": MediaInputBase64(
                 type="base64",
                 content_type="image/jpeg",
-                data=encode_test_data("whale.jpg")
+                data=encode_test_data("whale.jpg"),
             )
         }
         formatted_prompt = self.freeplay_client.prompts.get_formatted(
@@ -83,7 +85,7 @@ class TestOpenAIMedia(unittest.TestCase):
             environment="latest",
             variables=input_variables,
             media_inputs=media_inputs,
-            flavor_name="openai_chat"
+            flavor_name="openai_chat",
         )
         formatted_prompt.prompt_info.model = "gpt-4o"
         formatted_prompt.prompt_info.model_parameters["max_tokens"] = 2000
@@ -101,13 +103,15 @@ class TestOpenAIMedia(unittest.TestCase):
                 project_id=self.project_id,
                 all_messages=[
                     *formatted_prompt.llm_prompt,
-                    {"role": "assistant", "content": response_content}
+                    {"role": "assistant", "content": response_content},
                 ],
                 session_info=self.freeplay_client.sessions.create().session_info,
                 inputs=input_variables,
                 media_inputs=media_inputs,
                 prompt_version_info=formatted_prompt.prompt_info,
-                call_info=CallInfo.from_prompt_info(formatted_prompt.prompt_info, time.time(), time.time() + 1),
+                call_info=CallInfo.from_prompt_info(
+                    formatted_prompt.prompt_info, time.time(), time.time() + 1
+                ),
             )
         )
 
@@ -117,10 +121,10 @@ class TestOpenAIMedia(unittest.TestCase):
     def test_openai_file(self) -> None:
         input_variables = {"query": "Describe this document"}
         media_inputs: MediaInputMap = {
-            'some-file': MediaInputBase64(
+            "some-file": MediaInputBase64(
                 type="base64",
                 content_type="application/pdf",
-                data=encode_test_data("portugal.pdf")
+                data=encode_test_data("portugal.pdf"),
             )
         }
         formatted_prompt = self.freeplay_client.prompts.get_formatted(
@@ -129,7 +133,7 @@ class TestOpenAIMedia(unittest.TestCase):
             environment="latest",
             variables=input_variables,
             media_inputs=media_inputs,
-            flavor_name="openai_chat"
+            flavor_name="openai_chat",
         )
         formatted_prompt.prompt_info.model = "gpt-4o"
         formatted_prompt.prompt_info.model_parameters["max_tokens"] = 2000
@@ -147,13 +151,15 @@ class TestOpenAIMedia(unittest.TestCase):
                 project_id=self.project_id,
                 all_messages=[
                     *formatted_prompt.llm_prompt,
-                    {"role": "assistant", "content": response_content}
+                    {"role": "assistant", "content": response_content},
                 ],
                 session_info=self.freeplay_client.sessions.create().session_info,
                 inputs=input_variables,
                 media_inputs=media_inputs,
                 prompt_version_info=formatted_prompt.prompt_info,
-                call_info=CallInfo.from_prompt_info(formatted_prompt.prompt_info, time.time(), time.time() + 1),
+                call_info=CallInfo.from_prompt_info(
+                    formatted_prompt.prompt_info, time.time(), time.time() + 1
+                ),
             )
         )
 

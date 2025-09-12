@@ -6,6 +6,5 @@ __pycache__
 .venv
 dist/
 .env
-.vscode
 .DS_Store
 .env.test

@@ -8,24 +8,20 @@ from customer_utils import get_freeplay_thin_client, record_results_messages
 from freeplay import ResponseInfo, CallInfo, RecordPayload
 
 fp_client = get_freeplay_thin_client()
-openai_client = OpenAI(
-    api_key=os.environ.get("OPENAI_API_KEY")
-)
+openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-project_id = os.environ['FREEPLAY_PROJECT_ID']
+project_id = os.environ["FREEPLAY_PROJECT_ID"]
 template_prompt = fp_client.prompts.get(
-    project_id=project_id,
-    template_name='good-job',
-    environment='latest'
+    project_id=project_id, template_name="good-job", environment="latest"
 )
 
 test_run = fp_client.test_runs.create(
     project_id,
     "names",
     include_outputs=True,
-    name=f'Test run: {uuid4()}',
-    description='Run from Python examples',
-    flavor_name=template_prompt.prompt_info.flavor_name
+    name=f"Test run: {uuid4()}",
+    description="Run from Python examples",
+    flavor_name=template_prompt.prompt_info.flavor_name,
 )
 for test_case in test_run.get_trace_test_cases():
     formatted_prompt = template_prompt.bind({"name": test_case.input}).format()
@@ -36,7 +32,7 @@ for test_case in test_run.get_trace_test_cases():
         messages=formatted_prompt.llm_prompt,
         model=formatted_prompt.prompt_info.model,
         tools=formatted_prompt.tool_schema,
-        **formatted_prompt.prompt_info.model_parameters
+        **formatted_prompt.prompt_info.model_parameters,
     )
     end = time.time()
     print("Completion: %s" % completion)
@@ -45,9 +41,7 @@ for test_case in test_run.get_trace_test_cases():
     trace_info = session.create_trace(
         input=test_case.input,
         agent_name="appreciator",
-        custom_metadata={
-            "version": "1.0.8"
-        }
+        custom_metadata={"version": "1.0.8"},
     )
     test_run_info = test_run.get_test_run_info(test_case.id)
 
@@ -63,11 +57,8 @@ for test_case in test_run.get_trace_test_cases():
         end,
         trace_info=trace_info,
         test_run_info=test_run_info,
-        eval_results={
-            'f1-score': 0.48,
-            'is_non_empty': True
-        },
-        formatted_prompt=formatted_prompt
+        eval_results={"f1-score": 0.48, "is_non_empty": True},
+        formatted_prompt=formatted_prompt,
     )
 
     new_prompt = template_prompt.bind({"name": test_case.input}).format()
@@ -77,7 +68,7 @@ for test_case in test_run.get_trace_test_cases():
         messages=new_prompt.llm_prompt,
         model=new_prompt.prompt_info.model,
         tools=new_prompt.tool_schema,
-        **new_prompt.prompt_info.model_parameters
+        **new_prompt.prompt_info.model_parameters,
     )
     end = time.time()
     print("Completion: %s" % second_completion.choices[0].message.content)
@@ -89,11 +80,10 @@ for test_case in test_run.get_trace_test_cases():
         model=formatted_prompt.prompt_info.model,
         start_time=start,
         end_time=end,
-        model_parameters=formatted_prompt.prompt_info.model_parameters)
-
-    response_info = ResponseInfo(
-        is_complete=True
+        model_parameters=formatted_prompt.prompt_info.model_parameters,
     )
+
+    response_info = ResponseInfo(is_complete=True)
 
     fp_client.recordings.create(
         RecordPayload(
@@ -105,28 +95,22 @@ for test_case in test_run.get_trace_test_cases():
             call_info=call_info,
             response_info=response_info,
             test_run_info=test_run_info,
-            eval_results={
-                'f1-score': 0.48,
-                'is_non_empty': True
-            },
-            trace_info=trace_info
+            eval_results={"f1-score": 0.48, "is_non_empty": True},
+            trace_info=trace_info,
         )
     )
 
     trace_info.record_output(
         project_id,
         completion.choices[0].message.content,
-        {
-            'f1-score': 0.48,
-            'is_non_empty': True
-        },
-        test_run_info=test_run_info
+        {"f1-score": 0.48, "is_non_empty": True},
+        test_run_info=test_run_info,
     )
 
 # wait 5 sec and get the results
 time.sleep(5)
 results = fp_client.test_runs.get(project_id, test_run.test_run_id)
-print(f"Test run results")
+print("Test run results")
 print(results.test_run_id)
 print(results.name)
 print(results.description)

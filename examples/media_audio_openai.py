@@ -16,17 +16,16 @@ client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 input_variables = {"query": "Describe what you hear"}
 
-response = requests.get("https://upload.wikimedia.org/wikipedia/commons/2/28/Bird_Call_-_Muro%2C_Spain_2022-04-18_%2802%29.mp3", headers={
-    "User-Agent": "Test/0.0"
-})
+response = requests.get(
+    "https://upload.wikimedia.org/wikipedia/commons/2/28/Bird_Call_-_Muro%2C_Spain_2022-04-18_%2802%29.mp3",
+    headers={"User-Agent": "Test/0.0"},
+)
 response.raise_for_status()
-encoded_audio = base64.b64encode(response.content).decode('utf-8')
+encoded_audio = base64.b64encode(response.content).decode("utf-8")
 
 media_inputs = {
-    'some-audio': MediaInputBase64(
-        type="base64",
-        content_type="audio/mpeg",
-        data=encoded_audio
+    "some-audio": MediaInputBase64(
+        type="base64", content_type="audio/mpeg", data=encoded_audio
     )
 }
 formatted_prompt = fpclient.prompts.get_formatted(
@@ -34,7 +33,7 @@ formatted_prompt = fpclient.prompts.get_formatted(
     template_name="audio",
     environment="latest",
     variables=input_variables,
-    media_inputs=media_inputs
+    media_inputs=media_inputs,
 )
 
 start = time.time()
@@ -57,7 +56,7 @@ record_response = fpclient.recordings.create(
         project_id=os.environ["FREEPLAY_PROJECT_ID"],
         all_messages=[
             *formatted_prompt.llm_prompt,
-            {"role": "assistant", "content": response_content}
+            {"role": "assistant", "content": response_content},
         ],
         session_info=session.session_info,
         inputs=input_variables,

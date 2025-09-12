@@ -83,5 +83,6 @@ class AssistantMessage:
     content: Union[str, List[ContentBlock]]
     role: Literal["assistant"] = "assistant"
 
+
 # Largely used for history in dataset test cases presently
 NormalizedMessage = Union[UserMessage, SystemMessage, AssistantMessage]

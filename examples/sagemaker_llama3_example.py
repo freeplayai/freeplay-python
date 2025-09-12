@@ -14,29 +14,33 @@ from customer_utils import get_freeplay_thin_client, record_results_from_bound
 
 fp_client = get_freeplay_thin_client()
 
-input_variables = {'question': 'Why is the sky blue?'}
-formatted_prompt = fp_client.prompts.get(
-    project_id=os.environ['FREEPLAY_PROJECT_ID'],
-    template_name='my-sagemaker-llama-3-prompt',
-    environment='latest'
-).bind(input_variables).format()
+input_variables = {"question": "Why is the sky blue?"}
+formatted_prompt = (
+    fp_client.prompts.get(
+        project_id=os.environ["FREEPLAY_PROJECT_ID"],
+        template_name="my-sagemaker-llama-3-prompt",
+        environment="latest",
+    )
+    .bind(input_variables)
+    .format()
+)
 
 print(f"Ready for LLM: {formatted_prompt.llm_prompt_text}")
 
-client = boto3.client(
-    'sagemaker-runtime', 'us-east-1'
-)
+client = boto3.client("sagemaker-runtime", "us-east-1")
 
 custom_attributes = ""  # An example of a trace ID.
-endpoint_name = formatted_prompt.prompt_info.provider_info['endpoint_name']
-inference_component_name = formatted_prompt.prompt_info.provider_info['inference_component_name']
-content_type = "application/json"  # The MIME type of the input data in the request body.
+endpoint_name = formatted_prompt.prompt_info.provider_info["endpoint_name"]
+inference_component_name = formatted_prompt.prompt_info.provider_info[
+    "inference_component_name"
+]
+content_type = (
+    "application/json"  # The MIME type of the input data in the request body.
+)
 accept = "application/json"  # The desired MIME type of the inference in the response.
 payload = {
     "inputs": formatted_prompt.llm_prompt_text,
-    "parameters": {
-        **formatted_prompt.prompt_info.model_parameters
-    }
+    "parameters": {**formatted_prompt.prompt_info.model_parameters},
 }
 
 payload_str = json.dumps(payload)
@@ -48,12 +52,12 @@ response = client.invoke_endpoint(
     CustomAttributes=custom_attributes,
     ContentType=content_type,
     Accept=accept,
-    Body=json.dumps(payload)
+    Body=json.dumps(payload),
 )
 end = time.time()
 
-json = json.loads(response['Body'].read().decode("utf-8"))
-response_content = json['generated_text']
+json = json.loads(response["Body"].read().decode("utf-8"))
+response_content = json["generated_text"]
 print(response_content)
 
 record_results_from_bound(
@@ -64,5 +68,5 @@ record_results_from_bound(
     input_variables,
     fp_client.sessions.create(),
     start,
-    end
+    end,
 )

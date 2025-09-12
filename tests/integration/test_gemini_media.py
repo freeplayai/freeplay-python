@@ -25,10 +25,10 @@ class TestGeminiMedia(unittest.TestCase):
     def test_gemini_audio(self) -> None:
         input_variables = {"query": "Describe what you hear"}
         media_inputs: MediaInputMap = {
-            'some-audio': MediaInputBase64(
+            "some-audio": MediaInputBase64(
                 type="base64",
                 content_type="audio/mpeg",
-                data=encode_test_data("birds.mp3")
+                data=encode_test_data("birds.mp3"),
             )
         }
         formatted_prompt = self.freeplay_client.prompts.get_formatted(
@@ -37,7 +37,7 @@ class TestGeminiMedia(unittest.TestCase):
             environment="latest",
             variables=input_variables,
             media_inputs=media_inputs,
-            flavor_name="gemini_chat"
+            flavor_name="gemini_chat",
         )
         formatted_prompt.prompt_info.model = "gemini-2.0-flash"
         formatted_prompt.prompt_info.model_parameters["max_tokens"] = 2000
@@ -45,16 +45,20 @@ class TestGeminiMedia(unittest.TestCase):
         response = requests.post(
             f"https://generativelanguage.googleapis.com/v1beta/models/{formatted_prompt.prompt_info.model}:generateContent?key={self.api_key}",
             headers={"Content-Type": "application/json"},
-            data=json.dumps({
-                "system_instruction": {
-                    "parts": [{"text": formatted_prompt.system_content or ""}],
-                },
-                "contents": formatted_prompt.llm_prompt
-            }),
+            data=json.dumps(
+                {
+                    "system_instruction": {
+                        "parts": [{"text": formatted_prompt.system_content or ""}],
+                    },
+                    "contents": formatted_prompt.llm_prompt,
+                }
+            ),
         )
         self.assertEqual(response.status_code, 200)
 
-        response_content = response.json()["candidates"][0]["content"]["parts"][0]["text"]
+        response_content = response.json()["candidates"][0]["content"]["parts"][0][
+            "text"
+        ]
         self.assertIn("bird", response_content)
 
         record_response = self.freeplay_client.recordings.create(
@@ -62,13 +66,15 @@ class TestGeminiMedia(unittest.TestCase):
                 project_id=self.project_id,
                 all_messages=[
                     *formatted_prompt.llm_prompt,
-                    {"role": "model", "parts": [{"text": response_content}]}
+                    {"role": "model", "parts": [{"text": response_content}]},
                 ],
                 session_info=self.freeplay_client.sessions.create().session_info,
                 inputs=input_variables,
                 media_inputs=media_inputs,
                 prompt_version_info=formatted_prompt.prompt_info,
-                call_info=CallInfo.from_prompt_info(formatted_prompt.prompt_info, time.time(), time.time() + 1),
+                call_info=CallInfo.from_prompt_info(
+                    formatted_prompt.prompt_info, time.time(), time.time() + 1
+                ),
             )
         )
 
@@ -78,10 +84,10 @@ class TestGeminiMedia(unittest.TestCase):
     def test_gemini_image(self) -> None:
         input_variables = {"query": "Describe what you see"}
         media_inputs: MediaInputMap = {
-            'some-image': MediaInputBase64(
+            "some-image": MediaInputBase64(
                 type="base64",
                 content_type="image/jpeg",
-                data=encode_test_data("whale.jpg")
+                data=encode_test_data("whale.jpg"),
             )
         }
         formatted_prompt = self.freeplay_client.prompts.get_formatted(
@@ -90,7 +96,7 @@ class TestGeminiMedia(unittest.TestCase):
             environment="latest",
             variables=input_variables,
             media_inputs=media_inputs,
-            flavor_name="gemini_chat"
+            flavor_name="gemini_chat",
         )
         formatted_prompt.prompt_info.model = "gemini-2.0-flash"
         formatted_prompt.prompt_info.model_parameters["max_tokens"] = 2000
@@ -98,16 +104,20 @@ class TestGeminiMedia(unittest.TestCase):
         response = requests.post(
             f"https://generativelanguage.googleapis.com/v1beta/models/{formatted_prompt.prompt_info.model}:generateContent?key={self.api_key}",
             headers={"Content-Type": "application/json"},
-            data=json.dumps({
-                "system_instruction": {
-                    "parts": [{"text": formatted_prompt.system_content or ""}],
-                },
-                "contents": formatted_prompt.llm_prompt
-            }),
+            data=json.dumps(
+                {
+                    "system_instruction": {
+                        "parts": [{"text": formatted_prompt.system_content or ""}],
+                    },
+                    "contents": formatted_prompt.llm_prompt,
+                }
+            ),
         )
         self.assertEqual(response.status_code, 200)
 
-        response_content = response.json()["candidates"][0]["content"]["parts"][0]["text"]
+        response_content = response.json()["candidates"][0]["content"]["parts"][0][
+            "text"
+        ]
         self.assertIn("whale", response_content)
 
         record_response = self.freeplay_client.recordings.create(
@@ -115,13 +125,15 @@ class TestGeminiMedia(unittest.TestCase):
                 project_id=self.project_id,
                 all_messages=[
                     *formatted_prompt.llm_prompt,
-                    {"role": "model", "parts": [{"text": response_content}]}
+                    {"role": "model", "parts": [{"text": response_content}]},
                 ],
                 session_info=self.freeplay_client.sessions.create().session_info,
                 inputs=input_variables,
                 media_inputs=media_inputs,
                 prompt_version_info=formatted_prompt.prompt_info,
-                call_info=CallInfo.from_prompt_info(formatted_prompt.prompt_info, time.time(), time.time() + 1),
+                call_info=CallInfo.from_prompt_info(
+                    formatted_prompt.prompt_info, time.time(), time.time() + 1
+                ),
             )
         )
 
@@ -131,10 +143,10 @@ class TestGeminiMedia(unittest.TestCase):
     def test_gemini_file(self) -> None:
         input_variables = {"query": "Describe this document"}
         media_inputs: MediaInputMap = {
-            'some-file': MediaInputBase64(
+            "some-file": MediaInputBase64(
                 type="base64",
                 content_type="application/pdf",
-                data=encode_test_data("portugal.pdf")
+                data=encode_test_data("portugal.pdf"),
             )
         }
         formatted_prompt = self.freeplay_client.prompts.get_formatted(
@@ -143,7 +155,7 @@ class TestGeminiMedia(unittest.TestCase):
             environment="latest",
             variables=input_variables,
             media_inputs=media_inputs,
-            flavor_name="gemini_chat"
+            flavor_name="gemini_chat",
         )
         formatted_prompt.prompt_info.model = "gemini-2.0-flash"
         formatted_prompt.prompt_info.model_parameters["max_tokens"] = 2000
@@ -151,16 +163,20 @@ class TestGeminiMedia(unittest.TestCase):
         response = requests.post(
             f"https://generativelanguage.googleapis.com/v1beta/models/{formatted_prompt.prompt_info.model}:generateContent?key={self.api_key}",
             headers={"Content-Type": "application/json"},
-            data=json.dumps({
-                "system_instruction": {
-                    "parts": [{"text": formatted_prompt.system_content or ""}],
-                },
-                "contents": formatted_prompt.llm_prompt
-            }),
+            data=json.dumps(
+                {
+                    "system_instruction": {
+                        "parts": [{"text": formatted_prompt.system_content or ""}],
+                    },
+                    "contents": formatted_prompt.llm_prompt,
+                }
+            ),
         )
         self.assertEqual(response.status_code, 200)
 
-        response_content = response.json()["candidates"][0]["content"]["parts"][0]["text"]
+        response_content = response.json()["candidates"][0]["content"]["parts"][0][
+            "text"
+        ]
         self.assertIn("Portugal", response_content)
 
         record_response = self.freeplay_client.recordings.create(
@@ -168,13 +184,15 @@ class TestGeminiMedia(unittest.TestCase):
                 project_id=self.project_id,
                 all_messages=[
                     *formatted_prompt.llm_prompt,
-                    {"role": "model", "parts": [{"text": response_content}]}
+                    {"role": "model", "parts": [{"text": response_content}]},
                 ],
                 session_info=self.freeplay_client.sessions.create().session_info,
                 inputs=input_variables,
                 media_inputs=media_inputs,
                 prompt_version_info=formatted_prompt.prompt_info,
-                call_info=CallInfo.from_prompt_info(formatted_prompt.prompt_info, time.time(), time.time() + 1),
+                call_info=CallInfo.from_prompt_info(
+                    formatted_prompt.prompt_info, time.time(), time.time() + 1
+                ),
             )
         )
 

@@ -4,17 +4,26 @@ setup:
 
 .PHONY: type-checks
 type-checks:
-	poetry run mypy src tests;
+	uv run python scripts/type-baseline/check-type-baseline.py
 
-test: type-checks
-	poetry env use 3.8
-	poetry run python -m unittest;
+.PHONY: lint
+lint:
+	uv run ruff format && uv run ruff check --fix;
 
-test-all: type-checks
-	poetry env use 3.8
-	source .env.test; RUN_SLOW_TESTS=true poetry run python -m unittest;
+.PHONY: lint-check
+lint-check:
+	uv run ruff format --check && uv run ruff check;
+
+test: type-checks lint-check
+	uv run python -m unittest;
+
+test-all: type-checks lint-check
+	source .env.test; RUN_SLOW_TESTS=true uv run python -m unittest;
+
+test-ci: type-checks lint-check
+	uv run python -m unittest;
 
 # Example usage: make run-example
 # This will run examples/example.py
 run-%:
-	source .env; poetry run python examples/$*.py
+	source .env; uv run python examples/$*.py

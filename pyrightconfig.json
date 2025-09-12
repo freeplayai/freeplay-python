@@ -1,0 +1,16 @@
+{
+    "extends": "./pyrightconfig.base.json",
+
+    "include": [
+        "src",
+        "tests"
+    ],
+
+    "exclude": [
+        "**/__pycache__",
+        "**/.venv",
+        "**/node_modules",
+        "dist",
+        "examples"
+    ]
+}

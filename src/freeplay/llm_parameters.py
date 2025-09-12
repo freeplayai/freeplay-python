@@ -10,15 +10,19 @@ class LLMParameters(Dict[str, Any]):
         super().__init__(members)
 
     @classmethod
-    def empty(cls) -> 'LLMParameters':
+    def empty(cls) -> "LLMParameters":
         return LLMParameters({})
 
-    def merge_and_override(self, additional_params: Optional['LLMParameters']) -> 'LLMParameters':
+    def merge_and_override(
+        self, additional_params: Optional["LLMParameters"]
+    ) -> "LLMParameters":
         updated_params = copy.deepcopy(self)
 
         if additional_params is not None:
             for model_param_key, value in additional_params.items():
-                logger.debug(f"Overriding parameter '{model_param_key}' using value '{value}' from get_completion call")
+                logger.debug(
+                    f"Overriding parameter '{model_param_key}' using value '{value}' from get_completion call"
+                )
                 updated_params[model_param_key] = value
 
         return updated_params

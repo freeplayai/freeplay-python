@@ -51,6 +51,7 @@ class TraceTestCase:
         self.output = output
         self.custom_metadata = custom_metadata
 
+
 @dataclass
 class TestRun:
     def __init__(
@@ -95,11 +96,11 @@ class TestRun:
 @dataclass
 class TestRunResults:
     def __init__(
-            self,
-            name: str,
-            description: str,
-            test_run_id: str,
-            summary_statistics: SummaryStatistics,
+        self,
+        name: str,
+        description: str,
+        test_run_id: str,
+        summary_statistics: SummaryStatistics,
     ):
         self.name = name
         self.description = description
@@ -112,17 +113,24 @@ class TestRuns:
         self.call_support = call_support
 
     def create(
-            self,
-            project_id: str,
-            testlist: str,
-            include_outputs: bool = False,
-            name: Optional[str] = None,
-            description: Optional[str] = None,
-            flavor_name: Optional[str] = None,
-            target_evaluation_ids: Optional[List[UUID]] = None,
+        self,
+        project_id: str,
+        testlist: str,
+        include_outputs: bool = False,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        flavor_name: Optional[str] = None,
+        target_evaluation_ids: Optional[List[UUID]] = None,
     ) -> TestRun:
         test_run = self.call_support.create_test_run(
-            project_id, testlist, include_outputs, name, description, flavor_name, target_evaluation_ids)
+            project_id,
+            testlist,
+            include_outputs,
+            name,
+            description,
+            flavor_name,
+            target_evaluation_ids,
+        )
         test_cases = [
             CompletionTestCase(
                 test_case_id=test_case.id,
@@ -135,20 +143,24 @@ class TestRuns:
             for test_case in test_run.test_cases
         ]
         trace_test_cases = [
-            TraceTestCase(test_case_id=test_case.id,
-                          input=test_case.input,
-                          output=test_case.output,
-                          custom_metadata=test_case.custom_metadata)
+            TraceTestCase(
+                test_case_id=test_case.id,
+                input=test_case.input,
+                output=test_case.output,
+                custom_metadata=test_case.custom_metadata,
+            )
             for test_case in test_run.trace_test_cases
         ]
 
         return TestRun(test_run.test_run_id, test_cases, trace_test_cases)
 
     def get(self, project_id: str, test_run_id: str) -> TestRunResults:
-        test_run_results = self.call_support.get_test_run_results(project_id, test_run_id)
+        test_run_results = self.call_support.get_test_run_results(
+            project_id, test_run_id
+        )
         return TestRunResults(
             test_run_results.name,
             test_run_results.description,
             test_run_results.test_run_id,
-            test_run_results.summary_statistics
+            test_run_results.summary_statistics,
         )

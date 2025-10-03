@@ -27,6 +27,7 @@ from freeplay.model import (
     InputVariables,
     MediaInputMap,
     MediaInputUrl,
+    NormalizedOutputSchema,
 )
 from freeplay.resources.adapters import (
     MediaContentBase64,
@@ -39,6 +40,7 @@ from freeplay.support import (
     CallSupport,
     HistoryTemplateMessage,
     MediaSlot,
+    MediaType,
     PromptTemplate,
     PromptTemplateMetadata,
     PromptTemplates,
@@ -57,6 +59,13 @@ class UnsupportedToolSchemaError(FreeplayConfigurationError):
         super().__init__("Tool schema not supported for this model and provider.")
 
 
+class UnsupportedOutputSchema(FreeplayConfigurationError):
+    def __init__(self) -> None:
+        super().__init__(
+            "Structured outputs are not supported for this model and provider."
+        )
+
+
 class VertexAIToolSchemaError(FreeplayConfigurationError):
     def __init__(self) -> None:
         super().__init__(
@@ -73,8 +82,7 @@ class VertexAIToolSchemaError(FreeplayConfigurationError):
 # providers.
 @runtime_checkable
 class ProviderMessageProtocol(Protocol):
-    def model_dump(self) -> Dict[str, Any]:
-        pass
+    def model_dump(self) -> Dict[str, Any]: ...
 
 
 class MessageDict(TypedDict):
@@ -122,10 +130,12 @@ class FormattedPrompt:
         formatted_prompt: Optional[List[Dict[str, str]]] = None,
         formatted_prompt_text: Optional[str] = None,
         tool_schema: Optional[List[Dict[str, Any]]] = None,
+        formatted_output_schema: Optional[Dict[str, Any]] = None,
     ):
         # These two definitions allow us to operate on typed fields until we expose them as Any for client use.
         self._llm_prompt = formatted_prompt
         self._tool_schema = tool_schema
+        self._formatted_output_schema = formatted_output_schema
 
         self.prompt_info = prompt_info
         if formatted_prompt_text:
@@ -156,6 +166,10 @@ class FormattedPrompt:
     def tool_schema(self) -> Any:
         return self._tool_schema
 
+    @property
+    def formatted_output_schema(self) -> Any:
+        return self._formatted_output_schema
+
     def all_messages(self, new_message: ProviderMessage) -> List[Dict[str, Any]]:
         converted_message = convert_provider_message_to_dict(new_message)
         return self._messages + [converted_message]
@@ -167,10 +181,12 @@ class BoundPrompt:
         prompt_info: PromptInfo,
         messages: List[Dict[str, Any]],
         tool_schema: Optional[List[ToolSchema]] = None,
+        output_schema: Optional[NormalizedOutputSchema] = None,
     ):
         self.prompt_info = prompt_info
         self.messages = messages
         self.tool_schema = tool_schema
+        self.output_schema = output_schema
 
     @staticmethod
     def __format_tool_schema(flavor_name: str, tool_schema: List[ToolSchema]) -> Any:
@@ -219,6 +235,16 @@ class BoundPrompt:
 
         raise UnsupportedToolSchemaError()
 
+    @staticmethod
+    def __format_output_schema(
+        flavor_name: str, output_schema: NormalizedOutputSchema
+    ) -> Dict[str, Any]:
+        # For OpenAI and Azure OpenAI, the normalized format is compatible with the API format
+        if flavor_name in ["openai_chat", "azure_openai_chat"]:
+            return output_schema
+        # Add other flavors as necessary - currently only OpenAI-compatible models support output schema
+        raise UnsupportedOutputSchema()
+
     def format(self, flavor_name: Optional[str] = None) -> FormattedPrompt:
         final_flavor = flavor_name or self.prompt_info.flavor_name
         adapter = adaptor_for_flavor(final_flavor)
@@ -228,6 +254,11 @@ class BoundPrompt:
             if self.tool_schema
             else None
         )
+        formatted_output_schema = (
+            BoundPrompt.__format_output_schema(final_flavor, self.output_schema)
+            if self.output_schema
+            else None
+        )
 
         if isinstance(formatted_prompt, str):
             return FormattedPrompt(
@@ -235,6 +266,7 @@ class BoundPrompt:
                 messages=self.messages,
                 formatted_prompt_text=formatted_prompt,
                 tool_schema=formatted_tool_schema,
+                formatted_output_schema=formatted_output_schema,
             )
         else:
             return FormattedPrompt(
@@ -242,6 +274,7 @@ class BoundPrompt:
                 messages=self.messages,
                 formatted_prompt=formatted_prompt,
                 tool_schema=formatted_tool_schema,
+                formatted_output_schema=formatted_output_schema,
             )
 
 
@@ -278,9 +311,11 @@ class TemplatePrompt:
         prompt_info: PromptInfo,
         messages: List[TemplateMessage],
         tool_schema: Optional[List[ToolSchema]] = None,
+        output_schema: Optional[NormalizedOutputSchema] = None,
     ):
         self.prompt_info = prompt_info
         self.tool_schema = tool_schema
+        self.output_schema = output_schema
         self.messages = messages
 
     def bind(
@@ -290,7 +325,7 @@ class TemplatePrompt:
         media_inputs: Optional[MediaInputMap] = None,
     ) -> BoundPrompt:
         # check history for a system message
-        history_clean = []
+        history_clean: List[Dict[str, Any]] = []
         if history:
             template_messages_contain_system = any(
                 message.role == "system"
@@ -343,7 +378,9 @@ class TemplatePrompt:
                         {"role": msg.role, "content": content},
                     )
 
-        return BoundPrompt(self.prompt_info, bound_messages, self.tool_schema)
+        return BoundPrompt(
+            self.prompt_info, bound_messages, self.tool_schema, self.output_schema
+        )
 
 
 class TemplateResolver(ABC):
@@ -385,7 +422,7 @@ class FilesystemTemplateResolver(TemplateResolver):
         directory = self.prompts_directory / project_id / environment
         prompt_file_paths = directory.glob("*.json")
 
-        prompt_list = []
+        prompt_list: List[PromptTemplate] = []
         for prompt_file_path in prompt_file_paths:
             json_dom = json.loads(prompt_file_path.read_text())
             prompt_list.append(self.__render_into_v2(json_dom))
@@ -467,6 +504,7 @@ class FilesystemTemplateResolver(TemplateResolver):
                 ]
                 if json_dom.get("tool_schema")
                 else None,
+                output_schema=json_dom.get("output_schema"),
             )
         else:
             metadata = json_dom["metadata"]
@@ -506,8 +544,17 @@ class FilesystemTemplateResolver(TemplateResolver):
                     FilesystemTemplateResolver.__role_translations.get(message["role"])
                     or message["role"]
                 )
-                media_slots: List[MediaSlot] = cast(
-                    List[MediaSlot], message.get("media_slots", [])
+                raw_media_slots = message.get("media_slots", [])
+                media_slots: List[MediaSlot] = (
+                    [
+                        MediaSlot(
+                            type=cast(MediaType, slot["type"]),
+                            placeholder_name=cast(str, slot["placeholder_name"]),
+                        )
+                        for slot in raw_media_slots
+                    ]
+                    if raw_media_slots
+                    else []
                 )
                 normalized.append(
                     TemplateChatMessage(
@@ -629,7 +676,9 @@ class Prompts:
             provider_info=prompt.metadata.provider_info,
         )
 
-        return TemplatePrompt(prompt_info, prompt.content, prompt.tool_schema)
+        return TemplatePrompt(
+            prompt_info, prompt.content, prompt.tool_schema, prompt.output_schema
+        )
 
     def get_all_for_environment(self, environment: str) -> PromptTemplates:
         return self.call_support.get_prompts_for_environment(environment=environment)
@@ -671,7 +720,9 @@ class Prompts:
             provider_info=prompt.metadata.provider_info,
         )
 
-        return TemplatePrompt(prompt_info, prompt.content, prompt.tool_schema)
+        return TemplatePrompt(
+            prompt_info, prompt.content, prompt.tool_schema, prompt.output_schema
+        )
 
     def get_formatted(
         self,

@@ -12,6 +12,7 @@ from freeplay.model import (
     MediaInputBase64,
     MediaInputUrl,
     NormalizedMessage,
+    NormalizedOutputSchema,
     TestRunInfo,
     MediaInputMap,
     MediaInput,
@@ -47,11 +48,15 @@ class MediaSlot:
     placeholder_name: str
 
 
+def _default_media_slots() -> List[MediaSlot]:
+    return []
+
+
 @dataclass
 class TemplateChatMessage:
     role: Role
     content: str
-    media_slots: List[MediaSlot] = field(default_factory=list)
+    media_slots: List[MediaSlot] = field(default_factory=_default_media_slots)
 
 
 @dataclass
@@ -73,6 +78,7 @@ class PromptTemplate:
     format_version: int
     environment: Optional[str] = None
     tool_schema: Optional[List[ToolSchema]] = None
+    output_schema: Optional[NormalizedOutputSchema] = None
 
 
 @dataclass
@@ -109,7 +115,7 @@ def media_inputs_to_json(media_input: MediaInput) -> Dict[str, Any]:
 
 
 class PromptTemplateEncoder(JSONEncoder):
-    def default(self, prompt_template: PromptTemplate) -> Dict[str, Any]:
+    def default(self, prompt_template: PromptTemplate) -> Dict[str, Any]:  # type: ignore[override]
         return prompt_template.__dict__
 
 
@@ -165,14 +171,11 @@ class TestRunResponse:
             raise ValueError("Test cases and trace test cases cannot both be present.")
 
         self.test_cases = [
-            TestCaseTestRunResponse(test_case)
-            for test_case in (test_cases or [])
-            if test_case is not None
+            TestCaseTestRunResponse(test_case) for test_case in (test_cases or [])
         ]
         self.trace_test_cases = [
             TraceTestCaseTestRunResponse(test_case)
             for test_case in (trace_test_cases or [])
-            if test_case is not None
         ]
 
         self.test_run_id = test_run_id

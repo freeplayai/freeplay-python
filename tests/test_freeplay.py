@@ -44,13 +44,13 @@ from freeplay.resources.recordings import (
 )
 from freeplay.resources.sessions import Session, SessionInfo, TraceInfo
 from freeplay.resources.test_cases import DatasetTestCase
+from freeplay.support import CallSupport
 from freeplay.support import (
     HistoryTemplateMessage,
     TemplateChatMessage,
     TemplateMessage,
     ToolSchema,
 )
-from freeplay.support import CallSupport
 
 
 class PromptInfoMatcher:
@@ -194,8 +194,8 @@ class TestFreeplay(TestCase):
         self.__mock_freeplay_apis(self.prompt_template_name, self.tag)
 
         all_messages: List[Dict[str, str]]
-        all_messages, call_info, formatted_prompt, response_info, session = (
-            self.__make_call(input_variables, llm_response)
+        all_messages, call_info, formatted_prompt, response_info, _ = self.__make_call(
+            input_variables, llm_response
         )
 
         test_case_id = str(uuid4())
@@ -228,7 +228,7 @@ class TestFreeplay(TestCase):
         )
 
         record_api_request = responses.calls[1].request
-        recorded_body_dom = json.loads(record_api_request.body)
+        recorded_body_dom = json.loads(cast(bytes, record_api_request.body))
 
         self.assertEqual(
             self.project_version_id,
@@ -338,7 +338,7 @@ class TestFreeplay(TestCase):
             ),
         )
 
-        _, call_info, formatted_prompt, response_info, session = self.__make_call(
+        _, call_info, formatted_prompt, response_info, _ = self.__make_call(
             input_variables,
             llm_response,
             media_inputs,
@@ -376,7 +376,7 @@ class TestFreeplay(TestCase):
         )
 
         record_api_request = responses.calls[1].request
-        recorded_body_dom = json.loads(record_api_request.body)
+        recorded_body_dom = json.loads(cast(bytes, record_api_request.body))
         self.assertEqual(
             formatted_prompt.llm_prompt,
             [
@@ -443,7 +443,7 @@ class TestFreeplay(TestCase):
             )
 
         record_api_request = responses.calls[1].request
-        recorded_body_dom = json.loads(record_api_request.body)
+        recorded_body_dom = json.loads(cast(bytes, record_api_request.body))
 
         self.assertEqual(str(completion_id), recorded_body_dom["completion_id"])
         self.assertEqual(
@@ -460,7 +460,7 @@ class TestFreeplay(TestCase):
             test_run_info=TestRunInfo(self.test_run_id, "test_case_id"),
         )
         record_trace_api_request = responses.calls[2].request
-        recorded_trace_body_dom = json.loads(record_trace_api_request.body)
+        recorded_trace_body_dom = json.loads(cast(bytes, record_trace_api_request.body))
         self.assertEqual(input_variables["question"], recorded_trace_body_dom["input"])
         self.assertEqual(llm_response, recorded_trace_body_dom["output"])
         self.assertEqual("agent_name", recorded_trace_body_dom["agent_name"])
@@ -527,8 +527,8 @@ class TestFreeplay(TestCase):
         input_variables = {"name": "Sparkles", "question": "Why isn't my door working"}
         llm_response = "This is the response from the LLM"
 
-        all_messages, call_info, formatted_prompt, response_info, session = (
-            self.__make_call(input_variables=input_variables, llm_response=llm_response)
+        all_messages, call_info, formatted_prompt, response_info, _ = self.__make_call(
+            input_variables=input_variables, llm_response=llm_response
         )
 
         parent_id = uuid4()
@@ -549,7 +549,7 @@ class TestFreeplay(TestCase):
         )
 
         record_api_request = responses.calls[1].request
-        recorded_body_dom = json.loads(record_api_request.body)
+        recorded_body_dom = json.loads(cast(bytes, record_api_request.body))
 
         self.assertEqual(str(completion_id), recorded_body_dom["completion_id"])
         self.assertEqual(str(parent_id), recorded_body_dom["parent_id"])
@@ -666,8 +666,8 @@ class TestFreeplay(TestCase):
 
         self.__mock_freeplay_apis(self.prompt_template_name, self.tag)
 
-        all_messages, call_info, formatted_prompt, response_info, session = (
-            self.__make_call(input_variables, llm_response)
+        _, call_info, formatted_prompt, response_info, _ = self.__make_call(
+            input_variables, llm_response
         )
 
         # make initial record call
@@ -701,7 +701,7 @@ class TestFreeplay(TestCase):
 
         # eval results recording
         record_update_api_request = responses.calls[2].request
-        recorded_body_dom = json.loads(record_update_api_request.body)
+        recorded_body_dom = json.loads(cast(bytes, record_update_api_request.body))
         self.assertEqual(new_messages, recorded_body_dom["new_messages"])
         self.assertEqual(
             {"client_eval_field_bool": True, "client_eval_field_float": 0.23},
@@ -723,10 +723,8 @@ class TestFreeplay(TestCase):
 
         input_variables = {"name": "Sparkles", "question": "Why isn't my door working"}
 
-        all_messages, call_info, formatted_prompt, response_info, session = (
-            self.__make_call(
-                input_variables=input_variables, llm_response="Placeholder--Not Used"
-            )
+        _, call_info, formatted_prompt, response_info, _ = self.__make_call(
+            input_variables=input_variables, llm_response="Placeholder--Not Used"
         )
 
         response_info = ResponseInfo(
@@ -752,7 +750,7 @@ class TestFreeplay(TestCase):
         self.assertIsNotNone(record_response.completion_id)
 
         record_api_request = responses.calls[1].request
-        recorded_body_dom = json.loads(record_api_request.body)
+        recorded_body_dom = json.loads(cast(bytes, record_api_request.body))
 
         self.assertEqual(
             formatted_prompt.all_messages({"role": "assistant"}),
@@ -779,7 +777,7 @@ class TestFreeplay(TestCase):
         )
 
         customer_feedback_request = responses.calls[0].request
-        recorded_body_dom = json.loads(customer_feedback_request.body)
+        recorded_body_dom = json.loads(cast(bytes, customer_feedback_request.body))
         self.assertEqual("it is ok!", recorded_body_dom["some-feedback"])
         self.assertEqual(1.2, recorded_body_dom["float"])
         self.assertEqual(1, recorded_body_dom["int"])
@@ -798,7 +796,7 @@ class TestFreeplay(TestCase):
         )
 
         trace_feedback_request = responses.calls[0].request
-        recorded_body_dom = json.loads(trace_feedback_request.body)
+        recorded_body_dom = json.loads(cast(bytes, trace_feedback_request.body))
         self.assertEqual(True, recorded_body_dom["is good"])
         self.assertEqual("positive", recorded_body_dom["freeplay_feedback"])
         self.assertEqual(1, recorded_body_dom["int"])
@@ -981,6 +979,51 @@ class TestFreeplay(TestCase):
                 )
             ],
         )
+
+    @responses.activate
+    def test_get_template_prompt_with_output_schema(self) -> None:
+        # Mock an OpenAI template with output_schema
+        output_schema = {
+            "type": "object",
+            "properties": {
+                "songs": {"type": "array", "items": {"type": "string"}},
+                "total": {"type": "integer"},
+            },
+            "required": ["songs"],
+        }
+        responses.get(
+            url=f"{self.api_base}/v2/projects/{self.project_id}/prompt-templates/name/openai-template?environment={self.tag}",
+            status=200,
+            body=json.dumps(
+                {
+                    "content": [
+                        {"role": "system", "content": "System message"},
+                        {"role": "user", "content": "{{question}}"},
+                    ],
+                    "tool_schema": None,
+                    "output_schema": output_schema,
+                    "format_version": 2,
+                    "metadata": {
+                        "flavor": "openai_chat",
+                        "model": "gpt-4",
+                        "params": {},
+                        "provider": "openai",
+                        "provider_info": {},
+                    },
+                    "project_id": self.project_id,
+                    "prompt_template_id": self.prompt_template_id_1,
+                    "prompt_template_name": "openai-template",
+                    "prompt_template_version_id": self.prompt_template_version_id,
+                }
+            ),
+        )
+
+        template_prompt = self.freeplay_thin.prompts.get(
+            project_id=self.project_id,
+            template_name="openai-template",
+            environment=self.tag,
+        )
+        self.assertEqual(template_prompt.output_schema, output_schema)
 
     def test_prompt_format__history_openai(self) -> None:
         messages: List[TemplateMessage] = [
@@ -1286,6 +1329,65 @@ class TestFreeplay(TestCase):
         except ImportError:
             self.skipTest("Vertex AI SDK not installed")
 
+    def test_prompt_format_with_output_schema_openai(self) -> None:
+        messages: List[TemplateMessage] = [
+            TemplateChatMessage(role="system", content="System message"),
+            TemplateChatMessage(role="user", content="User message {{number}}"),
+        ]
+        output_schema = {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "age": {"type": "integer"},
+            },
+            "required": ["name"],
+        }
+
+        template_prompt = TemplatePrompt(
+            self.openai_api_prompt_info,
+            messages=messages,
+            output_schema=output_schema,
+        )
+
+        bound_prompt = template_prompt.bind({"number": 1})
+        formatted_prompt = bound_prompt.format()
+        self.assertEqual(formatted_prompt.formatted_output_schema, output_schema)
+
+    def test_prompt_format_with_output_schema_azure_openai(self) -> None:
+        messages: List[TemplateMessage] = [
+            TemplateChatMessage(role="system", content="System message"),
+            TemplateChatMessage(role="user", content="User message {{number}}"),
+        ]
+        output_schema = {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string"},
+                "rating": {"type": "number"},
+            },
+        }
+
+        azure_prompt_info = PromptInfo(
+            prompt_template_id=str(uuid.uuid4()),
+            prompt_template_version_id=str(uuid.uuid4()),
+            template_name="template-name",
+            environment="environment",
+            model_parameters=LLMParameters({}),
+            provider_info=None,
+            provider="azure",
+            model="gpt-4",
+            flavor_name="azure_openai_chat",
+        )
+
+        template_prompt = TemplatePrompt(
+            azure_prompt_info,
+            messages=messages,
+            output_schema=output_schema,
+        )
+
+        bound_prompt = template_prompt.bind({"number": 1})
+        formatted_prompt = bound_prompt.format()
+        self.assertEqual(formatted_prompt.formatted_output_schema, output_schema)
+
     def test_anthropic_system_prompt_formatting__multiple_system_messages(self) -> None:
         bound_prompt = BoundPrompt(
             self.anthropic_prompt_info,
@@ -1484,9 +1586,7 @@ class TestFreeplay(TestCase):
         trace_test_cases = test_run.get_trace_test_cases()
         self.assertEqual(1, len(trace_test_cases))
         self.assertEqual(1, len(trace_test_cases[0].custom_metadata or {}))
-        self.assertTrue(
-            all(test_case.input is not None for test_case in trace_test_cases)
-        )
+        self.assertTrue(all(test_case.input for test_case in trace_test_cases))
         self.assertTrue(
             all(test_case.output is not None for test_case in trace_test_cases)
         )
@@ -1534,7 +1634,7 @@ class TestFreeplay(TestCase):
 
         with self.assertRaisesRegex(
             FreeplayClientError,
-            f"Error getting prompt template my-prompt-anthropic in project {self.project_id} and environment test-tag \[401\]",
+            rf"Error getting prompt template my-prompt-anthropic in project {self.project_id} and environment test-tag \[401\]",
         ):
             freeplay_thin.prompts.get(
                 project_id=self.project_id,
@@ -1547,7 +1647,7 @@ class TestFreeplay(TestCase):
         self.__mock_freeplay_apis(self.prompt_template_name)
         with self.assertRaisesRegex(
             FreeplayClientError,
-            f"Error getting prompt template invalid-template-id in project {self.project_id} and environment test-tag \[404\]",
+            rf"Error getting prompt template invalid-template-id in project {self.project_id} and environment test-tag \[404\]",
         ):
             self.freeplay_thin.prompts.get(
                 project_id=self.project_id,
@@ -1985,6 +2085,7 @@ class TestFreeplay(TestCase):
 
         # Verify the request payload includes properly serialized media_inputs
         create_test_cases_request = responses.calls[0].request
+        assert create_test_cases_request.body is not None
         request_body = json.loads(create_test_cases_request.body)
         self.assertIn("examples", request_body)
 
@@ -2028,6 +2129,7 @@ class TestFreeplay(TestCase):
 
         # Verify the request payload
         create_test_cases_request = responses.calls[0].request
+        assert create_test_cases_request.body is not None
         request_body = json.loads(create_test_cases_request.body)
         examples = request_body["examples"]
         example = examples[0]
@@ -2111,17 +2213,22 @@ class TestFreeplay(TestCase):
         def request_callback(
             request: PreparedRequest,
         ) -> Tuple[int, Dict[str, str], str]:
-            payload: Optional[Dict[str, Any]] = None  # Start with None
+            payload: Optional[Dict[str, object]] = None  # Start with None
 
-            loaded_data = json.loads(request.body) if request.body else None
+            loaded_data: object = json.loads(request.body) if request.body else None
             if isinstance(loaded_data, dict):
-                payload = loaded_data
+                payload = cast(Dict[str, object], loaded_data)
 
             # Ensure we have a dictionary for the .get() calls.
             # If payload is None (e.g. empty/invalid body, or JSON "null"), use an empty dict.
             final_payload_dict = payload if payload is not None else {}
 
-            include_outputs = final_payload_dict.get("include_outputs", False)
+            include_outputs_value = final_payload_dict.get("include_outputs", False)
+            include_outputs = (
+                bool(include_outputs_value)
+                if include_outputs_value is not None
+                else False
+            )
             testlist_name = final_payload_dict.get("dataset_name")
 
             if testlist_name == "agent_dataset":
@@ -2267,6 +2374,7 @@ class TestFreeplay(TestCase):
                         },
                     }
                 ],
+                "output_schema": None,
                 "format_version": 2,
                 "metadata": {
                     "flavor": "anthropic_chat",

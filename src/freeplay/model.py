@@ -6,6 +6,10 @@ InputVariables = Mapping[str, InputValue]
 TestRunInput = Mapping[str, InputValue]
 FeedbackValue = Union[bool, str, int, float]
 
+# Output schema type aliases -- semantically meaningful to differentiate from
+# provider specific Dict[str,Any]
+NormalizedOutputSchema = Dict[str, Any]  # Processed JSON schema for storage
+
 
 @dataclass
 class MediaInputUrl:

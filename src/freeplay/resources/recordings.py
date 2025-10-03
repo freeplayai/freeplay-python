@@ -13,6 +13,7 @@ from freeplay.llm_parameters import LLMParameters
 from freeplay.model import (
     InputVariables,
     MediaInputMap,
+    NormalizedOutputSchema,
     OpenAIFunctionCall,
     TestRunInfo,
 )
@@ -90,6 +91,7 @@ class RecordPayload:
     call_info: Optional[CallInfo] = None
     media_inputs: Optional[MediaInputMap] = None
     tool_schema: Optional[List[Dict[str, Any]]] = None
+    output_schema: Optional[NormalizedOutputSchema] = None
     response_info: Optional[ResponseInfo] = None
     test_run_info: Optional[TestRunInfo] = None
     eval_results: Optional[Dict[str, Union[bool, float]]] = None
@@ -134,6 +136,7 @@ class Recordings:
             "messages": record_payload.all_messages,
             "inputs": record_payload.inputs,
             "tool_schema": record_payload.tool_schema,
+            "output_schema": record_payload.output_schema,
             "session_info": {
                 "custom_metadata": record_payload.session_info.custom_metadata
             },
@@ -232,8 +235,10 @@ class Recordings:
 
         except Exception as e:
             status_code = -1
-            if hasattr(e, "response") and hasattr(e.response, "status_code"):
-                status_code = e.response.status_code
+            if hasattr(e, "response"):
+                response = getattr(e, "response")
+                if hasattr(response, "status_code"):
+                    status_code = getattr(response, "status_code")
 
             message = (
                 f"There was an error recording to Freeplay. Call will not be logged. "

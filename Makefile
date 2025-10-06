@@ -2,25 +2,26 @@
 setup:
 	./devenv.sh
 
-.PHONY: type-checks
-type-checks:
+.PHONY: type-check
+type-check:
 	uv run python scripts/type-baseline/check-type-baseline.py
 
 .PHONY: lint
 lint:
 	uv run ruff format && uv run ruff check --fix;
 
+# ONLY use this in CI. Locally, make it always do the fix.
 .PHONY: lint-check
 lint-check:
 	uv run ruff format --check && uv run ruff check;
 
-test: type-checks lint-check
+test: type-check lint
 	uv run python -m unittest;
 
-test-all: type-checks lint-check
+test-all: type-check lint
 	source .env.test; RUN_SLOW_TESTS=true uv run python -m unittest;
 
-test-ci: type-checks lint-check
+test-ci: type-check lint
 	uv run python -m unittest;
 
 # Example usage: make run-example

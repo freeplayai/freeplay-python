@@ -48,6 +48,7 @@ from freeplay.support import (
     TemplateChatMessage,
     TemplateMessage,
     ToolSchema,
+    TemplateVersionResponse,
 )
 from freeplay.utils import bind_template_variables, convert_provider_message_to_dict
 
@@ -753,3 +754,43 @@ class Prompts:
         ).bind(variables=variables)
 
         return bound_prompt.format(flavor_name)
+
+    def create_version(
+        self,
+        project_id: str,
+        template_name: str,
+        template_messages: List[TemplateMessage],
+        model: str,
+        provider: str,
+        version_name: Optional[str] = None,
+        version_description: Optional[str] = None,
+        llm_parameters: Optional[LLMParameters] = None,
+        tool_schema: Optional[List[ToolSchema]] = None,
+        environments: Optional[List[str]] = None,
+    ) -> Optional[TemplateVersionResponse]:
+        return self.call_support.create_version(
+            project_id=project_id,
+            template_name=template_name,
+            template_messages=template_messages,
+            model=model,
+            provider=provider,
+            version_name=version_name,
+            version_description=version_description,
+            llm_parameters=llm_parameters,
+            tool_schema=tool_schema,
+            environments=environments,
+        )
+
+    def update_version_environments(
+        self,
+        project_id: str,
+        template_id: str,
+        template_version_id: str,
+        environments: List[str],
+    ) -> None:
+        self.call_support.update_version_environments(
+            project_id=project_id,
+            template_id=template_id,
+            template_version_id=template_version_id,
+            environments=environments,
+        )

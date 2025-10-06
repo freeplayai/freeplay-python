@@ -40,7 +40,7 @@ jobs:
         run: uv sync --group dev --locked
         
       - name: Type checking
-        run: make type-checks
+        run: make type-check
         
       - name: Lint checking
         run: make lint-check

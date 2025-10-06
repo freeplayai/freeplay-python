@@ -2,7 +2,7 @@ import json
 import time
 import uuid
 import warnings
-from dataclasses import asdict
+from datetime import timezone, datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, cast
 from unittest import TestCase
@@ -44,7 +44,11 @@ from freeplay.resources.recordings import (
 )
 from freeplay.resources.sessions import Session, SessionInfo, TraceInfo
 from freeplay.resources.test_cases import DatasetTestCase
-from freeplay.support import CallSupport
+from freeplay.support import (
+    CallSupport,
+    TemplateVersionResponse,
+    PromptTemplateMetadata,
+)
 from freeplay.support import (
     HistoryTemplateMessage,
     TemplateChatMessage,
@@ -96,6 +100,7 @@ class TestFreeplay(TestCase):
         self.project_version_id = str(uuid4())
         self.prompt_template_version_id = self.project_version_id
         self.prompt_template_id_1 = str(uuid4())
+        self.prompt_template_name_1 = "prompt-template-1"
         self.prompt_template_name = "my-prompt-anthropic"
         self.session_id = str(uuid4())
         self.completion_id = str(uuid4())
@@ -981,6 +986,130 @@ class TestFreeplay(TestCase):
         )
 
     @responses.activate
+    def test_create_template_version__minimal_fields(self) -> None:
+        self.__mock_template_version_create()
+
+        new_messages: List[TemplateMessage] = [
+            TemplateChatMessage(
+                role="user", content="I have this question: {{question}}"
+            )
+        ]
+        created_version = self.freeplay_thin.prompts.create_version(
+            project_id=self.project_id,
+            template_name=self.prompt_template_name_1,
+            template_messages=new_messages,
+            provider="anthropic",
+            model="claude-4-sonnet-20250514",
+        )
+
+        self.assertIsNotNone(created_version)
+        self.assertEqual(
+            TemplateVersionResponse(
+                project_id=self.project_id,
+                prompt_template_id=self.prompt_template_id_1,
+                prompt_template_name=self.prompt_template_name,
+                prompt_template_version_id=created_version.prompt_template_version_id,  # type: ignore
+                content=new_messages,
+                format_version=3,
+                metadata=PromptTemplateMetadata(provider=None, flavor=None, model=None),
+                tool_schema=None,
+                version_name=None,
+                version_description=None,
+            ),
+            created_version,
+        )
+
+    @responses.activate
+    def test_create_template_version__all_fields(self) -> None:
+        self.__mock_template_version_create()
+
+        new_messages: List[TemplateMessage] = [
+            TemplateChatMessage(
+                role="user", content="I have this question: {{question}}"
+            )
+        ]
+        expected_tool_schemas = [
+            ToolSchema(
+                name="get_album_tracklist",
+                description="Given an album name and genre, return a list of songs.",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "album_name": {
+                            "type": "string",
+                            "description": "Name of album from which to retrieve tracklist.",
+                        },
+                        "genre": {"type": "string", "description": "Album genre"},
+                    },
+                },
+            )
+        ]
+        created_version = self.freeplay_thin.prompts.create_version(
+            project_id=self.project_id,
+            template_name=self.prompt_template_name_1,
+            template_messages=new_messages,
+            provider="anthropic",
+            model="claude-4-sonnet-20250514",
+            version_name="new_version",
+            version_description="new_version_description",
+            llm_parameters=LLMParameters({"temperature": 0.7}),
+            tool_schema=expected_tool_schemas,
+            environments=["prod"],
+        )
+
+        self.assertIsNotNone(created_version)
+        self.assertEqual(
+            TemplateVersionResponse(
+                project_id=self.project_id,
+                prompt_template_id=self.prompt_template_id_1,
+                prompt_template_name=self.prompt_template_name,
+                prompt_template_version_id=created_version.prompt_template_version_id,  # type: ignore
+                content=new_messages,
+                format_version=3,
+                metadata=PromptTemplateMetadata(provider=None, flavor=None, model=None),
+                tool_schema=expected_tool_schemas,
+                version_name="new_version",
+                version_description="new_version_description",
+            ),
+            created_version,
+        )
+
+    @responses.activate
+    def test_update_template_version_environments(self) -> None:
+        self.__mock_template_version_create()
+
+        new_messages: List[TemplateMessage] = [
+            TemplateChatMessage(
+                role="user", content="I have this question: {{question}}"
+            )
+        ]
+        created_version: Optional[TemplateVersionResponse] = (
+            self.freeplay_thin.prompts.create_version(
+                project_id=self.project_id,
+                template_name=self.prompt_template_name_1,
+                template_messages=new_messages,
+                provider="anthropic",
+                model="claude-4-sonnet-20250514",
+            )
+        )
+
+        self.assertIsNotNone(created_version)
+        actual_version = cast(TemplateVersionResponse, created_version)
+        self.__mock_update_version_environments(
+            actual_version.prompt_template_version_id
+        )
+        self.freeplay_thin.prompts.update_version_environments(
+            project_id=self.project_id,
+            template_id=actual_version.prompt_template_id,
+            template_version_id=actual_version.prompt_template_version_id,
+            environments=["prod"],
+        )
+
+        update_request = responses.calls[1].request
+        request_dom = json.loads(cast(bytes, update_request.body))
+        self.assertListEqual(["prod"], request_dom["environments"])
+
+    @responses.activate
     def test_get_template_prompt_with_output_schema(self) -> None:
         # Mock an OpenAI template with output_schema
         output_schema = {
@@ -1250,7 +1379,7 @@ class TestFreeplay(TestCase):
         self.assertEqual(
             formatted_prompt.tool_schema,
             [
-                {"function": asdict(tool_schema), "type": "function"}
+                {"function": tool_schema.__dict__, "type": "function"}
                 for tool_schema in tool_schema
             ],
         )
@@ -1586,6 +1715,10 @@ class TestFreeplay(TestCase):
         trace_test_cases = test_run.get_trace_test_cases()
         self.assertEqual(1, len(trace_test_cases))
         self.assertEqual(1, len(trace_test_cases[0].custom_metadata or {}))
+        # The types don't allow None, but we want to double-check that here
+        self.assertTrue(
+            all(test_case.input is not None for test_case in trace_test_cases)  # type: ignore
+        )
         self.assertTrue(all(test_case.input for test_case in trace_test_cases))
         self.assertTrue(
             all(test_case.output is not None for test_case in trace_test_cases)
@@ -2085,8 +2218,8 @@ class TestFreeplay(TestCase):
 
         # Verify the request payload includes properly serialized media_inputs
         create_test_cases_request = responses.calls[0].request
-        assert create_test_cases_request.body is not None
-        request_body = json.loads(create_test_cases_request.body)
+        self.assertIsNotNone(create_test_cases_request.body)
+        request_body = json.loads(cast(bytes, create_test_cases_request.body))
         self.assertIn("examples", request_body)
 
         examples = request_body["examples"]
@@ -2129,8 +2262,8 @@ class TestFreeplay(TestCase):
 
         # Verify the request payload
         create_test_cases_request = responses.calls[0].request
-        assert create_test_cases_request.body is not None
-        request_body = json.loads(create_test_cases_request.body)
+        self.assertIsNotNone(create_test_cases_request.body)
+        request_body = json.loads(cast(bytes, create_test_cases_request.body))
         examples = request_body["examples"]
         example = examples[0]
 
@@ -2215,7 +2348,9 @@ class TestFreeplay(TestCase):
         ) -> Tuple[int, Dict[str, str], str]:
             payload: Optional[Dict[str, object]] = None  # Start with None
 
-            loaded_data: object = json.loads(request.body) if request.body else None
+            loaded_data: Optional[Dict[str, Any]] = (
+                json.loads(request.body) if request.body else None
+            )
             if isinstance(loaded_data, dict):
                 payload = cast(Dict[str, object], loaded_data)
 
@@ -2270,6 +2405,48 @@ class TestFreeplay(TestCase):
             url=f"{self.api_base}/v2/projects/{self.project_id}/datasets/id/{self.dataset_id}/test-cases",
             status=200,
             body=body,
+        )
+
+    def __mock_template_version_create(
+        self,
+    ) -> None:
+        def create_version_response_callback(
+            request: PreparedRequest,
+        ) -> Tuple[int, Dict[Any, Any], str]:
+            if request.body is None:
+                return 500, {}, ""
+
+            request_data = json.loads(request.body)
+
+            response_data: Dict[str, Any] = {
+                "prompt_template_id": self.prompt_template_id_1,
+                "prompt_template_version_id": str(uuid4()),
+                "prompt_template_name": self.prompt_template_name,
+                "metadata": {},
+                "format_version": 3,
+                "project_id": self.project_id,
+                "content": request_data["template_messages"],
+                "tool_schema": request_data["tool_schema"],
+                "version_name": request_data["version_name"],
+                "version_description": request_data["version_description"],
+                "created_at": int(datetime.now(timezone.utc).timestamp()),
+            }
+            return 201, {}, json.dumps(response_data)
+
+        responses.add_callback(
+            responses.POST,
+            url=f"{self.api_base}/v2/projects/{self.project_id}/prompt-templates/name/{self.prompt_template_name_1}/versions",
+            content_type="application/json",
+            callback=create_version_response_callback,
+        )
+
+    def __mock_update_version_environments(self, template_version_id: str) -> None:
+        responses.add(
+            responses.POST,
+            url=f"{self.api_base}/v2/projects/{self.project_id}/prompt-templates/id/{self.prompt_template_id_1}/"
+            f"versions/{template_version_id}/environments",
+            content_type="application/json",
+            status=200,
         )
 
     def __mock_test_case_insert_api(self) -> None:

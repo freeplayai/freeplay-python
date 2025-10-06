@@ -1,11 +1,17 @@
 from dataclasses import asdict, dataclass, field
 from json import JSONEncoder
 from typing import Any, Dict, List, Literal, Optional, Union
+from urllib.parse import quote
 from uuid import UUID
 
 from freeplay import api_support
-from freeplay.api_support import try_decode
-from freeplay.errors import FreeplayServerError, freeplay_response_error
+from freeplay.api_support import try_decode, force_decode
+from freeplay.errors import (
+    FreeplayServerError,
+    freeplay_response_error,
+    freeplay_response_error_from_message,
+)
+from freeplay.llm_parameters import LLMParameters
 from freeplay.model import (
     FeedbackValue,
     InputVariables,
@@ -57,6 +63,7 @@ class TemplateChatMessage:
     role: Role
     content: str
     media_slots: List[MediaSlot] = field(default_factory=_default_media_slots)
+    media_slots: List[MediaSlot] = field(default_factory=lambda: [])
 
 
 @dataclass
@@ -114,9 +121,23 @@ def media_inputs_to_json(media_input: MediaInput) -> Dict[str, Any]:
         }
 
 
+def _template_messages_as_json(messages: List[TemplateMessage]) -> List[Dict[str, Any]]:
+    dicts: List[Dict[str, Any]] = []
+    for message in messages:
+        if isinstance(message, TemplateChatMessage):
+            # noinspection PyTypeChecker
+            dicts.append(message.__dict__)
+        else:
+            # noinspection PyTypeChecker
+            dicts.append(message.__dict__)
+
+    return dicts
+
+
 class PromptTemplateEncoder(JSONEncoder):
-    def default(self, prompt_template: PromptTemplate) -> Dict[str, Any]:  # type: ignore[override]
-        return prompt_template.__dict__
+    # Type checker wants the same parameter name as base method
+    def default(self, o: PromptTemplate) -> Dict[str, Any]:
+        return o.__dict__
 
 
 class TestCaseTestRunResponse:
@@ -170,15 +191,33 @@ class TestRunResponse:
         if test_cases and trace_test_cases:
             raise ValueError("Test cases and trace test cases cannot both be present.")
 
+        # PyRight thinks the None filter is unnecessary, but we're double-checking at runtime
         self.test_cases = [
-            TestCaseTestRunResponse(test_case) for test_case in (test_cases or [])
+            TestCaseTestRunResponse(test_case)
+            for test_case in (test_cases or [])
+            if test_case is not None  # type: ignore
         ]
         self.trace_test_cases = [
             TraceTestCaseTestRunResponse(test_case)
             for test_case in (trace_test_cases or [])
+            if test_case is not None  # type: ignore
         ]
 
         self.test_run_id = test_run_id
+
+
+@dataclass
+class TemplateVersionResponse:
+    prompt_template_id: str
+    prompt_template_version_id: str
+    prompt_template_name: str
+    version_name: Optional[str]
+    version_description: Optional[str]
+    metadata: Optional[PromptTemplateMetadata]
+    format_version: int
+    project_id: str
+    content: List[TemplateMessage]
+    tool_schema: Optional[List[ToolSchema]]
 
 
 class TestRunRetrievalResponse:
@@ -278,7 +317,7 @@ class CallSupport:
     ) -> PromptTemplate:
         response = api_support.get_raw(
             api_key=self.freeplay_api_key,
-            url=f"{self.api_base}/v2/projects/{project_id}/prompt-templates/name/{template_name}",
+            url=f"{self.api_base}/v2/projects/{project_id}/prompt-templates/name/{quote(template_name)}",
             params={"environment": environment},
         )
 
@@ -319,6 +358,62 @@ class CallSupport:
             )
 
         return maybe_prompt
+
+    def create_version(
+        self,
+        project_id: str,
+        template_name: str,
+        template_messages: List[TemplateMessage],
+        model: str,
+        provider: str,
+        version_name: Optional[str] = None,
+        version_description: Optional[str] = None,
+        llm_parameters: Optional[LLMParameters] = None,
+        tool_schema: Optional[List[ToolSchema]] = None,
+        environments: Optional[List[str]] = None,
+    ) -> TemplateVersionResponse:
+        if tool_schema is not None:
+            json_tool_schema = [schema.__dict__ for schema in tool_schema]
+        else:
+            json_tool_schema = None
+
+        response = api_support.post_raw(
+            api_key=self.freeplay_api_key,
+            url=f"{self.api_base}/v2/projects/{project_id}/prompt-templates/name/{quote(template_name)}/versions",
+            payload={
+                "template_messages": _template_messages_as_json(template_messages),
+                "model": model,
+                "provider": provider,
+                "version_name": version_name,
+                "version_description": version_description,
+                "llm_parameters": llm_parameters,
+                "tool_schema": json_tool_schema,
+                "environments": environments,
+            },
+        )
+        if response.status_code != 201:
+            raise freeplay_response_error(
+                "Error while creating prompt template version.", response
+            )
+
+        return force_decode(TemplateVersionResponse, response.content)
+
+    def update_version_environments(
+        self,
+        project_id: str,
+        template_id: str,
+        template_version_id: str,
+        environments: List[str],
+    ) -> None:
+        response = api_support.post_raw(
+            api_key=self.freeplay_api_key,
+            url=f"{self.api_base}/v2/projects/{project_id}/prompt-templates/id/{template_id}/versions/{template_version_id}/environments",
+            payload={
+                "environments": environments,
+            },
+        )
+        if response.status_code != 200:
+            raise freeplay_response_error_from_message(response)
 
     def update_customer_feedback(
         self,

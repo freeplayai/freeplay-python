@@ -63,7 +63,6 @@ class TemplateChatMessage:
     role: Role
     content: str
     media_slots: List[MediaSlot] = field(default_factory=_default_media_slots)
-    media_slots: List[MediaSlot] = field(default_factory=lambda: [])
 
 
 @dataclass

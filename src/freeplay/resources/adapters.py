@@ -256,12 +256,10 @@ class GeminiAdapter(LLMAdapter):
 
 class BedrockConverseAdapter(LLMAdapter):
     def to_llm_syntax(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        converse_messages = []
+        converse_messages: List[Dict[str, Any]] = []
         for message in messages:
             if message["role"] == "system":
                 continue
-            if "has_media" in message and message["has_media"]:
-                raise ValueError("Bedrock Converse does not support media content yet")
 
             role = message["role"]
             content = message["content"]

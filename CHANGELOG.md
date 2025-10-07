@@ -2,6 +2,10 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
+## [0.5.3] - Unreleased
+
+- Remove image and file restriction for Bedrock Converse.
+
 ## [0.5.2] - 2025-10-07
 
 ### Added

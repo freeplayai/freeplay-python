@@ -73,7 +73,7 @@ jobs:
           else
             echo "repository=pypi" >> $GITHUB_OUTPUT
             echo "repository_name=PyPI" >> $GITHUB_OUTPUT
-            echo "publish_url=" >> $GITHUB_OUTPUT
+            echo "publish_url=https://upload.pypi.org/legacy/" >> $GITHUB_OUTPUT
             echo "view_url=https://pypi.org/project/freeplay" >> $GITHUB_OUTPUT
             echo "token_secret=PYPI_API_TOKEN" >> $GITHUB_OUTPUT
           fi

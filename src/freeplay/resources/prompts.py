@@ -47,8 +47,8 @@ from freeplay.support import (
     Role,
     TemplateChatMessage,
     TemplateMessage,
-    ToolSchema,
     TemplateVersionResponse,
+    ToolSchema,
 )
 from freeplay.utils import bind_template_variables, convert_provider_message_to_dict
 
@@ -220,7 +220,10 @@ class BoundPrompt:
             }
         elif flavor_name == "gemini_chat":
             try:
-                from vertexai.generative_models import Tool, FunctionDeclaration  # type: ignore[import-untyped]
+                from vertexai.generative_models import (  # type: ignore[import-untyped]
+                    FunctionDeclaration,
+                    Tool,
+                )
 
                 function_declarations = [
                     FunctionDeclaration(
@@ -351,7 +354,7 @@ class TemplatePrompt:
             raise FreeplayClientError(
                 "History provided for prompt that does not expect history"
             )
-        if has_history_placeholder and not history:
+        if has_history_placeholder and history is None:
             log_freeplay_client_warning(
                 "History missing for prompt that expects history"
             )

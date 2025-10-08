@@ -2,7 +2,7 @@ import json
 import time
 import uuid
 import warnings
-from datetime import timezone, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, cast
 from unittest import TestCase
@@ -46,13 +46,11 @@ from freeplay.resources.sessions import Session, SessionInfo, TraceInfo
 from freeplay.resources.test_cases import DatasetTestCase
 from freeplay.support import (
     CallSupport,
-    TemplateVersionResponse,
-    PromptTemplateMetadata,
-)
-from freeplay.support import (
     HistoryTemplateMessage,
+    PromptTemplateMetadata,
     TemplateChatMessage,
     TemplateMessage,
+    TemplateVersionResponse,
     ToolSchema,
 )
 
@@ -1161,19 +1159,6 @@ class TestFreeplay(TestCase):
             TemplateChatMessage(role="user", content="User message {{number}}"),
         ]
         template_prompt = TemplatePrompt(self.openai_api_prompt_info, messages=messages)
-        with self.assertWarnsRegex(
-            FreeplayClientWarning, "History missing for prompt that expects history"
-        ):
-            bound_prompt = template_prompt.bind({"number": 1}, history=[])
-            formatted_prompt = bound_prompt.format()
-            self.assertEqual(
-                formatted_prompt.llm_prompt,
-                [
-                    {"role": "system", "content": "System message"},
-                    {"role": "user", "content": "User message 1"},
-                ],
-            )
-
         history = [
             {"role": "user", "content": "User message 1"},
             {"role": "assistant", "content": "Assistant message 1"},
@@ -1198,17 +1183,6 @@ class TestFreeplay(TestCase):
             TemplateChatMessage(role="user", content="User message {{number}}"),
         ]
         template_prompt = TemplatePrompt(self.anthropic_prompt_info, messages=messages)
-        with self.assertWarnsRegex(
-            FreeplayClientWarning, "History missing for prompt that expects history"
-        ):
-            bound_prompt = template_prompt.bind({"number": 1}, history=[])
-            formatted_prompt = bound_prompt.format()
-            self.assertEqual(
-                formatted_prompt.llm_prompt,
-                [{"role": "user", "content": "User message 1"}],
-            )
-            self.assertEqual(formatted_prompt.system_content, "System message")
-
         history = [
             {"role": "user", "content": "User message 1"},
             {"role": "assistant", "content": "Assistant message 1"},
@@ -1222,6 +1196,28 @@ class TestFreeplay(TestCase):
         )
         self.assertEqual(formatted_prompt.system_content, "System message")
 
+    def test_prompt_format_history_missing(self) -> None:
+        messages: List[TemplateMessage] = [
+            TemplateChatMessage(role="system", content="System message"),
+            HistoryTemplateMessage(kind="history"),
+            TemplateChatMessage(role="user", content="User message {{number}}"),
+        ]
+        template_prompt = TemplatePrompt(
+            self.sagemaker_llama_3_prompt_info, messages=messages
+        )
+        with self.assertWarnsRegex(
+            FreeplayClientWarning, "History missing for prompt that expects history"
+        ):
+            bound_prompt = template_prompt.bind({"number": 1})
+            formatted_prompt = bound_prompt.format()
+            self.assertEqual(
+                "<|begin_of_text|>"
+                "<|start_header_id|>system<|end_header_id|>\nSystem message<|eot_id|>"
+                "<|start_header_id|>user<|end_header_id|>\nUser message 1<|eot_id|>"
+                "<|start_header_id|>assistant<|end_header_id|>",
+                formatted_prompt.llm_prompt_text,
+            )
+
     def test_prompt_format__history_llama(self) -> None:
         messages: List[TemplateMessage] = [
             TemplateChatMessage(role="system", content="System message"),
@@ -1234,7 +1230,7 @@ class TestFreeplay(TestCase):
         with self.assertWarnsRegex(
             FreeplayClientWarning, "History missing for prompt that expects history"
         ):
-            bound_prompt = template_prompt.bind({"number": 1}, history=[])
+            bound_prompt = template_prompt.bind({"number": 1})
             formatted_prompt = bound_prompt.format()
             self.assertEqual(
                 "<|begin_of_text|>"

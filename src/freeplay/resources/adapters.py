@@ -262,13 +262,69 @@ class BedrockConverseAdapter(LLMAdapter):
                 continue
 
             role = message["role"]
-            content = message["content"]
             if role not in ["user", "assistant"]:
                 raise ValueError(f"Unexpected role for Bedrock Converse flavor: {role}")
-            if isinstance(content, str):
-                content = [{"text": content}]
-            converse_messages.append({"role": role, "content": content})
+
+            if "has_media" in message and message["has_media"]:
+                converse_messages.append(
+                    {
+                        "role": role,
+                        "content": [
+                            self.__map_content(content)
+                            for content in message["content"]
+                        ],
+                    }
+                )
+            else:
+                content = message["content"]
+                if isinstance(content, str):
+                    content = [{"text": content}]
+                converse_messages.append({"role": role, "content": content})
         return converse_messages
+
+    @staticmethod
+    def __map_content(
+        content: Union[TextContent, MediaContentBase64, MediaContentUrl],
+    ) -> Dict[str, Any]:
+        if isinstance(content, TextContent):
+            return {"text": content.text}
+        elif isinstance(content, MediaContentBase64):
+            import base64
+
+            # Extract format from content_type (e.g., "image/png" -> "png")
+            format_str = content.content_type.split("/")[-1]
+
+            if content.type == "image":
+                return {
+                    "image": {
+                        "format": format_str,
+                        "source": {
+                            # Bedrock Converse expects actual bytes
+                            "bytes": base64.b64decode(content.data)
+                        },
+                    }
+                }
+            elif content.type == "file":
+                return {
+                    "document": {
+                        "format": format_str,
+                        "name": content.slot_name,
+                        "source": {
+                            # Bedrock Converse expects actual bytes
+                            "bytes": base64.b64decode(content.data)
+                        },
+                    }
+                }
+            else:
+                raise ValueError(
+                    f"Bedrock Converse does not support {content.type} content"
+                )
+        elif isinstance(content, MediaContentUrl):  # pyright: ignore[reportUnnecessaryIsInstance]
+            raise ValueError(
+                "Bedrock Converse does not support URL-based media content"
+            )
+        else:
+            raise ValueError(f"Unexpected content type {type(content)}")
 
 
 def adaptor_for_flavor(flavor_name: str) -> LLMAdapter:

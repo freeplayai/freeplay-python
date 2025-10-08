@@ -5,6 +5,7 @@ from freeplay.resources.adapters import (
     OpenAIAdapter,
     AnthropicAdapter,
     GeminiAdapter,
+    BedrockConverseAdapter,
     TextContent,
     MediaContentUrl,
     MediaContentBase64,
@@ -270,4 +271,70 @@ class TestAdapters(unittest.TestCase):
                     ],
                 },
             ],
+        )
+
+    def test_bedrock_converse(self) -> None:
+        import base64
+
+        # Input has base64-encoded data (as would come from Freeplay)
+        messages: List[Dict[str, Any]] = [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "assistant", "content": "How can I help you?"},
+            {
+                "role": "user",
+                "has_media": True,
+                "content": [
+                    TextContent("Take a look at this image and document!"),
+                    MediaContentBase64(
+                        type="image",
+                        content_type="image/png",
+                        data=base64.b64encode(b"image-data").decode("utf-8"),
+                        slot_name="image1",
+                    ),
+                    MediaContentBase64(
+                        type="file",
+                        content_type="application/pdf",
+                        data=base64.b64encode(b"pdf-data").decode("utf-8"),
+                        slot_name="document1",
+                    ),
+                ],
+            },
+        ]
+
+        formatted = BedrockConverseAdapter().to_llm_syntax(messages)
+
+        self.assertEqual(len(formatted), 2)  # System message should be filtered out
+        self.assertEqual(formatted[0]["role"], "assistant")
+        self.assertEqual(formatted[0]["content"], [{"text": "How can I help you?"}])
+
+        self.assertEqual(formatted[1]["role"], "user")
+        self.assertEqual(len(formatted[1]["content"]), 3)
+
+        # Check text content
+        self.assertEqual(
+            formatted[1]["content"][0],
+            {"text": "Take a look at this image and document!"},
+        )
+
+        # Check image content - adapter converts to actual bytes for Bedrock
+        self.assertEqual(
+            formatted[1]["content"][1],
+            {
+                "image": {
+                    "format": "png",
+                    "source": {"bytes": b"image-data"},
+                }
+            },
+        )
+
+        # Check document content - adapter converts to actual bytes for Bedrock
+        self.assertEqual(
+            formatted[1]["content"][2],
+            {
+                "document": {
+                    "format": "pdf",
+                    "name": "document1",
+                    "source": {"bytes": b"pdf-data"},
+                }
+            },
         )

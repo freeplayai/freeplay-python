@@ -1,7 +1,7 @@
 import base64
 import os
 import time
-from typing import Any, Dict, List, Tuple
+from typing import Tuple
 import boto3  # type: ignore
 import requests  # type: ignore
 
@@ -90,18 +90,6 @@ formatted_prompt = fp_client.prompts.get_formatted(
     media_inputs=media_inputs,
 )
 
-
-# Construct messages for Bedrock API (with raw bytes)
-bedrock_messages = [
-    {
-        "role": "user",
-        "content": [
-            {"image": {"format": image_format, "source": {"bytes": image_bytes}}},
-            {"text": question},
-        ],
-    }
-]
-
 start = time.time()
 
 session = fp_client.sessions.create()
@@ -109,13 +97,12 @@ session = fp_client.sessions.create()
 # Call Bedrock API with plain dict messages
 response = converse_client.converse(  # type: ignore
     modelId=formatted_prompt.prompt_info.model,
-    messages=bedrock_messages,
+    messages=formatted_prompt.llm_prompt,
     system=[{"text": formatted_prompt.system_content or ""}],
     inferenceConfig=formatted_prompt.prompt_info.model_parameters,
 )
 output_message = response["output"]["message"]  # type: ignore
 response_content = output_message["content"][0]["text"]  # type: ignore
-
 end = time.time()
 
 
@@ -123,22 +110,17 @@ print(f"Using model: {formatted_prompt.prompt_info.model}")
 print(f"Template: {formatted_prompt.prompt_info.template_name}")
 print("\n=== Model Response ===")
 print(response_content)  # type: ignore
-
-# Create session and trace
-
-
 print("\n=== Recording to Freeplay ===")
-# Record using plain Bedrock Converse message format
-# Media will be handled by the backend via media_inputs
-record_messages: List[Dict[str, Any]] = [
-    {"role": "user", "content": [{"text": question}]},
-    output_message,
-]
 
+
+# Prepare messages for recording - convert provider messages to dicts
 record_response = fp_client.recordings.create(
     RecordPayload(
         project_id=project_id,
-        all_messages=record_messages,
+        all_messages=[
+            *formatted_prompt.llm_prompt,
+            output_message,
+        ],
         session_info=session.session_info,
         inputs=prompt_vars,
         prompt_version_info=formatted_prompt.prompt_info,

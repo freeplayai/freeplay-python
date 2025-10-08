@@ -1,7 +1,9 @@
 import importlib.metadata
 import json
+import base64
 import platform
-from typing import Dict, Union, Optional, Any
+from dataclasses import asdict, is_dataclass
+from typing import Dict, Union, Optional, Any, List, Tuple
 
 import pystache  # type: ignore
 
@@ -14,18 +16,20 @@ def all_valid(obj: Any) -> bool:
     if isinstance(obj, (int, str, bool, float)):
         return True
     elif isinstance(obj, list):
-        return all(all_valid(item) for item in obj)
+        items: list[Any] = obj  # pyright: ignore[reportUnknownVariableType]
+        return all(all_valid(item) for item in items)
     elif isinstance(obj, dict):
+        dict_obj: dict[Any, Any] = obj  # pyright: ignore[reportUnknownVariableType]
         return all(
-            isinstance(key, str) and all_valid(value) for key, value in obj.items()
+            isinstance(key, str) and all_valid(value) for key, value in dict_obj.items()
         )
     else:
         return False
 
 
-class StandardPystache(pystache.Renderer):  # type: ignore
+class StandardPystache(pystache.Renderer):  # type: ignore[misc]
     def __init__(self) -> None:
-        super().__init__(escape=lambda s: s)
+        super().__init__(escape=lambda s: s)  # pyright: ignore[reportUnknownLambdaType, reportUnknownMemberType]
 
     def str_coerce(self, val: Any) -> str:
         if isinstance(val, dict) or isinstance(val, list):
@@ -42,8 +46,10 @@ def bind_template_variables(template: str, variables: InputVariables) -> str:
         )
 
     # When rendering mustache, do not escape HTML special characters.
-    rendered: str = StandardPystache().render(template, variables)
-    return rendered
+    rendered = StandardPystache().render(template, variables)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    return str(
+        rendered  # pyright: ignore[reportUnknownArgumentType]
+    )  # Ensure it's a string
 
 
 def check_all_values_string_or_number(
@@ -51,7 +57,7 @@ def check_all_values_string_or_number(
 ) -> None:
     if metadata:
         for key, value in metadata.items():
-            if not isinstance(value, (str, int, float)):
+            if not isinstance(value, (str, int, float)):  # pyright: ignore[reportUnnecessaryIsInstance]
                 raise FreeplayConfigurationError(
                     f"Invalid value for key {key}: Value must be a string or number."
                 )
@@ -74,13 +80,27 @@ def get_user_agent() -> str:
     return f"{sdk_name}/{sdk_version} ({language}/{language_version}; {os_name}/{os_version})"
 
 
+def bytes_as_str_factory(field_list: List[Tuple[str, Any]]) -> Dict[str, Any]:
+    """Custom dict factory to convert bytes to base64 strings for dataclasses.
+    Used with asdict() to handle Bedrock and other providers that use byte strings."""
+    result: Dict[str, Any] = {}
+    for key, value in field_list:
+        if isinstance(value, bytes):
+            result[key] = base64.b64encode(value).decode("utf-8")
+        else:
+            result[key] = value
+    return result
+
+
 # Recursively convert Pydantic models, lists, and dicts to dict compatible format -- used to allow us to accept
 # provider message shapes (usually generated types) or the default {'content': ..., 'role': ...} shape.
 def convert_provider_message_to_dict(obj: Any) -> Any:
     """
     Convert provider message objects to dictionaries.
     For Vertex AI objects, automatically converts to camelCase.
+    Handles bytes objects by converting them to base64 strings.
     """
+
     # List of possible raw attribute names in Vertex AI objects
     vertex_raw_attrs = [
         "_raw_content",  # For Content objects
@@ -100,9 +120,10 @@ def convert_provider_message_to_dict(obj: Any) -> Any:
             if raw_obj is not None:
                 try:
                     # Use the metaclass to_dict with camelCase conversion
-                    return type(
+                    # pyright: ignore[reportUnknownMemberType]
+                    return type(  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
                         raw_obj
-                    ).to_dict(
+                    ).to_dict(  # pyright: ignore[reportUnknownMemberType]
                         raw_obj,
                         preserving_proto_field_name=False,  # camelCase
                         use_integers_for_enums=False,  # Keep as strings (we'll lowercase them)
@@ -115,19 +136,26 @@ def convert_provider_message_to_dict(obj: Any) -> Any:
     # For non-Vertex AI objects, use their standard to_dict methods
     if hasattr(obj, "to_dict") and callable(getattr(obj, "to_dict")):
         # Regular to_dict (for Vertex AI wrappers without _raw_* attributes)
-        return obj.to_dict()
+        return obj.to_dict()  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
     elif hasattr(obj, "model_dump"):
         # Pydantic v2
         return obj.model_dump(mode="json")
     elif hasattr(obj, "dict"):
         # Pydantic v1
         return obj.dict(encode_json=True)
+    elif isinstance(obj, bytes):
+        return base64.b64encode(obj).decode("utf-8")
     elif isinstance(obj, dict):
         # Handle dictionaries recursively
-        return {k: convert_provider_message_to_dict(v) for k, v in obj.items()}
+        dict_obj: Dict[Any, Any] = obj  # pyright: ignore [reportUnknownVariableType]
+        return {k: convert_provider_message_to_dict(v) for k, v in dict_obj.items()}
     elif isinstance(obj, list):
         # Handle lists recursively
-        return [convert_provider_message_to_dict(item) for item in obj]
+        list_obj: List[Any] = obj  # pyright: ignore [reportUnknownVariableType]
+        return [convert_provider_message_to_dict(item) for item in list_obj]
+    elif is_dataclass(obj):
+        # Handle dataclasses with bytes_as_str_factory to convert bytes to base64
+        return asdict(obj, dict_factory=bytes_as_str_factory)  # pyright: ignore [reportUnknownArgumentType, reportArgumentType]
 
     # Return as-is for primitive types
     return obj

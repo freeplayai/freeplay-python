@@ -1,7 +1,7 @@
 import json
 import logging
 import warnings
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, is_dataclass
 from typing import Any, Dict, List, Literal, Optional, Union
 from uuid import UUID, uuid4
 
@@ -119,6 +119,22 @@ class Recordings:
     def __init__(self, call_support: CallSupport):
         self.call_support = call_support
 
+    @staticmethod
+    def _contains_bytes(obj: Any) -> bool:
+        """Check if an object contains bytes that need conversion."""
+        if isinstance(obj, bytes):
+            return True
+        elif isinstance(obj, dict):
+            return any(Recordings._contains_bytes(v) for v in obj.values())  # pyright: ignore[reportUnknownVariableType]
+        elif isinstance(obj, list):
+            return any(Recordings._contains_bytes(item) for item in obj)  # pyright: ignore[reportUnknownVariableType]
+        elif is_dataclass(obj):
+            # Check dataclass fields for bytes
+            for field_name in obj.__dataclass_fields__:
+                if Recordings._contains_bytes(getattr(obj, field_name)):
+                    return True
+        return False
+
     def create(self, record_payload: RecordPayload) -> RecordResponse:
         if len(record_payload.all_messages) < 1:
             raise FreeplayClientError(
@@ -132,8 +148,16 @@ class Recordings:
                 for tool in record_payload.tool_schema
             ]
 
+        # Convert messages if using Bedrock provider or if messages contain bytes
+        messages = record_payload.all_messages
+        needs_conversion = (
+            record_payload.call_info and record_payload.call_info.provider == "bedrock"
+        ) or any(self._contains_bytes(msg) for msg in messages)
+        if needs_conversion:
+            messages = [convert_provider_message_to_dict(msg) for msg in messages]
+
         record_api_payload: Dict[str, Any] = {
-            "messages": record_payload.all_messages,
+            "messages": messages,
             "inputs": record_payload.inputs,
             "tool_schema": record_payload.tool_schema,
             "output_schema": record_payload.output_schema,
@@ -250,8 +274,15 @@ class Recordings:
         raise FreeplayError("Unexpected error occurred while recording to Freeplay.")
 
     def update(self, record_update_payload: RecordUpdatePayload) -> RecordResponse:  # type: ignore
+        # Only convert messages if they contain bytes (we don't have provider info for updates)
+        new_messages = record_update_payload.new_messages
+        if new_messages and any(self._contains_bytes(msg) for msg in new_messages):
+            new_messages = [
+                convert_provider_message_to_dict(msg) for msg in new_messages
+            ]
+
         record_update_api_payload: Dict[str, Any] = {
-            "new_messages": record_update_payload.new_messages,
+            "new_messages": new_messages,
             "eval_results": record_update_payload.eval_results,
         }
 

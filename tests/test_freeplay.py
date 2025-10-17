@@ -603,6 +603,8 @@ class TestFreeplay(TestCase):
             parent_id=parent_id,
             custom_metadata={"test": "value"},
             _call_support=mock_call_support,
+            kind="tool",
+            name="test_tool",
         )
 
         # Verify all fields are properly set
@@ -612,6 +614,9 @@ class TestFreeplay(TestCase):
         self.assertEqual(trace_info.agent_name, "test_agent")
         self.assertEqual(trace_info.parent_id, parent_id)
         self.assertEqual(trace_info.custom_metadata, {"test": "value"})
+        self.assertEqual(trace_info.kind, "tool")
+        self.assertEqual(trace_info.name, "test_tool")
+        self.assertIsNotNone(trace_info.start_time)
 
     @responses.activate
     def test_trace_info_vs_parent_id_equivalence(self) -> None:

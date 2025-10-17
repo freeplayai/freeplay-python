@@ -1,9 +1,10 @@
-from uuid import UUID, uuid4
 from dataclasses import dataclass
-from typing import Optional, Dict, Union
+from datetime import datetime, timezone
+from typing import Dict, Optional, Union
+from uuid import UUID, uuid4
 
 from freeplay.errors import FreeplayClientError
-from freeplay.model import TestRunInfo
+from freeplay.model import JSONValue, SpanKind, TestRunInfo
 from freeplay.support import CallSupport, CustomMetadata
 
 
@@ -16,10 +17,13 @@ class SessionInfo:
 class TraceInfo:
     session_id: str
     trace_id: str
-    input: Optional[str] = None
+    input: Optional[JSONValue] = None
     agent_name: Optional[str] = None
+    kind: Optional[SpanKind] = None
+    name: Optional[str] = None
     parent_id: Optional[UUID] = None
     custom_metadata: CustomMetadata = None
+    start_time: datetime
     _call_support: CallSupport
 
     def __init__(
@@ -27,10 +31,13 @@ class TraceInfo:
         trace_id: str,
         session_id: str,
         _call_support: CallSupport,
-        input: Optional[str] = None,
+        input: Optional[JSONValue] = None,
         agent_name: Optional[str] = None,
         parent_id: Optional[UUID] = None,
         custom_metadata: CustomMetadata = None,
+        kind: Optional[SpanKind] = None,
+        name: Optional[str] = None,
+        start_time: Optional[datetime] = None,
     ):
         self.trace_id = trace_id
         self.session_id = session_id
@@ -39,13 +46,17 @@ class TraceInfo:
         self.parent_id = parent_id
         self.custom_metadata = custom_metadata
         self._call_support = _call_support
+        self.kind = kind
+        self.name = name
+        self.start_time = start_time or datetime.now(timezone.utc)
 
     def record_output(
         self,
         project_id: str,
-        output: str,
+        output: JSONValue,
         eval_results: Optional[Dict[str, Union[bool, float]]] = None,
         test_run_info: Optional[TestRunInfo] = None,
+        end_time: Optional[datetime] = None,
     ) -> None:
         if self.input is None:
             raise FreeplayClientError("Input must be set before recording output")
@@ -60,6 +71,10 @@ class TraceInfo:
             custom_metadata=self.custom_metadata,
             eval_results=eval_results,
             test_run_info=test_run_info,
+            kind=self.kind,
+            name=self.name,
+            start_time=self.start_time,
+            end_time=end_time or datetime.now(timezone.utc),
         )
 
 
@@ -85,10 +100,12 @@ class Session:
 
     def create_trace(
         self,
-        input: str,
+        input: JSONValue,
         agent_name: Optional[str] = None,
         parent_id: Optional[UUID] = None,
         custom_metadata: CustomMetadata = None,
+        kind: Optional[SpanKind] = None,
+        name: Optional[str] = None,
     ) -> TraceInfo:
         return TraceInfo(
             trace_id=str(uuid4()),
@@ -98,15 +115,19 @@ class Session:
             agent_name=agent_name,
             custom_metadata=custom_metadata,
             _call_support=self._call_support,
+            kind=kind,
+            name=name,
         )
 
     def restore_trace(
         self,
         trace_id: UUID,
-        input: Optional[str],
+        input: Optional[JSONValue],
         agent_name: Optional[str] = None,
         parent_id: Optional[UUID] = None,
         custom_metadata: CustomMetadata = None,
+        kind: Optional[SpanKind] = None,
+        name: Optional[str] = None,
     ) -> TraceInfo:
         return TraceInfo(
             trace_id=str(trace_id),
@@ -116,6 +137,8 @@ class Session:
             parent_id=parent_id,
             custom_metadata=custom_metadata,
             _call_support=self._call_support,
+            kind=kind,
+            name=name,
         )
 
 

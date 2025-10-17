@@ -1,11 +1,12 @@
 from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from json import JSONEncoder
 from typing import Any, Dict, List, Literal, Optional, Union
 from urllib.parse import quote
 from uuid import UUID
 
 from freeplay import api_support
-from freeplay.api_support import try_decode, force_decode
+from freeplay.api_support import force_decode, try_decode
 from freeplay.errors import (
     FreeplayServerError,
     freeplay_response_error,
@@ -15,13 +16,15 @@ from freeplay.llm_parameters import LLMParameters
 from freeplay.model import (
     FeedbackValue,
     InputVariables,
+    JSONValue,
+    MediaInput,
     MediaInputBase64,
+    MediaInputMap,
     MediaInputUrl,
     NormalizedMessage,
     NormalizedOutputSchema,
+    SpanKind,
     TestRunInfo,
-    MediaInputMap,
-    MediaInput,
 )
 
 CustomMetadata = Optional[Dict[str, Union[str, int, float, bool]]]
@@ -506,13 +509,17 @@ class CallSupport:
         project_id: str,
         session_id: str,
         trace_id: str,
-        input: str,
-        output: str,
+        input: JSONValue,
+        output: JSONValue,
         parent_id: Optional[UUID] = None,
         agent_name: Optional[str] = None,
         custom_metadata: CustomMetadata = None,
         eval_results: Optional[Dict[str, Union[bool, float]]] = None,
         test_run_info: Optional[TestRunInfo] = None,
+        kind: Optional[SpanKind] = None,
+        name: Optional[str] = None,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
     ) -> None:
         payload = {
             "agent_name": agent_name,
@@ -522,6 +529,10 @@ class CallSupport:
             "custom_metadata": custom_metadata,
             "eval_results": eval_results,
             "test_run_info": asdict(test_run_info) if test_run_info else None,
+            "kind": kind,
+            "name": name,
+            "start_time": start_time.isoformat() if start_time else None,
+            "end_time": end_time.isoformat() if end_time else None,
         }
         response = api_support.post_raw(
             self.freeplay_api_key,

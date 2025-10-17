@@ -2,7 +2,11 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
-## [0.5.3] - Unreleased
+## [0.5.4] - 2025-10-17
+
+- Add explicit tool span logging
+
+## [0.5.3] - 2025-10-17
 
 - Remove image and file restriction for Bedrock Converse.
 
@@ -11,6 +15,7 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
 ### Added
 
 - New `parent_id` parameter in `RecordPayload` to replace the deprecated `trace_info` parameter. This UUID field enables direct parent-child trace/completions relationships:
+
   ```python
   # Before (deprecated):
   RecordPayload(
@@ -18,7 +23,7 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
       all_messages=messages,
       trace_info=trace_info
   )
-  
+
   # After:
   RecordPayload(
       project_id=project_id,
@@ -26,11 +31,12 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
       parent_id=parent_id  # UUID of parent trace or completion
   )
   ```
+
 - `parent_id` parameter support in `Session.create_trace()`:
   ```python
   parent_trace = session.create_trace(input="Parent question", agent_name="parent_agent")
   child_trace = session.create_trace(
-      input="Child question", 
+      input="Child question",
       agent_name="child_agent",
       parent_id=uuid.UUID(parent_trace.trace_id) # Or it can be an ID of a completion
   )
@@ -38,6 +44,7 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
 - `parent_id` parameter in `Session.restore_trace()` method
 
 ### Change
+
 - `RecordPayload.trace_info` parameter is deprecated and will be removed in v0.6.0. Use `parent_id` instead for trace hierarchy management.
 
 ## [0.5.0] - 2025-08-28
@@ -49,6 +56,7 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
 - `PromptInfo` no longer contains a `project_id` field. The project ID must now be accessed from the project context
   instead.
 - `RecordPayload.prompt_info` field has been renamed to `RecordPayload.prompt_version_info` and now accepts `PromptVersionInfo` objects. Existing `PromptInfo` objects can still be passed, but the field name must be updated:
+
   ```python
   # Before:
   RecordPayload(
@@ -56,7 +64,7 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
       all_messages=messages,
       prompt_info=formatted_prompt.prompt_info
   )
-  
+
   # After:
   RecordPayload(
       project_id=project_id,
@@ -69,22 +77,24 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
 - New `PromptVersionInfo` class that provides lightweight prompt version information with only `prompt_template_version_id` and optional `environment` fields. `PromptInfo` now inherits from this class.
 - Support for Vertex AI tool calling. Example:
+
   ```python
   from vertexai.generative_models import GenerativeModel
-  
+
   # Get formatted prompt with tool schema
   formatted_prompt = fp_client.prompts.get(
       project_id=project_id,
       template_name='my-prompt',
       environment='latest'
   ).bind(input_variables).format()
-  
+
   # Tool schema automatically converted to Vertex AI format
   model = GenerativeModel(
       model_name=formatted_prompt.prompt_info.model,
       tools=formatted_prompt.tool_schema  # Returns list[Tool] for Vertex AI
   )
   ```
+
 - Add new optional field `target_evaluation_ids` to `TestRuns.create()` to control which evaluations run as part of a
   test.
 - Test cases created via `create` or `create_many` may now specify `media_inputs` to programmatically create test cases
@@ -93,9 +103,9 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
 ### Changed
 
 - In `RecordPayload`, the following fields are now optional:
-    - `inputs` (Optional)
-    - `prompt_version_info` (Optional, renamed from `prompt_info`)
-    - `call_info` (Optional)
+  - `inputs` (Optional)
+  - `prompt_version_info` (Optional, renamed from `prompt_info`)
+  - `call_info` (Optional)
 - `session_info` in `RecordPayload` now has a default value and will be automatically generated if not provided.
 
 ## [0.4.1] - 2025-06-30
@@ -113,9 +123,9 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
 ### Added
 
 - New `download-all` CLI command that downloads all prompts across all projects within an account for bundling. Example:
-    ```bash
-    freeplay download-all --environment latest --output-dir ./prompts
-    ```
+  ```bash
+  freeplay download-all --environment latest --output-dir ./prompts
+  ```
   This command automatically downloads all of prompts from all projects tagged with the
   given [environment](https://docs.freeplay.ai/docs/managing-prompts#specifying-environments).
 
@@ -124,28 +134,28 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
 ### Added
 
 - Create test run with dataset that targets agent. Example:
-    ```python
-    test_run = fp_client.test_runs.create(
-        project_id,
-        "Dataset Name",
-        include_outputs=True,
-        name="Test run title",
-        description='Some description',
-        flavor_name=template_prompt.prompt_info.flavor_name
-    )
-    ```
+  ```python
+  test_run = fp_client.test_runs.create(
+      project_id,
+      "Dataset Name",
+      include_outputs=True,
+      name="Test run title",
+      description='Some description',
+      flavor_name=template_prompt.prompt_info.flavor_name
+  )
+  ```
 - Use traces when creating test run. Example:
-    ```python
-    trace_info.record_output(
-        project_id,
-        completion.choices[0].message.content,
-        {
-            'f1-score': 0.48,
-            'is_non_empty': True
-        },
-        test_run_info=test_run.get_test_run_info(test_case.id)
-    )
-    ```
+  ```python
+  trace_info.record_output(
+      project_id,
+      completion.choices[0].message.content,
+      {
+          'f1-score': 0.48,
+          'is_non_empty': True
+      },
+      test_run_info=test_run.get_test_run_info(test_case.id)
+  )
+  ```
 
 ### Updated
 
@@ -202,14 +212,14 @@ Future releases will include file inputs and audio inputs.
 ### Added
 
 - Enhanced agent support
-    - `Session.create_trace` now accepts:
-        - `agent_name`: used to name a "type" of trace and identify associated
-          traces in the UI.
-        - `custom_metadata`: used for logging of metadata from your execution environment.
-          level like it is today.
-    - `TraceInfo.record_output` now accepts:
-        - `eval_results`: used to record evaluations
-          similar to the output recorded on a completion.
+  - `Session.create_trace` now accepts:
+    - `agent_name`: used to name a "type" of trace and identify associated
+      traces in the UI.
+    - `custom_metadata`: used for logging of metadata from your execution environment.
+      level like it is today.
+  - `TraceInfo.record_output` now accepts:
+    - `eval_results`: used to record evaluations
+      similar to the output recorded on a completion.
 - Added handling of prompt formatting for Perplexity models.
 
 ## [Before v0.3.18]

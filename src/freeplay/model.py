@@ -5,6 +5,8 @@ InputValue = Union[str, int, bool, float, Dict[str, Any], List[Any]]
 InputVariables = Mapping[str, InputValue]
 TestRunInput = Mapping[str, InputValue]
 FeedbackValue = Union[bool, str, int, float]
+SpanKind = Literal["tool", "agent"]
+JSONValue = Union[str, int, bool, float, Dict[str, Any], List[Any], None]
 
 # Output schema type aliases -- semantically meaningful to differentiate from
 # provider specific Dict[str,Any]

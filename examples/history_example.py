@@ -1,3 +1,4 @@
+from dataclasses import asdict
 import json
 import os
 import time
@@ -22,7 +23,7 @@ fpclient = Freeplay(
     api_base=f"{os.environ['FREEPLAY_API_URL']}/api",
 )
 project_id = os.environ["FREEPLAY_PROJECT_ID"]
-enviroment = "dev"
+enviroment: str = os.environ["FREEPLAY_ENVIRONMENT"]
 
 openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 anthropic_client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
@@ -48,11 +49,12 @@ questions = [
 ]
 input_pairs = list(zip(articles, questions))
 
+template_name = os.environ["FREEPLAY_PROMPT_TEMPLATE_NAME"]
 template_prompt = fpclient.prompts.get(
-    project_id=project_id, template_name="History-QA", environment=enviroment
+    project_id=project_id, template_name=template_name, environment=enviroment
 )
 print("Template Prompt messages")
-print(json.dumps(template_prompt.messages, indent=2))
+print(json.dumps([asdict(msg) for msg in template_prompt.messages], indent=2))
 print("\n")
 
 
@@ -73,14 +75,20 @@ def call_and_record(
         history=history,
     )
 
+    # Newer versions of the OpenAI SDK are needed here, and will be supported in the future
+    # These are supported via the Playground/API, but are not yet available in the SDK
+    parameters = formatted_prompt.prompt_info.model_parameters
+    parameters.pop("verbosity", None)
+    parameters.pop("reasoning_effort", None)
+
     start = time.time()
     if formatted_prompt.prompt_info.provider == "openai":
         print("LLM Input")
-        print(json.dumps(formatted_prompt.messages, indent=2))
+        print(json.dumps(formatted_prompt.llm_prompt, indent=2))
         completion = openai_client.chat.completions.create(  # type: ignore
             model=formatted_prompt.prompt_info.model,
-            messages=formatted_prompt.messages,
-            **formatted_prompt.prompt_info.model_parameters,
+            messages=formatted_prompt.llm_prompt,
+            **parameters,
         )
         end = time.time()
 
@@ -159,7 +167,7 @@ for inputs in input_pairs:
     input_vars = {"question": inputs[1], "article": inputs[0]}
     record_response = call_and_record(
         project_id=project_id,
-        template_name="History-QA",
+        template_name=template_name,
         env=enviroment,
         history=history,
         input_variables=input_vars,

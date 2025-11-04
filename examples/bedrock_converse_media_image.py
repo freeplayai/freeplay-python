@@ -129,5 +129,5 @@ record_response = fp_client.recordings.create(
     )
 )
 
-print("✓ Successfully recorded to Freeplay")
+print("Successfully recorded to Freeplay")
 print(f"Recorded completion ID: {record_response.completion_id}")

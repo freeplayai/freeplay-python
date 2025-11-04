@@ -841,7 +841,6 @@ class TestFreeplay(TestCase):
             "{{question}}"
             in cast(TemplateChatMessage, template_prompt.messages[2]).content
         )
-
         bound_prompt = template_prompt.bind(input_variables)
 
         self.assertFalse("{{question}}" in bound_prompt.messages[2]["content"])

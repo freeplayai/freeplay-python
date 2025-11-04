@@ -250,7 +250,7 @@ while finish_reason not in ["end_turn", "stop"]:
 
         try:
             fp_client.recordings.create(payload)
-            print("\n✓ Successfully recorded to Freeplay")
+            print("\nSuccessfully recorded to Freeplay")
         except Exception as e:
             print(f"\n✗ Error recording to Freeplay: {e}")
             raise
@@ -291,7 +291,7 @@ while finish_reason not in ["end_turn", "stop"]:
 
         try:
             fp_client.recordings.create(payload)
-            print("\n✓ Successfully recorded to Freeplay")
+            print("\nSuccessfully recorded to Freeplay")
         except Exception as e:
             print(f"\n✗ Error recording to Freeplay: {e}")
             raise

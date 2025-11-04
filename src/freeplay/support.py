@@ -26,6 +26,10 @@ from freeplay.model import (
     SpanKind,
     TestRunInfo,
 )
+from freeplay.utils import (
+    convert_api_message_to_sdk_message,
+    convert_sdk_messages_to_api_messages,
+)
 
 CustomMetadata = Optional[Dict[str, Union[str, int, float, bool]]]
 
@@ -146,7 +150,14 @@ class TestCaseTestRunResponse:
     def __init__(self, test_case: Dict[str, Any]):
         self.id: str = test_case["test_case_id"]
         self.variables: InputVariables = test_case["variables"]
+
+        # Deprecated field support for backward compatibility
+        # This field will be removed in v0.6.0
         self.output: Optional[str] = test_case.get("output")
+
+        self.output_message: Optional[NormalizedMessage] = test_case.get(
+            "output_message"
+        )
         self.history: Optional[List[Dict[str, Any]]] = test_case.get("history")
         self.custom_metadata: Optional[Dict[str, str]] = test_case.get(
             "custom_metadata"
@@ -177,7 +188,9 @@ class TraceTestCaseTestRunResponse:
     def __init__(self, test_case: Dict[str, Any]):
         self.id: str = test_case["test_case_id"]
         self.input: str = test_case["input"]
-        self.output: Optional[str] = test_case.get("output")
+        self.output: Optional[str] = test_case.get(
+            "output"
+        )  # Deprecated field support for backward compatibility. This field will be removed in v0.6.0
         self.custom_metadata: Optional[Dict[str, str]] = test_case.get(
             "custom_metadata"
         )
@@ -247,11 +260,13 @@ class DatasetTestCaseRequest:
         metadata: Optional[Dict[str, str]],
         output: Optional[str],
         media_inputs: Optional[MediaInputMap] = None,
+        output_message: Optional[NormalizedMessage] = None,
     ) -> None:
         self.history: Optional[List[NormalizedMessage]] = history
         self.inputs: InputVariables = inputs
         self.metadata: Optional[Dict[str, str]] = metadata
         self.output: Optional[str] = output
+        self.output_message: Optional[NormalizedMessage] = output_message
         self.media_inputs = media_inputs
 
 
@@ -259,9 +274,14 @@ class DatasetTestCaseResponse:
     def __init__(self, test_case: Dict[str, Any]):
         self.values: InputVariables = test_case["values"]
         self.id: str = test_case["id"]
-        self.output: Optional[str] = test_case.get("output")
+        self.output: Optional[str] = test_case.get(
+            "output"
+        )  # Deprecated field support for backward compatibility. This field will be removed in v0.6.0
         self.history: Optional[List[NormalizedMessage]] = test_case.get("history")
         self.metadata: Optional[Dict[str, str]] = test_case.get("metadata")
+        self.output_message: Optional[NormalizedMessage] = test_case.get(
+            "output_message"
+        )
 
 
 class DatasetTestCasesRetrievalResponse:
@@ -524,7 +544,7 @@ class CallSupport:
         payload = {
             "agent_name": agent_name,
             "input": input,
-            "output": output,
+            "output": output,  # Deprecated field support for backward compatibility. This field will be removed in v0.6.0
             "parent_id": str(parent_id) if parent_id else None,
             "custom_metadata": custom_metadata,
             "eval_results": eval_results,
@@ -555,8 +575,20 @@ class CallSupport:
     ) -> None:
         examples = [
             {
-                "history": test_case.history,
-                "output": test_case.output,
+                "history": (
+                    [
+                        convert_sdk_messages_to_api_messages(msg)
+                        for msg in test_case.history
+                    ]
+                    if test_case.history
+                    else None
+                ),
+                "output": test_case.output,  # Deprecated field support for backward compatibility. This field will be removed in v0.6.0
+                "output_message": (
+                    convert_sdk_messages_to_api_messages(test_case.output_message)
+                    if test_case.output_message is not None
+                    else None
+                ),
                 "metadata": test_case.metadata,
                 "inputs": test_case.inputs,
                 "media_inputs": {
@@ -585,15 +617,28 @@ class CallSupport:
             raise freeplay_response_error("Error while getting test cases.", response)
 
         json_dom = response.json()
-
         return DatasetTestCasesRetrievalResponse(
             test_cases=[
                 {
-                    "history": jsn["history"],
+                    "history": (
+                        [
+                            convert_api_message_to_sdk_message(msg)
+                            for msg in jsn["history"]
+                        ]
+                        if jsn.get("history")
+                        else None
+                    ),
                     "id": jsn["id"],
-                    "output": jsn["output"],
+                    "output": jsn[
+                        "output"
+                    ],  # Deprecated field support for backward compatibility. This field will be removed in v0.6.0
                     "values": jsn["values"],
                     "metadata": jsn["metadata"] if "metadata" in jsn.keys() else None,
+                    "output_message": (
+                        convert_api_message_to_sdk_message(jsn["output_message"])
+                        if jsn.get("output_message")
+                        else None
+                    ),
                 }
                 for jsn in json_dom
             ]

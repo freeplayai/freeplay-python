@@ -19,6 +19,7 @@ class DatasetTestCase:
         metadata: Optional[Dict[str, str]] = None,
         media_inputs: Optional[MediaInputMap] = None,
         id: Optional[str] = None,  # Only set on retrieval
+        output_message: Optional[NormalizedMessage] = None,
     ):
         self.inputs = inputs
         self.output = output
@@ -26,6 +27,7 @@ class DatasetTestCase:
         self.metadata = metadata
         self.media_inputs = media_inputs
         self.id = id
+        self.output_message = output_message
 
 
 @dataclass
@@ -61,6 +63,7 @@ class TestCases:
                 test_case.metadata,
                 test_case.output,
                 test_case.media_inputs,
+                test_case.output_message,
             )
             for test_case in test_cases
         ]
@@ -82,6 +85,7 @@ class TestCases:
                     output=test_case.output,
                     inputs=test_case.values,
                     metadata=test_case.metadata,
+                    output_message=test_case.output_message,
                 )
                 for test_case in dataset_test_cases
             ],

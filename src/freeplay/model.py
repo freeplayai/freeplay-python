@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Mapping, TypedDict, Union
+from typing import Any, Dict, List, Literal, Mapping, Optional, TypedDict, Union
 
 InputValue = Union[str, int, bool, float, Dict[str, Any], List[Any]]
 InputVariables = Mapping[str, InputValue]
@@ -28,6 +28,18 @@ class MediaInputBase64:
 
 MediaInput = Union[MediaInputUrl, MediaInputBase64]
 MediaInputMap = Dict[str, MediaInput]
+
+
+MediaTypes = Literal["image", "audio", "file"]
+
+
+@dataclass
+class MediaReference:
+    base64Data: str
+    contentType: str
+    media_type: MediaTypes
+    filename: Optional[str] = None
+    kind: Literal["uploaded_file", "downloaded_file"] = "uploaded_file"
 
 
 @dataclass
@@ -69,7 +81,20 @@ class ToolCallBlock:
     type: Literal["tool_call"] = "tool_call"
 
 
-ContentBlock = Union[TextBlock, ToolResultBlock, ToolCallBlock]
+@dataclass
+class MediaReferenceBlock:
+    """Special case block for media refs. E.g. coming from history or our 'output_message'."""
+
+    media_reference: MediaReference
+    type: Literal["media_reference"] = "media_reference"
+
+
+ContentBlock = Union[
+    TextBlock,
+    ToolResultBlock,
+    ToolCallBlock,
+    MediaReferenceBlock,
+]
 
 
 @dataclass

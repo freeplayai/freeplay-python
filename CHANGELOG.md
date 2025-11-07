@@ -2,13 +2,10 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
-## [0.5.5] - 2025-10-27
+## [0.5.4] - 2025-11-07
 
 - New examples around multimodal images as output
 - Get test cases and output_message which may be more than just text content. 'output' is now deprecated.
-
-## [0.5.4] - 2025-10-17
-
 - Add explicit tool span logging
 
 ## [0.5.3] - 2025-10-17

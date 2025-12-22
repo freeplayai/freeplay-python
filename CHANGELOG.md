@@ -2,6 +2,31 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
+## [Unreleased]
+
+### Added
+
+- New `Metadata` resource for updating session and trace metadata after creation:
+
+  ```python
+  # Update session metadata
+  client.metadata.update_session(
+      project_id=project_id,
+      session_id=session_id,
+      metadata={"customer_id": "cust_123", "rating": 5}
+  )
+
+  # Update trace metadata
+  client.metadata.update_trace(
+      project_id=project_id,
+      session_id=session_id,
+      trace_id=trace_id,
+      metadata={"resolved": True, "resolution_time_ms": 1234}
+  )
+  ```
+
+  This addresses the use case where IDs or metadata are generated at the end of a conversation and need to be associated with existing sessions/traces without logging additional completions. Metadata updates use merge semantics - new keys overwrite existing keys while preserving unmentioned keys.
+
 ## [0.5.4] - 2025-11-07
 
 - New examples around multimodal images as output

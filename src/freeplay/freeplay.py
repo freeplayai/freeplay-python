@@ -2,6 +2,7 @@ from typing import Optional
 
 from freeplay.errors import FreeplayConfigurationError
 from freeplay.resources.customer_feedback import CustomerFeedback
+from freeplay.resources.metadata import Metadata
 from freeplay.resources.prompts import Prompts, APITemplateResolver, TemplateResolver
 from freeplay.resources.recordings import Recordings
 from freeplay.resources.sessions import Sessions
@@ -34,6 +35,7 @@ class Freeplay:
 
         # Resources ========
         self.customer_feedback = CustomerFeedback(self.call_support)
+        self.metadata = Metadata(self.call_support)
         self.prompts = Prompts(self.call_support, resolver)
         self.recordings = Recordings(self.call_support)
         self.sessions = Sessions(self.call_support)

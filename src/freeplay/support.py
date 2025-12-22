@@ -465,6 +465,41 @@ class CallSupport:
                 response,
             )
 
+    def update_session_metadata(
+        self,
+        project_id: str,
+        session_id: str,
+        metadata: CustomMetadata,
+    ) -> None:
+        response = api_support.patch_raw(
+            self.freeplay_api_key,
+            f"{self.api_base}/v2/projects/{project_id}/sessions/id/{session_id}/metadata",
+            metadata,
+        )
+        if response.status_code != 200:
+            raise freeplay_response_error(
+                f"Error updating session metadata for {session_id} in project {project_id}",
+                response,
+            )
+
+    def update_trace_metadata(
+        self,
+        project_id: str,
+        session_id: str,
+        trace_id: str,
+        metadata: CustomMetadata,
+    ) -> None:
+        response = api_support.patch_raw(
+            self.freeplay_api_key,
+            f"{self.api_base}/v2/projects/{project_id}/sessions/{session_id}/traces/id/{trace_id}/metadata",
+            metadata,
+        )
+        if response.status_code != 200:
+            raise freeplay_response_error(
+                f"Error updating trace metadata for {trace_id} in project {project_id}",
+                response,
+            )
+
     def create_test_run(
         self,
         project_id: str,

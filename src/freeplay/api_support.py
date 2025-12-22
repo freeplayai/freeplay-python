@@ -55,6 +55,12 @@ def put_raw(
     return requests.put(url=url, headers=build_request_header(api_key), json=payload)
 
 
+def patch_raw(
+    api_key: str, url: str, payload: t.Optional[Dict[str, t.Any]] = None
+) -> Response:
+    return requests.patch(url=url, headers=build_request_header(api_key), json=payload)
+
+
 def post_raw(
     api_key: str, url: str, payload: t.Optional[Dict[str, t.Any]] = None
 ) -> Response:

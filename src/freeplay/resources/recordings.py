@@ -16,6 +16,7 @@ from freeplay.model import (
     NormalizedOutputSchema,
     OpenAIFunctionCall,
     TestRunInfo,
+    GenaiTool,
 )
 from freeplay.resources.prompts import (
     PromptInfo,
@@ -90,7 +91,10 @@ class RecordPayload:
     prompt_version_info: Optional[PromptVersionInfo] = None
     call_info: Optional[CallInfo] = None
     media_inputs: Optional[MediaInputMap] = None
-    tool_schema: Optional[List[Dict[str, Any]]] = None
+    # Accepts dicts or provider-specific tool schema objects (OpenAI, Anthropic, GenAI)
+    # GenaiTool format: [GenaiTool(functionDeclarations=[...])]
+    # Will be automatically converted to dict format
+    tool_schema: Optional[List[Union[Dict[str, Any], GenaiTool]]] = None
     output_schema: Optional[NormalizedOutputSchema] = None
     response_info: Optional[ResponseInfo] = None
     test_run_info: Optional[TestRunInfo] = None

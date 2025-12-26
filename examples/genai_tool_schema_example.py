@@ -115,11 +115,10 @@ response = freeplay.recordings.create(
     )
 )
 
-print(f"✅ Recording created successfully!")
+print("✅ Recording created successfully!")
 print(f"   Completion ID: {response.completion_id}")
 print(f"   Session ID: {response.session_id}")
 print(f"\nTool schema recorded with {len(tool_schema)} tools")
 print(f"   - {len(tool_schema[0].functionDeclarations)} function declarations")
 for func in tool_schema[0].functionDeclarations:
     print(f"     • {func.name}: {func.description}")
-

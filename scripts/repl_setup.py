@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# ruff: noqa: E402
 """
 Interactive REPL setup script for Freeplay development.
 This script sets up SSL bypass patches and initializes the Freeplay client
@@ -6,40 +7,47 @@ with environment variables.
 """
 
 import os
-import sys
 
 # CORRECT monkey patch that avoids recursion
 import urllib3
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Patch at the adapter level instead
 import requests
 from requests.adapters import HTTPAdapter
-from urllib3.poolmanager import PoolManager
 import ssl
+
 
 class NoSSLAdapter(HTTPAdapter):
     def init_poolmanager(self, *args, **kwargs):
-        kwargs['ssl_context'] = ssl._create_unverified_context()
+        kwargs["ssl_context"] = ssl._create_unverified_context()
         return super().init_poolmanager(*args, **kwargs)
+
 
 # Create a session with the adapter
 session = requests.Session()
-session.mount('https://', NoSSLAdapter())
+session.mount("https://", NoSSLAdapter())
 
 # Monkey patch requests to use this session
 original_patch = requests.patch
+
+
 def patch_no_ssl(*args, **kwargs):
-    kwargs['verify'] = False
+    kwargs["verify"] = False
     return original_patch(*args, **kwargs)
+
+
 requests.patch = patch_no_ssl
 
 # Additional monkey patch for all request methods
 original_request = requests.Session.request
 
+
 def no_ssl_verify(self, method, url, **kwargs):
-    kwargs['verify'] = False
+    kwargs["verify"] = False
     return original_request(self, method, url, **kwargs)
+
 
 requests.Session.request = no_ssl_verify
 
@@ -65,11 +73,11 @@ else:
     print("✅ Freeplay client initialized as 'client'")
 
 # Print available variables
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("🎮 Freeplay Interactive REPL")
-print("="*60)
+print("=" * 60)
 print("\nAvailable variables:")
-print(f"  • client       : Freeplay client instance")
+print("  • client       : Freeplay client instance")
 print(f"  • project_id   : {project_id if project_id else '(not set)'}")
 print(f"  • session_id   : {session_id if session_id else '(not set)'}")
 print(f"  • dataset_id   : {dataset_id if dataset_id else '(not set)'}")
@@ -81,23 +89,22 @@ print("      project_id=project_id,")
 print("      session_id=session_id,")
 print("      metadata={'test_key': 'Hello from Python!'}")
 print("  )")
-print("\n" + "="*60 + "\n")
+print("\n" + "=" * 60 + "\n")
 
 # Import code module for interactive console
 import code
 
 # Prepare the local namespace with all our variables
 local_vars = {
-    'client': client,
-    'project_id': project_id,
-    'session_id': session_id,
-    'dataset_id': dataset_id,
-    'api_base': api_base,
-    'Freeplay': Freeplay,
-    'os': os,
-    'requests': requests,
+    "client": client,
+    "project_id": project_id,
+    "session_id": session_id,
+    "dataset_id": dataset_id,
+    "api_base": api_base,
+    "Freeplay": Freeplay,
+    "os": os,
+    "requests": requests,
 }
 
 # Start interactive console
 code.interact(local=local_vars, banner="")
-

@@ -147,7 +147,7 @@ class TestGenaiToolSchema(unittest.TestCase):
         # }
         self.assertIn("functionDeclarations", tool_dict)
         self.assertIsInstance(tool_dict["functionDeclarations"], list)
-        
+
         first_function = tool_dict["functionDeclarations"][0]
         self.assertEqual(first_function["name"], "search")
         self.assertEqual(first_function["description"], "Search for information")
@@ -207,7 +207,7 @@ class TestGenaiToolSchema(unittest.TestCase):
         self.assertIn("passenger", first_function["parameters"]["properties"])
         self.assertIn("destination", first_function["parameters"]["properties"])
         self.assertIn("dates", first_function["parameters"]["properties"])
-        
+
         # Verify nested properties
         passenger = first_function["parameters"]["properties"]["passenger"]
         self.assertEqual(passenger["type"], "object")
@@ -217,4 +217,3 @@ class TestGenaiToolSchema(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

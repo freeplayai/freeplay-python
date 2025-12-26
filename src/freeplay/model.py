@@ -133,7 +133,7 @@ class GenaiFunction:
 class GenaiTool:
     """
     Tool schema format for Google GenAI API.
-    
+
     GenAI uses a different structure than OpenAI/Anthropic:
     - A single Tool contains multiple FunctionDeclarations
     - Same format is used by both GenAI API and Vertex AI

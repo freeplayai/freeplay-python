@@ -333,6 +333,27 @@ The GenAI tool schema integration is fully functional:
 - ✅ Backend processes GenAI format
 - ✅ Data is normalized and stored
 - ✅ All parameters preserved
+- ✅ All unit tests passing (7/7 for Python SDK)
+- ✅ All backend tests passing (8/8 for Vertex provider)
+- ✅ CI pipeline passing
 
 **Phase 2 (Python SDK) Complete!** 🎉
+
+---
+
+## Backend Test Fix (CI)
+
+**Issue**: The existing Vertex provider tests were failing in CI because `USE_GENAI_API` now defaults to `true`.
+
+**Root Cause**: Tests were mocking Vertex AI behavior but the code was trying to use GenAI API (which requires `GOOGLE_GENAI_API_KEY`).
+
+**Solution**: Force Vertex AI mode in test setup:
+- Added `asyncSetUp()` to set `USE_GENAI_API=false` before tests
+- Added `asyncTearDown()` to clean up environment variable after tests
+- All 8 Vertex provider tests now passing
+
+**Commit**: `af596fed5` - fix: Force Vertex AI mode in Vertex provider tests
+
+This ensures tests run against the correct code path they're designed to test.
+
 

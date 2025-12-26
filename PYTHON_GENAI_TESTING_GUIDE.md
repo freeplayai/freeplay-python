@@ -1,6 +1,6 @@
-# GenAI Tool Schema Testing Guide
+# Python SDK - GenAI Tool Schema Testing Guide
 
-This guide provides step-by-step instructions for manually testing the GenAI tool schema support in the Python SDK.
+This guide provides step-by-step instructions for manually testing the GenAI tool schema support in the **Python SDK** (`freeplay-python`).
 
 ## Prerequisites
 

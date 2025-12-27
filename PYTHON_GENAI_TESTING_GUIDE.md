@@ -261,6 +261,63 @@ The tool_schema should contain the nested structure with `passenger` and `destin
 
 ---
 
+## Test 4: Backward Compatibility
+
+This test verifies that existing code using raw dictionaries still works (without using typed classes).
+
+### Copy and paste this into your REPL:
+
+```python
+# Test 4: Backward Compatibility (Raw dictionaries)
+print("\n=== Test 4: Backward Compatibility (Raw Object) ===\n")
+
+# OLD WAY: Raw dictionary (should still work)
+tool_schema = [
+    {
+        "functionDeclarations": [
+            {
+                "name": "get_temperature",
+                "description": "Get temperature",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location": {"type": "string"}
+                    },
+                    "required": ["location"]
+                }
+            }
+        ]
+    }
+]
+
+response = client.recordings.create(
+    RecordPayload(
+        project_id=project_id,
+        all_messages=[
+            {"role": "user", "content": "What's the temperature?"},
+            {"role": "assistant", "content": "Let me check."}
+        ],
+        tool_schema=tool_schema,
+        call_info=CallInfo(provider="genai", model="gemini-2.0-flash"),
+    )
+)
+
+print(f"✅ Test 4 PASSED: Backward compatibility maintained")
+print(f"   Completion ID: {response.completion_id}")
+print(f"   Old format (raw dictionaries) still works!")
+```
+
+### Verify in Database:
+
+```bash
+# Replace with your completion ID
+psql postgresql://localhost:5432/freeplay_development -U freeplay_app -c "SELECT project_session_entry_id, tool_schema_version, tool_schema FROM project_session_entry_tool_schemas WHERE project_session_entry_id = 'YOUR_COMPLETION_ID';"
+```
+
+You should see `tool_schema_version = 1` (GenAI format detected and normalized).
+
+---
+
 ## What These Tests Verify
 
 ### ✅ Feature Requirement 1: "Tool schema needs to be properly formatted"
@@ -274,6 +331,10 @@ The tool_schema should contain the nested structure with `passenger` and `destin
 - Backend `RecordService.normalize_tools_schema()` correctly processes GenAI format
 - Tool schemas are normalized to `NormalizedToolSchema` format
 - Data is properly stored in `project_session_entry_tool_schemas` table
+
+### ✅ Backward Compatibility
+- Existing code using raw dictionaries continues to work
+- No breaking changes
 
 ---
 

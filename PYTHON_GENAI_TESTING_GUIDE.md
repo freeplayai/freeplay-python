@@ -268,6 +268,8 @@ This test verifies that existing code using raw dictionaries still works (withou
 ### Copy and paste this into your REPL:
 
 ```python
+from freeplay import RecordPayload, CallInfo
+
 # Test 4: Backward Compatibility (Raw dictionaries)
 print("\n=== Test 4: Backward Compatibility (Raw Object) ===\n")
 

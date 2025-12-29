@@ -2,9 +2,63 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
-## [Unreleased]
+## [0.5.5] - 2025-12-29
 
 ### Added
+
+- **GenAI Tool Schema Support**: Added `GenaiFunction` and `GenaiTool` dataclasses for Google GenAI/Vertex AI tool schema format.
+
+  ```python
+  from freeplay import GenaiFunction, GenaiTool
+
+  # Create function declaration
+  weather_function = GenaiFunction(
+      name="get_weather",
+      description="Get the current weather for a location",
+      parameters={
+          "type": "object",
+          "properties": {
+              "location": {"type": "string", "description": "City name"},
+              "units": {
+                  "type": "string",
+                  "enum": ["celsius", "fahrenheit"],
+                  "description": "Temperature units"
+              }
+          },
+          "required": ["location"]
+      }
+  )
+
+  # Create tool schema (single tool with multiple functions)
+  tool_schema = [GenaiTool(function_declarations=[weather_function])]
+
+  # Use in recordings
+  client.recordings.create(
+      RecordPayload(
+          project_id=project_id,
+          all_messages=[...],
+          tool_schema=tool_schema,
+          call_info=CallInfo(provider="genai", model="gemini-2.0-flash")
+      )
+  )
+  ```
+
+  **Key Features:**
+  - Supports GenAI's unique format: single tool with multiple function declarations
+  - Full type safety with Python dataclasses
+  - Backward compatible: existing tool schema formats continue to work
+  - Comprehensive test coverage
+
+  **Notes:**
+  - GenAI uses a different structure than OpenAI/Anthropic (multiple functions per tool object)
+  - Same format works for both GenAI API and Vertex AI
+  - Backend automatically normalizes all tool schema formats
+
+- Interactive REPL (`make repl`) for development and testing with:
+  - Pre-loaded imports (Freeplay, GenaiFunction, GenaiTool, etc.)
+  - Environment variables automatically loaded from `.env` file
+  - SSL verification disabled for local development
+  - Pre-initialized `client` variable ready to use
 
 - New `Metadata` resource for updating session and trace metadata after creation:
 

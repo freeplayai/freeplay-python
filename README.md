@@ -27,11 +27,11 @@ Freeplay is the only platform your team needs to manage the end-to-end AI applic
 
 Use this SDK to integrate with Freeplay's core capabilities:
 
-**Observability**
-- [**Sessions**](https://docs.freeplay.ai/freeplay-sdk/sessions) — group related interactions together, e.g. for multi-turn chat or complex agent interactions
-- [**Traces**](https://docs.freeplay.ai/freeplay-sdk/traces) — track multi-step agent workflows within sessions
-- [**Completions**](https://docs.freeplay.ai/freeplay-sdk/recording-completions) — record LLM interactions for observability and debugging
-- [**Customer Feedback**](https://docs.freeplay.ai/freeplay-sdk/customer-feedback) — append user feedback and events to traces and completions
+- **Observability**
+  - [**Sessions**](https://docs.freeplay.ai/freeplay-sdk/sessions) — group related interactions together, e.g. for multi-turn chat or complex agent interactions
+  - [**Traces**](https://docs.freeplay.ai/freeplay-sdk/traces) — track multi-step agent workflows within sessions
+  - [**Completions**](https://docs.freeplay.ai/freeplay-sdk/recording-completions) — record LLM interactions for observability and debugging
+  - [**Customer Feedback**](https://docs.freeplay.ai/freeplay-sdk/customer-feedback) — append user feedback and events to traces and completions
 - [**Prompts**](https://docs.freeplay.ai/freeplay-sdk/prompts) — version, format, and fetch prompt templates across environments
 - [**Test Runs**](https://docs.freeplay.ai/freeplay-sdk/test-runs) — execute evaluation runs against prompts and datasets
 

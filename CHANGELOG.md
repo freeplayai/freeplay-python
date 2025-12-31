@@ -2,6 +2,12 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
+## [0.5.6]
+
+### Fixed
+
+- Fixed broken links in README when viewed on PyPI (CHANGELOG, CONTRIBUTING, LICENSE now use absolute GitHub URLs)
+
 ## [0.5.5]
 
 ### Changed

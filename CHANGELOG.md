@@ -42,7 +42,7 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
           project_id=project_id,
           all_messages=[...],
           tool_schema=tool_schema,
-          call_info=CallInfo(provider="genai", model="gemini-2.0-flash")
+          call_info=CallInfo(provider="vertex", model="gemini-2.0-flash")
       )
   )
   ```

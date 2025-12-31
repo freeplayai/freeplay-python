@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="https://pypi.org/project/freeplay/"><img src="https://img.shields.io/pypi/v/freeplay.svg" alt="version" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="License" /></a>
+  <a href="https://github.com/freeplayai/freeplay-python/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="License" /></a>
 </p>
 
 <p align="center">
@@ -15,8 +15,8 @@
   <a href="https://docs.freeplay.ai/quick-start/observability-prompt-management">Quick Start</a> •
   <a href="https://docs.freeplay.ai/freeplay-sdk/setup">SDK Setup</a> •
   <a href="https://docs.freeplay.ai/resources/api-reference">API Reference</a> •
-  <a href="CHANGELOG.md">Changelog</a> •
-  <a href="CONTRIBUTING.md">Contributing</a>
+  <a href="https://github.com/freeplayai/freeplay-python/blob/main/CHANGELOG.md">Changelog</a> •
+  <a href="https://github.com/freeplayai/freeplay-python/blob/main/CONTRIBUTING.md">Contributing</a>
 </p>
 
 ---
@@ -114,8 +114,8 @@ Before upgrading major versions, review the changelog.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+See [CONTRIBUTING.md](https://github.com/freeplayai/freeplay-python/blob/main/CONTRIBUTING.md).
 
 ## License
 
-Apache-2.0 — see [LICENSE](LICENSE).
+Apache-2.0 — see [LICENSE](https://github.com/freeplayai/freeplay-python/blob/main/LICENSE).

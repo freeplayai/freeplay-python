@@ -4,6 +4,10 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
 ## [0.5.5] - 2025-12-29
 
+### Changed
+
+- License changed from MIT to Apache-2.0
+
 ### Added
 
 - **GenAI Tool Schema Support**: Added `GenaiFunction` and `GenaiTool` dataclasses for Google GenAI/Vertex AI tool schema format.

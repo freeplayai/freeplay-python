@@ -15,7 +15,7 @@ fp_client = Freeplay(
     freeplay_api_key=os.environ["FREEPLAY_API_KEY"],
     api_base=f"{os.environ['FREEPLAY_API_URL']}/api",
 )
-project_id = "8f93dd00-2eb5-4ba2-9354-86d5c6831dfd"
+project_id = os.environ["FREEPLAY_PROJECT_ID"]
 environment = "latest"
 
 openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))

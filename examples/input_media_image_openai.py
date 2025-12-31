@@ -60,7 +60,7 @@ record_response = fpclient.recordings.create(
 
 fpclient.test_cases.create_many(
     os.environ["FREEPLAY_PROJECT_ID"],
-    "6b3a0bbe-34dd-4773-8456-cd52305358ca",
+    os.environ["FREEPLAY_DATASET_ID"],
     [DatasetTestCase(input_variables, response_content, [], {}, media_inputs)],
 )
 

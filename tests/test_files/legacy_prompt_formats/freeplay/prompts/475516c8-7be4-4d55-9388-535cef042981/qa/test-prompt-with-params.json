@@ -1,0 +1,14 @@
+{
+    "content": "[{\"role\":\"system\",\"content\":\"You are a support agent\"},{\"role\":\"assistant\",\"content\":\"How can I help you?\"},{\"role\":\"user\",\"content\":\"{{question}}\"}]",
+    "metadata": {
+        "flavor_name": "openai_chat",
+        "params": {
+            "max_tokens": 56,
+            "model": "gpt-3.5-turbo-1106",
+            "temperature": 0.1
+        }
+    },
+    "name": "test-prompt-with-params",
+    "prompt_template_id": "a8b91d92-e063-4c3e-bb44-0d570793856b",
+    "prompt_template_version_id": "188545b0-afdb-4a1c-b99c-9519bb626da2"
+}

@@ -1,0 +1,12 @@
+{
+    "content": "[{\"role\":\"Human\",\"content\":\"You are a support agent.\"},{\"role\":\"Assistant\",\"content\":\"How may I help you?\"},{\"role\":\"user\",\"content\":\"{{question}}\"}]",
+    "metadata": {
+        "flavor_name": "not_a_flavor",
+        "params": {
+            "model": "gpt-3.5-turbo-1106"
+        }
+    },
+    "name": "test-prompt-invalid-flavor",
+    "prompt_template_id": "5985c6bb-115c-4ca2-99bd-0ffeb917fca4",
+    "prompt_template_version_id": "11e12956-d8d4-448a-af92-66b1dc2155e0"
+}

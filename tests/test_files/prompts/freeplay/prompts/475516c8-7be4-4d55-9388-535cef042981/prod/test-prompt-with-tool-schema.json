@@ -1,0 +1,46 @@
+{
+    "content": [
+        {
+            "kind": "history"
+        },
+        {
+            "content": "What is the weather in {{location}}",
+            "role": "user"
+        }
+    ],
+    "environment": null,
+    "format_version": 3,
+    "metadata": {
+        "flavor": "anthropic_chat",
+        "model": "claude-3-sonnet-20240229",
+        "params": {
+            "max_tokens": 256,
+            "temperature": 0.0
+        },
+        "provider": "anthropic",
+        "provider_info": {}
+    },
+    "project_id": "3f1e4fd5-d79f-4d7a-a5b0-869d4bf222d9",
+    "prompt_template_id": "6252eca9-edb1-403c-a059-744cfc6e254e",
+    "prompt_template_name": "my-anthropic-prompt",
+    "prompt_template_version_id": "ed3b96f5-0783-4d40-9ef3-35297c29529c",
+    "tool_schema": [
+        {
+            "description": "Get weather of a location",
+            "name": "weather_of_location",
+            "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                    "location": {
+                        "description": "Location to get the weather for",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "location"
+                ],
+                "type": "object"
+            }
+        }
+    ]
+}

@@ -1,0 +1,53 @@
+{
+  // Python Language Server
+  "python.languageServer": "Pylance",
+  "python.analysis.typeCheckingMode": "strict",
+  
+  // Formatting
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit",
+    }
+  },
+  
+  // Auto Save
+  "files.autoSave": "onFocusChange",
+  
+  // Ruff Configuration
+  "ruff.enable": true,
+  "ruff.fixAll": true,
+  
+  // Python Path Configuration
+  "python.defaultInterpreterPath": "./.venv/bin/python",
+  
+  // File Associations
+  "files.associations": {
+    "*.py": "python",
+    "pyproject.toml": "toml",
+    "pyrightconfig.json": "json"
+  },
+  
+  // Testing
+  "python.testing.unittestEnabled": true,
+  "python.testing.unittestArgs": [
+    "-v",
+    "-s",
+    "./tests",
+    "-p",
+    "test_*.py"
+  ],
+  
+  // Terminal
+  "terminal.integrated.env.osx": {
+    "UV_PROJECT_ENVIRONMENT": ".venv"
+  },
+  
+  // Type Checking (Pylance)
+  "python.analysis.autoImportCompletions": true,
+  "python.analysis.completeFunctionParens": true,
+  "python.analysis.diagnosticMode": "workspace",
+  "python.analysis.inlayHints.functionReturnTypes": true,
+  "python.analysis.inlayHints.variableTypes": true
+}

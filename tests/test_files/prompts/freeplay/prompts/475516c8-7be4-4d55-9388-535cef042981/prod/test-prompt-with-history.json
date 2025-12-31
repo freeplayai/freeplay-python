@@ -1,0 +1,30 @@
+{
+  "format_version": 2,
+  "content": [
+    {
+      "role": "system",
+      "content": "You are a support agent"
+    },
+    {
+      "kind": "history"
+    },
+    {
+      "role": "user",
+      "content": "{{question}}"
+    }
+  ],
+  "metadata": {
+    "model": "gpt-3.5-turbo-1106",
+    "flavor": "openai_chat",
+    "params": {
+      "max_tokens": 56,
+      "temperature": 0.1
+    },
+    "provider_info": {
+      "anthropic_endpoint": "https://example2.com/anthropic"
+    }
+  },
+  "prompt_template_name": "test-prompt-with-history",
+  "prompt_template_id": "e8c69d70-1166-4546-8a60-cf4684a3a66b",
+  "prompt_template_version_id": "41ee9a25-0e7a-4c0b-a42b-4b5239721d7b"
+}

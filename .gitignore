@@ -1,0 +1,10 @@
+nohup.out
+__pycache__
+.idea/
+.mypy_cache
+.pytest_cache
+.venv
+dist/
+.env
+.DS_Store
+.env.test

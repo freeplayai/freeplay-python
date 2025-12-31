@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://docs.freeplay.ai">Docs</a> •
-  <a href="https://docs.freeplay.ai/quick-start/observability-prompt-management">Quick Start</a> •
+  <a href="https://docs.freeplay.ai/getting-started/overview">Quick Start</a> •
   <a href="https://docs.freeplay.ai/freeplay-sdk/setup">SDK Setup</a> •
   <a href="https://docs.freeplay.ai/resources/api-reference">API Reference</a> •
   <a href="https://github.com/freeplayai/freeplay-python/blob/main/CHANGELOG.md">Changelog</a> •
@@ -27,11 +27,15 @@ Freeplay is the only platform your team needs to manage the end-to-end AI applic
 
 Use this SDK to integrate with Freeplay's core capabilities:
 
-- [**Prompts**](https://docs.freeplay.ai/freeplay-sdk/prompts) — version, format, and fetch prompt templates across environments
-- [**Recording**](https://docs.freeplay.ai/freeplay-sdk/recording-completions) — log LLM calls for observability and debugging
-- [**Sessions**](https://docs.freeplay.ai/freeplay-sdk/sessions) & [**Traces**](https://docs.freeplay.ai/freeplay-sdk/traces) — group interactions and multi-step agent workflows
-- [**Test Runs**](https://docs.freeplay.ai/freeplay-sdk/test-runs) — execute evaluation runs against prompts/datasets
-- [**Feedback**](https://docs.freeplay.ai/freeplay-sdk/customer-feedback) — capture user/customer feedback and events
+**Observability**
+- [**Sessions**](https://docs.freeplay.ai/freeplay-sdk/sessions) — group related interactions together, e.g. for multi-turn chat or complex agent interactions
+- [**Traces**](https://docs.freeplay.ai/freeplay-sdk/traces) — track multi-step agent workflows within sessions
+- [**Completions**](https://docs.freeplay.ai/freeplay-sdk/recording-completions) — record LLM interactions for observability and debugging
+- [**Customer Feedback**](https://docs.freeplay.ai/freeplay-sdk/customer-feedback) — append user feedback and events to traces and completions
+
+[**Prompts**](https://docs.freeplay.ai/freeplay-sdk/prompts) — version, format, and fetch prompt templates across environments
+
+[**Test Runs**](https://docs.freeplay.ai/freeplay-sdk/test-runs) — execute evaluation runs against prompts and datasets
 
 ## Requirements
 
@@ -48,33 +52,39 @@ pip install freeplay
 
 ```python
 import os
-from freeplay import Freeplay
+from freeplay import Freeplay, RecordPayload
+from openai import OpenAI
 
-freeplay = Freeplay(
+fp_client = Freeplay(
     freeplay_api_key=os.environ["FREEPLAY_API_KEY"],
 )
+openai_client = OpenAI()
+
+project_id = os.environ["FREEPLAY_PROJECT_ID"]
 
 # Fetch a prompt from Freeplay
-prompt = freeplay.prompts.get_formatted(
-    project_id=os.environ["FREEPLAY_PROJECT_ID"],
+formatted_prompt = fp_client.prompts.get_formatted(
+    project_id=project_id,
     template_name="my-prompt",
     environment="prod",
     variables={"user_input": "Hello, world!"},
 )
 
-# Call your LLM provider with prompt.llm_prompt
-response = openai.chat.completions.create(
-    model=prompt.prompt_info.model,
-    messages=prompt.llm_prompt,
+# Call your LLM provider with formatted_prompt.llm_prompt
+response = openai_client.chat.completions.create(
+    model=formatted_prompt.prompt_info.model,
+    messages=formatted_prompt.llm_prompt,
 )
 
-# Record the result for observability
-freeplay.recordings.create(
-    project_id=os.environ["FREEPLAY_PROJECT_ID"],
-    all_messages=prompt.all_messages({
-        "role": "assistant",
-        "content": response.choices[0].message.content,
-    }),
+# Record the interaction for observability
+fp_client.recordings.create(
+    RecordPayload(
+        project_id=project_id,
+        all_messages=formatted_prompt.all_messages({
+            "role": "assistant",
+            "content": response.choices[0].message.content,
+        }),
+    )
 )
 ```
 

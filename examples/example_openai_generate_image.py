@@ -15,11 +15,11 @@ from openai import OpenAI
 from freeplay import Freeplay, CallInfo, ResponseInfo, RecordPayload
 
 
-fpclient = Freeplay(
+fp_client = Freeplay(
     freeplay_api_key=os.environ["FREEPLAY_API_KEY"],
     api_base=f"{os.environ['FREEPLAY_API_URL']}/api",
 )
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 # Text description for image generation
 image_description = "A serene mountain landscape at sunset with a crystal clear lake reflecting the golden sky, surrounded by pine trees and snow-capped peaks"
@@ -29,7 +29,7 @@ start = time.time()
 
 # Generate image using DALL-E
 print(f"Generating image with description: {image_description}")
-image_response = client.images.generate(
+image_response = openai_client.images.generate(
     model="dall-e-3",
     prompt=image_description,
     size="1024x1024",
@@ -48,7 +48,7 @@ print(f"Image data URI: {image_data_uri[:100]}")
 end = time.time()
 
 # Create a completion record for the image generation
-session = fpclient.sessions.create()
+session = fp_client.sessions.create()
 
 # Here we just create a message with the image data URI to store it.
 assistant_message_with_image = {
@@ -62,7 +62,7 @@ assistant_message_with_image = {
 # Get formatted prompt to use for recording
 environment = os.environ.get("FREEPLAY_ENVIRONMENT", "latest")
 template_name = os.environ.get("FREEPLAY_PROMPT_TEMPLATE_NAME", "image_generation")
-formatted_prompt = fpclient.prompts.get_formatted(
+formatted_prompt = fp_client.prompts.get_formatted(
     project_id=os.environ["FREEPLAY_PROJECT_ID"],
     template_name=template_name,
     environment=environment,
@@ -77,7 +77,7 @@ call_info = CallInfo.from_prompt_info(formatted_prompt.prompt_info, start, end)
 response_info = ResponseInfo(is_complete=True)
 
 # Record the image generation with OpenAI format messages
-record_response = fpclient.recordings.create(
+record_response = fp_client.recordings.create(
     RecordPayload(
         project_id=os.environ["FREEPLAY_PROJECT_ID"],
         all_messages=all_messages,

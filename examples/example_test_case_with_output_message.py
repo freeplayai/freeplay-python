@@ -9,7 +9,7 @@ from freeplay import Freeplay
 from freeplay.utils import convert_sdk_messages_to_api_messages
 
 
-fpclient = Freeplay(
+fp_client = Freeplay(
     freeplay_api_key=os.environ["FREEPLAY_API_KEY"],
     api_base=f"{os.environ['FREEPLAY_API_URL']}/api",
 )
@@ -22,7 +22,7 @@ MAX_OUTPUT_MESSAGE_LENGTH = 500
 
 # Retrieve the dataset
 print(f"Retrieving test cases from dataset {dataset_id}...")
-dataset_results = fpclient.test_cases.get(project_id, dataset_id)
+dataset_results = fp_client.test_cases.get(project_id, dataset_id)
 
 print(
     f"\nRetrieved {len(dataset_results.test_cases)} test cases from dataset {dataset_id}\n"

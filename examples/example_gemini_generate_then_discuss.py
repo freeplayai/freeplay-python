@@ -17,7 +17,7 @@ import requests
 
 from freeplay import CallInfo, Freeplay, RecordPayload, ResponseInfo
 
-fpclient = Freeplay(
+fp_client = Freeplay(
     freeplay_api_key=os.environ["FREEPLAY_API_KEY"],
     api_base=f"{os.environ['FREEPLAY_API_URL']}/api",
 )
@@ -29,7 +29,7 @@ print("TURN 1: Generate image with Gemini")
 print("=" * 80)
 
 # Create session for multi-turn conversation
-session = fpclient.sessions.create()
+session = fp_client.sessions.create()
 print(f"Created session ID: {session.session_info.session_id}")
 
 # Turn 1: Generate an image
@@ -38,7 +38,7 @@ input_variables_1 = {"description": image_description}
 
 template_name = os.environ.get("FREEPLAY_PROMPT_TEMPLATE_NAME", "imagegen")
 environment = os.environ.get("FREEPLAY_ENVIRONMENT", "latest")
-formatted_prompt_1 = fpclient.prompts.get_formatted(
+formatted_prompt_1 = fp_client.prompts.get_formatted(
     project_id=project_id,
     template_name=template_name,
     environment="latest",
@@ -105,7 +105,7 @@ call_info_1 = CallInfo(
 )
 response_info_1 = ResponseInfo(is_complete=True)
 
-record_response_1 = fpclient.recordings.create(
+record_response_1 = fp_client.recordings.create(
     RecordPayload(
         project_id=project_id,
         all_messages=history,
@@ -174,7 +174,7 @@ call_info_2 = CallInfo(
 )
 response_info_2 = ResponseInfo(is_complete=True)
 
-record_response_2 = fpclient.recordings.create(
+record_response_2 = fp_client.recordings.create(
     RecordPayload(
         project_id=project_id,
         all_messages=history,

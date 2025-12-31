@@ -8,16 +8,16 @@ from freeplay.resources.recordings import UsageTokens
 
 # logging.basicConfig(level=logging.NOTSET)
 
-fpclient = Freeplay(
+fp_client = Freeplay(
     freeplay_api_key=os.environ["FREEPLAY_API_KEY"],
     api_base=f"{os.environ['FREEPLAY_API_URL']}/api",
 )
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 input_variables = {"question": "why is the sky blue?"}
 
 project_id = os.environ["FREEPLAY_PROJECT_ID"]
-prompt = fpclient.prompts.get(
+prompt = fp_client.prompts.get(
     project_id=os.environ["FREEPLAY_PROJECT_ID"],
     template_name="my-openai-prompt",
     environment="latest",
@@ -25,7 +25,7 @@ prompt = fpclient.prompts.get(
 
 print(f"Tool Schema from simple prompt: {prompt.tool_schema}")
 
-formatted_prompt = fpclient.prompts.get_formatted(
+formatted_prompt = fp_client.prompts.get_formatted(
     project_id=project_id,
     template_name="my-openai-prompt",
     environment="latest",
@@ -35,7 +35,7 @@ formatted_prompt = fpclient.prompts.get_formatted(
 print(f"Tool schema: {formatted_prompt.tool_schema}")
 
 start = time.time()
-completion = client.chat.completions.create(
+completion = openai_client.chat.completions.create(
     messages=formatted_prompt.llm_prompt,
     model=formatted_prompt.prompt_info.model,
     tools=formatted_prompt.tool_schema,
@@ -44,7 +44,7 @@ completion = client.chat.completions.create(
 end = time.time()
 print("Completion: %s" % completion)
 
-session = fpclient.sessions.create()
+session = fp_client.sessions.create()
 messages = formatted_prompt.all_messages(completion.choices[0].message)
 print(f"All messages: {messages}")
 call_info = CallInfo.from_prompt_info(
@@ -57,7 +57,7 @@ call_info = CallInfo.from_prompt_info(
 response_info = ResponseInfo(is_complete=completion.choices[0].finish_reason == "stop")
 
 print(f"Messages: {messages}")
-record_response = fpclient.recordings.create(
+record_response = fp_client.recordings.create(
     RecordPayload(
         project_id=os.environ["FREEPLAY_PROJECT_ID"],
         all_messages=messages,
@@ -71,7 +71,7 @@ record_response = fpclient.recordings.create(
 )
 
 print(f"Sending customer feedback for completion id: {record_response.completion_id}")
-fpclient.customer_feedback.update(
+fp_client.customer_feedback.update(
     project_id,
     record_response.completion_id,
     {"is_it_good": "nah", "count_of_interactions": 123},

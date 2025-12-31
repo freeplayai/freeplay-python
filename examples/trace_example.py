@@ -14,7 +14,7 @@ from freeplay import (
     SessionInfo,
 )
 
-fpclient = Freeplay(
+fp_client = Freeplay(
     freeplay_api_key=os.environ["FREEPLAY_API_KEY"],
     api_base=f"{os.environ['FREEPLAY_API_URL']}/api",
 )
@@ -31,7 +31,7 @@ def call_and_record(
     session_info: SessionInfo,
     parent_id: Optional[UUID] = None,
 ) -> dict:
-    formatted_prompt = fpclient.prompts.get_formatted(
+    formatted_prompt = fp_client.prompts.get_formatted(
         project_id=project_id,
         template_name=template_name,
         environment=env,
@@ -58,7 +58,7 @@ def call_and_record(
     call_info = CallInfo.from_prompt_info(formatted_prompt.prompt_info, start, end)
     response_info = ResponseInfo(is_complete=completion.stop_reason == "stop_sequence")
 
-    record_response = fpclient.recordings.create(
+    record_response = fp_client.recordings.create(
         RecordPayload(
             project_id=project_id,
             all_messages=all_messages,
@@ -84,7 +84,7 @@ user_questions = [
     "how tall are lions?",
 ]
 
-session = fpclient.sessions.create({"metadata_123": "blah"})
+session = fp_client.sessions.create({"metadata_123": "blah"})
 last_trace_id = None
 for question in user_questions:
     trace_info = session.create_trace(
@@ -113,7 +113,7 @@ for question in user_questions:
     print(
         f"Sending customer feedback for completion id: {bot_response['completion_id']}"
     )
-    fpclient.customer_feedback.update(
+    fp_client.customer_feedback.update(
         project_id=project_id,
         completion_id=bot_response["completion_id"],
         feedback={
@@ -132,7 +132,7 @@ for question in user_questions:
         "is_it_good": random.choice([True, False]),
         "freeplay_feedback": random.choice(["positive", "negative"]),
     }
-    fpclient.customer_feedback.update_trace(
+    fp_client.customer_feedback.update_trace(
         project_id, trace_info.trace_id, trace_feedback
     )
     print(f"Trace info id: {trace_info.trace_id}")

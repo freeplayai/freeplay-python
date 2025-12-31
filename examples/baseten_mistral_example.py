@@ -21,14 +21,14 @@ formatted_prompt = (
 print(f"Ready for LLM: {formatted_prompt.llm_prompt}")
 
 model_id = os.environ["BASETEN_MODEL_ID"]
-client = OpenAI(
+baseten_client = OpenAI(
     api_key=os.environ["BASETEN_API_KEY"],
     base_url=f"https://bridge.baseten.co/{model_id}/v1",
 )
 
 start = time.time()
 # Call model endpoint
-res = client.chat.completions.create(
+res = baseten_client.chat.completions.create(
     model=formatted_prompt.prompt_info.model,
     messages=formatted_prompt.llm_prompt,
     **formatted_prompt.prompt_info.model_parameters,

@@ -18,7 +18,7 @@ from freeplay import (
     TraceInfo,
 )
 
-fpclient = Freeplay(
+fp_client = Freeplay(
     freeplay_api_key=os.environ["FREEPLAY_API_KEY"],
     api_base=f"{os.environ['FREEPLAY_API_URL']}/api",
 )
@@ -50,7 +50,7 @@ questions = [
 input_pairs = list(zip(articles, questions))
 
 template_name = os.environ["FREEPLAY_PROMPT_TEMPLATE_NAME"]
-template_prompt = fpclient.prompts.get(
+template_prompt = fp_client.prompts.get(
     project_id=project_id, template_name=template_name, environment=enviroment
 )
 print("Template Prompt messages")
@@ -67,7 +67,7 @@ def call_and_record(
     session_info: SessionInfo,
     trace_info: Optional[TraceInfo] = None,
 ) -> dict:
-    formatted_prompt = fpclient.prompts.get_formatted(
+    formatted_prompt = fp_client.prompts.get_formatted(
         project_id=project_id,
         template_name=template_name,
         environment=env,
@@ -140,7 +140,7 @@ def call_and_record(
         is_complete=True,
     )
 
-    record_response = fpclient.recordings.create(
+    record_response = fp_client.recordings.create(
         RecordPayload(
             project_id=project_id,
             all_messages=all_messages,
@@ -160,7 +160,7 @@ def call_and_record(
     }
 
 
-session = fpclient.sessions.create()
+session = fp_client.sessions.create()
 print("session id %s" % session.session_info.session_id)
 history = []
 for inputs in input_pairs:

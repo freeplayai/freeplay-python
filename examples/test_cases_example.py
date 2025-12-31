@@ -5,7 +5,7 @@ from freeplay.resources.test_cases import DatasetTestCase, DatasetResults
 
 # logging.basicConfig(level=logging.NOTSET)
 
-fpclient = Freeplay(
+fp_client = Freeplay(
     freeplay_api_key=os.environ["FREEPLAY_API_KEY"],
     api_base=f"{os.environ['FREEPLAY_API_URL']}/api",
 )
@@ -20,7 +20,7 @@ test_case_1: DatasetTestCase = DatasetTestCase(
     output="Prompt response 1",
 )
 
-fpclient.test_cases.create(
+fp_client.test_cases.create(
     project_id=os.environ["FREEPLAY_PROJECT_ID"],
     dataset_id=os.environ["FREEPLAY_DATASET_ID"],
     test_case=test_case_1,
@@ -41,14 +41,14 @@ test_case_3: DatasetTestCase = DatasetTestCase(
     output="Prompt response 3",
 )
 
-fpclient.test_cases.create_many(
+fp_client.test_cases.create_many(
     project_id=os.environ["FREEPLAY_PROJECT_ID"],
     dataset_id=os.environ["FREEPLAY_DATASET_ID"],
     test_cases=[test_case_2, test_case_3],
 )
 
 # Get
-dataset_results: DatasetResults = fpclient.test_cases.get(
+dataset_results: DatasetResults = fp_client.test_cases.get(
     project_id=os.environ["FREEPLAY_PROJECT_ID"],
     dataset_id=os.environ["FREEPLAY_DATASET_ID"],
 )

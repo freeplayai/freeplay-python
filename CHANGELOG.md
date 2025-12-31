@@ -14,14 +14,14 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
   ```python
   # Update session metadata
-  client.metadata.update_session(
+  fp_client.metadata.update_session(
       project_id=project_id,
       session_id=session_id,
       metadata={"customer_id": "cust_123", "rating": 5}
   )
 
   # Update trace metadata
-  client.metadata.update_trace(
+  fp_client.metadata.update_trace(
       project_id=project_id,
       session_id=session_id,
       trace_id=trace_id,

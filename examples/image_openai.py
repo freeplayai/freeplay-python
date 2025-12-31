@@ -5,17 +5,17 @@ from openai import OpenAI
 
 from freeplay import CallInfo, Freeplay, RecordPayload, ResponseInfo
 
-fpclient = Freeplay(
+fp_client = Freeplay(
     freeplay_api_key=os.environ["FREEPLAY_API_KEY"],
     api_base=f"{os.environ['FREEPLAY_API_URL']}/api",
 )
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 input_variables = {"question": "What's in this image?"}
 
 image_url = "https://upload.wikimedia.org/wikipedia/commons/a/a7/Camponotus_flavomarginatus_ant.jpg"
 
-formatted_prompt = fpclient.prompts.get_formatted(
+formatted_prompt = fp_client.prompts.get_formatted(
     project_id=os.environ["FREEPLAY_PROJECT_ID"],
     template_name="media",
     environment="latest",
@@ -31,7 +31,7 @@ formatted_prompt = fpclient.prompts.get_formatted(
 )
 
 start = time.time()
-completion = client.chat.completions.create(
+completion = openai_client.chat.completions.create(
     messages=formatted_prompt.llm_prompt,
     model=formatted_prompt.prompt_info.model,
     **formatted_prompt.prompt_info.model_parameters,
@@ -40,12 +40,12 @@ end = time.time()
 
 print("Completion:", completion.choices[0].message.content)
 
-session = fpclient.sessions.create()
+session = fp_client.sessions.create()
 all_messages = formatted_prompt.all_messages(completion.choices[0].message)
 call_info = CallInfo.from_prompt_info(formatted_prompt.prompt_info, start, end)
 response_info = ResponseInfo(is_complete=completion.choices[0].finish_reason == "stop")
 
-record_response = fpclient.recordings.create(
+record_response = fp_client.recordings.create(
     RecordPayload(
         project_id=os.environ["FREEPLAY_PROJECT_ID"],
         all_messages=all_messages,

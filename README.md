@@ -1,70 +1,121 @@
-# Freeplay Python SDK 
+<h1 align="center">Freeplay Python SDK</h1>
 
-The official Python SDK for easily accessing the Freeplay API.
+<p align="center">
+  <strong>The official Python SDK for <a href="https://freeplay.ai">Freeplay</a></strong><br/>
+  The ops platform for enterprise AI engineering teams
+</p>
+
+<p align="center">
+  <a href="https://pypi.org/project/freeplay/"><img src="https://img.shields.io/pypi/v/freeplay.svg" alt="version" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="License" /></a>
+</p>
+
+<p align="center">
+  <a href="https://docs.freeplay.ai">Docs</a> •
+  <a href="https://docs.freeplay.ai/quick-start/observability-prompt-management">Quick Start</a> •
+  <a href="https://docs.freeplay.ai/freeplay-sdk/setup">SDK Setup</a> •
+  <a href="https://docs.freeplay.ai/resources/api-reference">API Reference</a> •
+  <a href="CHANGELOG.md">Changelog</a> •
+  <a href="CONTRIBUTING.md">Contributing</a>
+</p>
+
+---
+
+## Overview
+
+Freeplay is the only platform your team needs to manage the end-to-end AI application development lifecycle. It provides an integrated workflow for improving your AI agents and other generative AI products. Engineers, data scientists, product managers, designers, and subject matter experts can all review production logs, curate datasets, experiment with changes, create and run evaluations, and deploy updates.
+
+Use this SDK to integrate with Freeplay's core capabilities:
+
+- [**Prompts**](https://docs.freeplay.ai/freeplay-sdk/prompts) — version, format, and fetch prompt templates across environments
+- [**Recording**](https://docs.freeplay.ai/freeplay-sdk/recording-completions) — log LLM calls for observability and debugging
+- [**Sessions**](https://docs.freeplay.ai/freeplay-sdk/sessions) & [**Traces**](https://docs.freeplay.ai/freeplay-sdk/traces) — group interactions and multi-step agent workflows
+- [**Test Runs**](https://docs.freeplay.ai/freeplay-sdk/test-runs) — execute evaluation runs against prompts/datasets
+- [**Feedback**](https://docs.freeplay.ai/freeplay-sdk/customer-feedback) — capture user/customer feedback and events
+
+## Requirements
+
+- Python 3.8 or higher
+- A Freeplay account + API key
 
 ## Installation
 
-```
+```bash
 pip install freeplay
 ```
 
-## Compatibility
-
-- Python 3.8+
-
-## Usage
+## Quick Start
 
 ```python
-# Import the SDK
+import os
 from freeplay import Freeplay
 
-# Initialize the client
-fp_client = Freeplay(
-    provider_config=ProviderConfig(openai=OpenAIConfig(OPENAI_API_KEY)),
-    freeplay_api_key=FREEPLAY_API_KEY,
-    api_base=f'https://{FREEPLAY_CUSTOMER_NAME}.freeplay.ai/api')
-
-# Completion Request
-completion = fp_client.get_completion(project_id=FREEPLAY_PROJECT_ID,
-                                      template_name="template",
-                                      variables={"input_variable_name": "input_variable_value"})
-```
-
-See the [Freeplay Docs](https://docs.freeplay.ai) for more usage examples and the API reference.
-
-## Updating Metadata
-
-You can update session and trace metadata at any point after creation. This is useful when you need to associate IDs or information that's generated after a conversation ends:
-
-```python
-# Update session metadata
-fp_client.metadata.update_session(
-    project_id=project_id,
-    session_id=session_id,
-    metadata={
-        "customer_id": "cust_123",
-        "conversation_rating": 5,
-        "support_tier": "premium"
-    }
+freeplay = Freeplay(
+    freeplay_api_key=os.environ["FREEPLAY_API_KEY"],
 )
 
-# Update trace metadata
-fp_client.metadata.update_trace(
-    project_id=project_id,
-    session_id=session_id,
-    trace_id=trace_id,
-    metadata={
-        "agent_name": "customer_support_bot",
-        "resolved": True,
-        "resolution_time_ms": 1234
-    }
+# Fetch a prompt from Freeplay
+prompt = freeplay.prompts.get_formatted(
+    project_id=os.environ["FREEPLAY_PROJECT_ID"],
+    template_name="my-prompt",
+    environment="prod",
+    variables={"user_input": "Hello, world!"},
+)
+
+# Call your LLM provider with prompt.llm_prompt
+response = openai.chat.completions.create(
+    model=prompt.prompt_info.model,
+    messages=prompt.llm_prompt,
+)
+
+# Record the result for observability
+freeplay.recordings.create(
+    project_id=os.environ["FREEPLAY_PROJECT_ID"],
+    all_messages=prompt.all_messages({
+        "role": "assistant",
+        "content": response.choices[0].message.content,
+    }),
 )
 ```
 
-**Merge semantics**: New keys overwrite existing keys, while unmentioned keys are preserved.
+See the [SDK Setup guide](https://docs.freeplay.ai/freeplay-sdk/setup) for complete examples.
 
-See `examples/update_metadata.py` for a complete example.
+## Configuration
+
+### Environment variables
+
+```bash
+export FREEPLAY_API_KEY="fp_..."
+export FREEPLAY_PROJECT_ID="xy..."
+# Optional: override if using a custom domain / private deployment
+export FREEPLAY_API_BASE="https://app.freeplay.ai/api"
+```
+
+**API base URL**  
+Default: `https://app.freeplay.ai/api`
+
+Custom domain/private deployment: `https://<your-domain>/api`
+
+## Versioning
+
+This SDK follows Semantic Versioning (SemVer): **MAJOR.MINOR.PATCH**.
+
+- **PATCH**: bug fixes
+- **MINOR**: backward-compatible features
+- **MAJOR**: breaking changes
+
+Before upgrading major versions, review the changelog.
+
+## Support
+
+- **Docs**: https://docs.freeplay.ai
+- **Issues**: https://github.com/freeplayai/freeplay-python/issues
+- **Security**: security@freeplay.ai
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-This SDK is released under the [MIT License](LICENSE).
+Apache-2.0 — see [LICENSE](LICENSE).

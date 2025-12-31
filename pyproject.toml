@@ -3,9 +3,9 @@ name = "freeplay"
 version = "0.5.4"
 description = ""
 authors = [
-    {name = "FreePlay Engineering", email = "engineering@freeplay.ai"},
+    {name = "Freeplay Engineering", email = "support@freeplay.ai"},
 ]
-license = {text = "MIT"}
+license = {text = "Apache-2.0"}
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [

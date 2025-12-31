@@ -28,3 +28,13 @@ test-ci: type-check lint
 # This will run examples/example.py
 run-%:
 	source .env; uv run python examples/$*.py
+
+# Start interactive REPL with Freeplay client initialized
+# Loads environment variables and applies SSL patches
+.PHONY: repl
+repl:
+	set -a; source .env; set +a; uv run python -i scripts/repl_setup.py
+
+# Alias for repl
+.PHONY: console
+console: repl

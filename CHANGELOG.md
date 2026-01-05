@@ -6,10 +6,11 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
 ### Added
 
-- Interactive REPL (`make repl`) for development and testing with:
+- Interactive REPL for development and testing:
+  - `make repl` - Production mode (connects to app.freeplay.ai with SSL verification enabled)
+  - `make repl-local` - Local development mode (connects to localhost:8000 with SSL verification disabled)
   - Pre-loaded imports (Freeplay client, etc.)
   - Environment variables automatically loaded from `.env` file
-  - SSL verification disabled for local development
   - Pre-initialized `client` variable ready to use
 
 ### Changed

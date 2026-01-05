@@ -19,7 +19,7 @@ from openai.types.chat.chat_completion import ChatCompletion
 from freeplay import CallInfo, Freeplay, RecordPayload, ResponseInfo
 from freeplay.resources.recordings import UsageTokens
 
-fpclient = Freeplay(
+fp_client = Freeplay(
     freeplay_api_key=os.environ["FREEPLAY_API_KEY"],
     api_base=f"{os.environ['FREEPLAY_API_URL']}/api",
 )
@@ -33,7 +33,7 @@ print("TURN 1: Generate image with OpenAI DALL-E")
 print("=" * 80)
 
 # Create session for multi-turn conversation
-session = fpclient.sessions.create()
+session = fp_client.sessions.create()
 print(f"Created session ID: {session.session_info.session_id}")
 
 # Turn 1: Generate an image
@@ -83,7 +83,7 @@ assistant_message_with_image = {
 
 environment = os.environ.get("FREEPLAY_ENVIRONMENT", "latest")
 template_name = os.environ.get("FREEPLAY_PROMPT_TEMPLATE_NAME", "image_generation")
-formatted_prompt = fpclient.prompts.get_formatted(
+formatted_prompt = fp_client.prompts.get_formatted(
     project_id=os.environ["FREEPLAY_PROJECT_ID"],
     template_name=template_name,
     environment=environment,
@@ -97,7 +97,7 @@ all_messages_1 = [*formatted_prompt.llm_prompt, assistant_message_with_image]
 call_info = CallInfo.from_prompt_info(formatted_prompt.prompt_info, start_1, end_1)
 response_info = ResponseInfo(is_complete=True)
 
-record_response_1 = fpclient.recordings.create(
+record_response_1 = fp_client.recordings.create(
     RecordPayload(
         project_id=project_id,
         all_messages=all_messages_1,
@@ -127,7 +127,7 @@ history_for_turn2 = [
 
 # Get formatted prompt for Turn 2 (vision analysis) with history
 
-formatted_prompt_2 = fpclient.prompts.get_formatted(
+formatted_prompt_2 = fp_client.prompts.get_formatted(
     project_id=project_id,
     template_name=template_name,
     environment=environment,
@@ -175,7 +175,7 @@ call_info_2 = CallInfo.from_prompt_info(
     UsageTokens(completion_2.usage.prompt_tokens, completion_2.usage.completion_tokens),  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportOptionalMemberAccess]
 )
 
-record_response_2 = fpclient.recordings.create(
+record_response_2 = fp_client.recordings.create(
     RecordPayload(
         project_id=project_id,
         all_messages=all_messages_2,

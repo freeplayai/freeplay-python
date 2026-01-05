@@ -19,7 +19,7 @@ from freeplay import (
     Freeplay,
 )
 
-fpclient = Freeplay(
+fp_client = Freeplay(
     freeplay_api_key=os.environ["FREEPLAY_API_KEY"],
     api_base=f"{os.environ['FREEPLAY_API_URL']}/api",
 )
@@ -46,7 +46,7 @@ def call_and_record(
     trace_info: Optional[TraceInfo] = None,
     test_run_info: Optional[TestRunInfo] = None,
 ) -> dict:
-    formatted_prompt = fpclient.prompts.get_formatted(
+    formatted_prompt = fp_client.prompts.get_formatted(
         project_id=project_id,
         template_name=template_name,
         environment=env,
@@ -113,7 +113,7 @@ def call_and_record(
         is_complete=True,
     )
 
-    record_response = fpclient.recordings.create(
+    record_response = fp_client.recordings.create(
         RecordPayload(
             project_id=project_id,
             all_messages=all_messages,
@@ -134,7 +134,7 @@ def call_and_record(
     }
 
 
-test_run = fpclient.test_runs.create(
+test_run = fp_client.test_runs.create(
     project_id,
     "history-dataset",
     include_outputs=True,
@@ -146,7 +146,7 @@ for test_case in test_run.test_cases:
     input_vars = test_case.variables
     history = test_case.history
     print(history)
-    session = fpclient.sessions.create()
+    session = fp_client.sessions.create()
     test_run_info = test_run.get_test_run_info(test_case.id)
     record_response = call_and_record(
         project_id=project_id,
@@ -160,7 +160,7 @@ for test_case in test_run.test_cases:
 
 # wait 5 sec and get the results
 time.sleep(5)
-results = fpclient.test_runs.get(project_id, test_run.test_run_id)
+results = fp_client.test_runs.get(project_id, test_run.test_run_id)
 print("Test run results")
 print(results.test_run_id)
 print(results.name)

@@ -21,17 +21,17 @@ class COTResponse(pydantic.BaseModel):
     steps: List[COTStep]
 
 
-fpclient = Freeplay(
+fp_client = Freeplay(
     freeplay_api_key=os.environ["FREEPLAY_API_KEY"],
     api_base=f"{os.environ['FREEPLAY_API_URL']}/api",
 )
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 input_variables = {"question": "why is the sky blue?"}
 
 project_id = os.environ["FREEPLAY_PROJECT_ID"]
 
-formatted_prompt = fpclient.prompts.get_formatted(
+formatted_prompt = fp_client.prompts.get_formatted(
     project_id=project_id,
     template_name="my-chat-template",
     environment="latest",
@@ -52,7 +52,7 @@ completion_params = {
 if formatted_prompt.tool_schema:
     completion_params["tools"] = formatted_prompt.tool_schema
 
-completion = client.chat.completions.parse(
+completion = openai_client.chat.completions.parse(
     messages=formatted_prompt.llm_prompt,
     model=formatted_prompt.prompt_info.model,
     response_format=COTResponse,
@@ -61,7 +61,7 @@ completion = client.chat.completions.parse(
 end = time.time()
 print("Completion with pydantic model: %s" % completion)
 
-completion_with_schema_from_prompt = client.chat.completions.create(
+completion_with_schema_from_prompt = openai_client.chat.completions.create(
     messages=formatted_prompt.llm_prompt,
     model=formatted_prompt.prompt_info.model,
     response_format={
@@ -77,7 +77,7 @@ completion_with_schema_from_prompt = client.chat.completions.create(
 )
 print("Completion with prompt schema: %s" % completion_with_schema_from_prompt)
 
-session = fpclient.sessions.create()
+session = fp_client.sessions.create()
 messages = formatted_prompt.all_messages(completion.choices[0].message)
 print(f"All messages: {messages}")
 call_info = CallInfo.from_prompt_info(
@@ -90,7 +90,7 @@ call_info = CallInfo.from_prompt_info(
 response_info = ResponseInfo(is_complete=completion.choices[0].finish_reason == "stop")
 
 print(f"Messages: {messages}")
-record_response = fpclient.recordings.create(
+record_response = fp_client.recordings.create(
     RecordPayload(
         project_id=os.environ["FREEPLAY_PROJECT_ID"],
         all_messages=messages,

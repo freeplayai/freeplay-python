@@ -8,11 +8,11 @@ from openai import OpenAI
 from freeplay import Freeplay, CallInfo, ResponseInfo, RecordPayload
 from freeplay.resources.prompts import MediaInputBase64
 
-fpclient = Freeplay(
+fp_client = Freeplay(
     freeplay_api_key=os.environ["FREEPLAY_API_KEY"],
     api_base=f"{os.environ['FREEPLAY_API_URL']}/api",
 )
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 input_variables = {"query": "Describe what you hear"}
 
@@ -28,7 +28,7 @@ media_inputs = {
         type="base64", content_type="audio/mpeg", data=encoded_audio
     )
 }
-formatted_prompt = fpclient.prompts.get_formatted(
+formatted_prompt = fp_client.prompts.get_formatted(
     project_id=os.environ["FREEPLAY_PROJECT_ID"],
     template_name="audio",
     environment="latest",
@@ -37,7 +37,7 @@ formatted_prompt = fpclient.prompts.get_formatted(
 )
 
 start = time.time()
-completion = client.chat.completions.create(
+completion = openai_client.chat.completions.create(
     messages=formatted_prompt.llm_prompt,
     model="gpt-4o-audio-preview",
     **formatted_prompt.prompt_info.model_parameters,
@@ -47,11 +47,11 @@ end = time.time()
 response_content = completion.choices[0].message.content
 print("Completion:", response_content)
 
-session = fpclient.sessions.create()
+session = fp_client.sessions.create()
 call_info = CallInfo.from_prompt_info(formatted_prompt.prompt_info, start, end)
 response_info = ResponseInfo(is_complete=completion.choices[0].finish_reason == "stop")
 
-record_response = fpclient.recordings.create(
+record_response = fp_client.recordings.create(
     RecordPayload(
         project_id=os.environ["FREEPLAY_PROJECT_ID"],
         all_messages=[

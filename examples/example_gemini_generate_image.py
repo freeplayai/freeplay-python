@@ -12,7 +12,7 @@ from freeplay import Freeplay, CallInfo, ResponseInfo, RecordPayload
 from freeplay.utils import convert_provider_message_to_dict
 
 
-fpclient = Freeplay(
+fp_client = Freeplay(
     freeplay_api_key=os.environ["FREEPLAY_API_KEY"],
     api_base=f"{os.environ['FREEPLAY_API_URL']}/api",
 )
@@ -27,7 +27,7 @@ project_id = os.environ["FREEPLAY_PROJECT_ID"]
 environment = os.environ.get("FREEPLAY_ENVIRONMENT", "latest")
 template_name = os.environ.get("FREEPLAY_PROMPT_TEMPLATE_NAME", "imagegen")
 
-formatted_prompt = fpclient.prompts.get_formatted(
+formatted_prompt = fp_client.prompts.get_formatted(
     project_id=project_id,
     template_name=template_name,
     environment=environment,
@@ -113,7 +113,7 @@ except requests.RequestException as e:
 end = time.time()
 
 # Create a completion record for the image generation
-session = fpclient.sessions.create()
+session = fp_client.sessions.create()
 call_info = CallInfo(
     start_time=start,
     end_time=end,
@@ -125,7 +125,7 @@ response_info = ResponseInfo(is_complete=True)
 all_messages = list(formatted_prompt.llm_prompt)
 all_messages.append(assistant_message)
 all_messages_dict = [convert_provider_message_to_dict(msg) for msg in all_messages]
-record_response = fpclient.recordings.create(
+record_response = fp_client.recordings.create(
     RecordPayload(
         project_id=project_id,
         all_messages=all_messages,

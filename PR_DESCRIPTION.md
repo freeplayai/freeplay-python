@@ -1,143 +1,123 @@
-# Tool Schema Format Support
+# Update REPL to Default to Production Environment
 
 ## Summary
 
-Updates the Python SDK to clarify that tool schemas should be passed in their native provider format (as dictionaries). The SDK accepts tool schemas from OpenAI, Anthropic, and Google GenAI/Vertex AI directly, without requiring conversion to Freeplay-specific wrapper types.
+Updates the interactive REPL to default to production (`app.freeplay.ai`) with SSL verification enabled, making it ready for open-source users out of the box. Adds a `--local` flag for Freeplay engineers doing local development.
 
-## What Changed
+## Motivation
 
-### Tool Schema Handling
-- **Simplified Approach**: Tool schemas are passed as raw dictionaries matching the provider's native format
-- **Consistency**: Aligns with how messages are handled - provider-native types passed directly to Freeplay
-- **Backend Normalization**: Backend automatically handles all formats (OpenAI, Anthropic, GenAI/Vertex)
+Now that the SDK is open source, external users don't have a local Freeplay server to connect to. The REPL should default to the production environment so users can start using it immediately without configuration changes.
 
-### Interactive REPL
-- Added `make repl` command for development and testing
-- Pre-loads Freeplay client and environment variables
-- Includes SSL verification disabled for local development
+## Changes
 
-### Documentation & Testing
-- Updated testing guides to show raw dictionary approach
-- All tool schema formats (OpenAI, Anthropic, GenAI) remain backward compatible
+### New REPL Commands
 
-## Key Features
+**Production Mode (Default)**
+```bash
+make repl
+```
+- Connects to `https://app.freeplay.ai`
+- SSL verification enabled
+- Ready for open-source users out of the box
 
-### GenAI Tool Schema Format
+**Local Development Mode**
+```bash
+make repl-local
+```
+- Connects to `http://localhost:8000`
+- SSL verification disabled (for self-signed certificates)
+- For Freeplay engineers running the app locally
 
-GenAI uses a unique structure where a **single tool contains multiple function declarations**, unlike OpenAI/Anthropic where each tool is separate:
+### What Changed
+
+**Before:**
+- REPL always disabled SSL verification
+- Assumed local development environment
+
+**After:**
+- `make repl` → Production (SSL enabled, app.freeplay.ai)
+- `make repl-local` → Local development (SSL disabled, localhost:8000)
+
+## Files Modified
+
+- `scripts/repl_setup.py` - Added `--local` flag detection and conditional SSL/URL configuration
+- `Makefile` - Added `repl-local` target, updated comments for both commands
+- `CHANGELOG.md` - Documented both REPL modes
+
+## Implementation Details
+
+The REPL script now checks for the `--local` flag in `sys.argv`:
 
 ```python
-from freeplay import RecordPayload, CallInfo
+# Default to production URL and enabled SSL verification
+FREEPLAY_API_URL = os.getenv("FREEPLAY_API_URL", "https://app.freeplay.ai")
+disable_ssl = False
 
-# Tool schema as raw dictionary (GenAI/Vertex format)
-tool_schema = [
-    {
-        "functionDeclarations": [
-            {
-                "name": "get_weather",
-                "description": "Get the current weather for a location",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "location": {"type": "string", "description": "City name"},
-                        "units": {
-                            "type": "string",
-                            "enum": ["celsius", "fahrenheit"],
-                            "description": "Temperature units"
-                        }
-                    },
-                    "required": ["location"]
-                }
-            }
-        ]
-    }
-]
-
-# Use in recordings
-client.recordings.create(
-    RecordPayload(
-        project_id=project_id,
-        all_messages=[...],
-        tool_schema=tool_schema,
-        call_info=CallInfo(provider="vertex", model="gemini-2.0-flash")
-    )
-)
+if "--local" in sys.argv:
+    disable_ssl = True
+    FREEPLAY_API_URL = "http://localhost:8000"
+    # Apply SSL patches for self-signed certs
+    # ... SSL patching code ...
+    print("\n✨ SSL warnings disabled and requests patched for local development")
+else:
+    print("\n✅ SSL verification enabled (default for production)")
 ```
 
-### Using Tool Schemas from Provider SDKs
+Makefile provides convenient targets:
+```makefile
+# Production mode (default)
+.PHONY: repl
+repl:
+	set -a; source .env 2>/dev/null || true; set +a; uv run python -i scripts/repl_setup.py
 
-Tool schemas can be obtained directly from provider SDKs:
-
-```python
-# From google-generativeai SDK
-import google.generativeai as genai
-
-tools = [
-    {
-        "functionDeclarations": [
-            {
-                "name": "get_weather",
-                "description": "Get weather information",
-                "parameters": {...}
-            }
-        ]
-    }
-]
-
-# Pass directly to Freeplay
-client.recordings.create(
-    RecordPayload(
-        project_id=project_id,
-        all_messages=[...],
-        tool_schema=tools,  # Use directly from provider SDK
-        call_info=CallInfo(provider="vertex", model="gemini-2.0-flash")
-    )
-)
+# Local development mode
+.PHONY: repl-local
+repl-local:
+	set -a; source .env 2>/dev/null || true; set +a; uv run python -i scripts/repl_setup.py --local
 ```
-
-### Backward Compatibility
-
-- ✅ Existing code using raw dicts continues to work
-- ✅ OpenAI and Anthropic tool formats unchanged
-- ✅ Backend automatically normalizes all formats
 
 ## Testing
 
-### Unit Tests
-- Existing tests for tool schema normalization continue to pass
-- Integration tests verify backend normalization
+Verified both modes work correctly:
+- ✅ `make repl` connects to production with SSL enabled
+- ✅ `make repl-local` connects to localhost with SSL disabled
+- ✅ Client initialization works in both modes
+- ✅ Environment variables load correctly
+- ✅ Appropriate console messages displayed
 
-### Integration Testing
-- Manual testing guide included with test scenarios
-- Tested with local Freeplay instance
-- Verified tool schema storage and normalization
+## Usage Examples
 
-## Related Work
+**For Open-Source Users:**
+```bash
+# Set your API key in .env
+echo "FREEPLAY_API_KEY=your-key-here" > .env
+echo "FREEPLAY_PROJECT_ID=your-project-id" >> .env
 
-This approach is consistent across all Freeplay SDKs:
-- Python SDK (this PR)
-- Node.js SDK (separate PR)
-- Java SDK (separate PR)
+# Start REPL (connects to production)
+make repl
 
-All SDKs now follow the same principle: accept provider-native types without requiring conversion to SDK-specific wrapper types.
+# You're ready to go!
+>>> client.recordings.create(...)
+```
 
-## Version
+**For Freeplay Engineers:**
+```bash
+# Run the app locally
+cd ../freeplay-app
+make run
 
-Updates to **0.5.7** with the following in CHANGELOG:
-- Clarified tool schema handling approach
-- Interactive REPL
+# In another terminal, start local REPL
+cd ../freeplay-python
+make repl-local
 
-## Checklist
+# Test against local backend
+>>> client.recordings.create(...)
+```
 
-- ✅ Testing guide provided
-- ✅ CHANGELOG updated (v0.5.7)
-- ✅ Backward compatibility maintained
-- ✅ Documentation updated
-- ✅ Consistent with message handling approach
+## Breaking Changes
 
-
-
-
-
-
-
+None. This is a non-breaking change:
+- Existing users can continue using `make repl` (now connects to production)
+- Local development workflow is still supported via `make repl-local`
+- All existing REPL functionality remains the same
+- Environment variables work the same way

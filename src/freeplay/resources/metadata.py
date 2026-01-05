@@ -83,9 +83,3 @@ class Metadata:
             project_id, session_id, trace_id, metadata
         )
         return MetadataUpdateResponse()
-
-
-
-
-
-

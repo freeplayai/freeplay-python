@@ -19,40 +19,41 @@ is_local = "--local" in sys.argv
 
 if is_local:
     print("🔧 Local mode: Disabling SSL verification for localhost...")
-    
+
     # SSL bypass patches for local development only
     import urllib3
+
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-    
+
     import requests
     from requests.adapters import HTTPAdapter
     import ssl
-    
+
     class NoSSLAdapter(HTTPAdapter):
         def init_poolmanager(self, *args, **kwargs):
             kwargs["ssl_context"] = ssl._create_unverified_context()
             return super().init_poolmanager(*args, **kwargs)
-    
+
     # Create a session with the adapter
     session = requests.Session()
     session.mount("https://", NoSSLAdapter())
-    
+
     # Monkey patch requests to use this session
     original_patch = requests.patch
-    
+
     def patch_no_ssl(*args, **kwargs):
         kwargs["verify"] = False
         return original_patch(*args, **kwargs)
-    
+
     requests.patch = patch_no_ssl
-    
+
     # Additional monkey patch for all request methods
     original_request = requests.Session.request
-    
+
     def no_ssl_verify(self, method, url, **kwargs):
         kwargs["verify"] = False
         return original_request(self, method, url, **kwargs)
-    
+
     requests.Session.request = no_ssl_verify
 
 # Import Freeplay after patches (if local mode)

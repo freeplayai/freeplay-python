@@ -117,26 +117,3 @@ class AssistantMessage:
 
 # Largely used for history in dataset test cases presently
 NormalizedMessage = Union[UserMessage, SystemMessage, AssistantMessage]
-
-
-# Tool schema types for different providers
-@dataclass
-class GenaiFunction:
-    """Function declaration for Google GenAI API tool schema format."""
-
-    name: str
-    description: str
-    parameters: Dict[str, Any]  # JSON Schema
-
-
-@dataclass
-class GenaiTool:
-    """
-    Tool schema format for Google GenAI API.
-
-    GenAI uses a different structure than OpenAI/Anthropic:
-    - A single Tool contains multiple FunctionDeclarations
-    - Same format is used by both GenAI API and Vertex AI
-    """
-
-    functionDeclarations: List[GenaiFunction]

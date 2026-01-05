@@ -6,31 +6,41 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
 ### Added
 
-- **GenAI Tool Schema Support**: Added `GenaiFunction` and `GenaiTool` dataclasses for Google GenAI/Vertex AI tool schema format.
+- Interactive REPL (`make repl`) for development and testing with:
+  - Pre-loaded imports (Freeplay client, etc.)
+  - Environment variables automatically loaded from `.env` file
+  - SSL verification disabled for local development
+  - Pre-initialized `client` variable ready to use
+
+### Changed
+
+- **Tool Schema Handling**: The SDK no longer provides `GenaiFunction` and `GenaiTool` wrapper types. Tool schemas should be passed directly as dictionaries in the provider's native format (e.g., from `google-generativeai` or `vertexai` SDKs). This aligns with how messages are handled - users pass provider-native types directly to Freeplay.
 
   ```python
-  from freeplay import GenaiFunction, GenaiTool
-
-  # Create function declaration
-  weather_function = GenaiFunction(
-      name="get_weather",
-      description="Get the current weather for a location",
-      parameters={
-          "type": "object",
-          "properties": {
-              "location": {"type": "string", "description": "City name"},
-              "units": {
-                  "type": "string",
-                  "enum": ["celsius", "fahrenheit"],
-                  "description": "Temperature units"
+  # Tool schemas are now passed as raw dictionaries
+  # matching the provider's format
+  tool_schema = [
+      {
+          "functionDeclarations": [
+              {
+                  "name": "get_weather",
+                  "description": "Get the current weather for a location",
+                  "parameters": {
+                      "type": "object",
+                      "properties": {
+                          "location": {"type": "string", "description": "City name"},
+                          "units": {
+                              "type": "string",
+                              "enum": ["celsius", "fahrenheit"],
+                              "description": "Temperature units"
+                          }
+                      },
+                      "required": ["location"]
+                  }
               }
-          },
-          "required": ["location"]
+          ]
       }
-  )
-
-  # Create tool schema (single tool with multiple functions)
-  tool_schema = [GenaiTool(function_declarations=[weather_function])]
+  ]
 
   # Use in recordings
   client.recordings.create(
@@ -43,22 +53,10 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
   )
   ```
 
-  **Key Features:**
-  - Supports GenAI's unique format: single tool with multiple function declarations
-  - Full type safety with Python dataclasses
-  - Backward compatible: existing tool schema formats continue to work
-  - Comprehensive test coverage
-
   **Notes:**
-  - GenAI uses a different structure than OpenAI/Anthropic (multiple functions per tool object)
-  - Same format works for both GenAI API and Vertex AI
-  - Backend automatically normalizes all tool schema formats
-
-- Interactive REPL (`make repl`) for development and testing with:
-  - Pre-loaded imports (Freeplay, GenaiFunction, GenaiTool, etc.)
-  - Environment variables automatically loaded from `.env` file
-  - SSL verification disabled for local development
-  - Pre-initialized `client` variable ready to use
+  - Backend automatically normalizes all tool schema formats (OpenAI, Anthropic, GenAI/Vertex)
+  - No breaking changes to the API - tool schemas are still passed the same way
+  - This approach is consistent with how we handle messages from different providers
 
 ## [0.5.6]
 

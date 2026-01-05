@@ -28,3 +28,19 @@ test-ci: type-check lint
 # This will run examples/example.py
 run-%:
 	source .env; uv run python examples/$*.py
+
+# Start interactive REPL with Freeplay client initialized
+# By default connects to production (app.freeplay.ai)
+# Use 'make repl-local' for local development with SSL bypass
+.PHONY: repl
+repl:
+	set -a; source .env 2>/dev/null || true; set +a; uv run python -i scripts/repl_setup.py
+
+# Start REPL in local mode (connects to localhost, disables SSL verification)
+.PHONY: repl-local
+repl-local:
+	set -a; source .env 2>/dev/null || true; set +a; uv run python -i scripts/repl_setup.py --local
+
+# Alias for repl
+.PHONY: console
+console: repl

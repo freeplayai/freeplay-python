@@ -90,6 +90,8 @@ class RecordPayload:
     prompt_version_info: Optional[PromptVersionInfo] = None
     call_info: Optional[CallInfo] = None
     media_inputs: Optional[MediaInputMap] = None
+    # Accepts dicts in provider-specific tool schema format (OpenAI, Anthropic, GenAI/Vertex)
+    # Backend automatically normalizes all formats
     tool_schema: Optional[List[Dict[str, Any]]] = None
     output_schema: Optional[NormalizedOutputSchema] = None
     response_info: Optional[ResponseInfo] = None

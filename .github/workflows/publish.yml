@@ -118,17 +118,22 @@ jobs:
           echo "Built packages:"
           ls -la dist/
           
-      - name: Publish to repository
+      - name: Publish to TestPyPI
+        if: steps.repo_config.outputs.repository == 'testpypi'
         env:
-          UV_PUBLISH_TOKEN: ${{ secrets[steps.repo_config.outputs.token_secret] }}
+          UV_PUBLISH_TOKEN: ${{ secrets.TEST_PYPI_API_TOKEN }}
           UV_PUBLISH_URL: ${{ steps.repo_config.outputs.publish_url }}
         run: |
-          repository="${{ steps.repo_config.outputs.repository }}"
-          if [ "$repository" = "TestPyPI" ]; then
-            echo "🧪 Publishing to TestPyPI for testing..."
-          else
-            echo "📦 Publishing to PyPI..."
-          fi
+          echo "🧪 Publishing to TestPyPI for testing..."
+          uv publish
+
+      - name: Publish to PyPI
+        if: steps.repo_config.outputs.repository != 'testpypi'
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          UV_PUBLISH_URL: ${{ steps.repo_config.outputs.publish_url }}
+        run: |
+          echo "📦 Publishing to PyPI..."
           uv publish
         
       - name: Create GitHub Release

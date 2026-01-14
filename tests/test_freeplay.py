@@ -1422,7 +1422,7 @@ class TestFreeplay(TestCase):
                 environment="environment",
                 model_parameters=LLMParameters({}),
                 provider_info=None,
-                provider="vertex",
+                provider="gemini",
                 model="gemini-pro",
                 flavor_name="gemini_chat",
             )
@@ -1457,6 +1457,28 @@ class TestFreeplay(TestCase):
             self.assertIn("location", str(fd.parameters))
         except ImportError:
             self.skipTest("Vertex AI SDK not installed")
+
+    def test_flavor_to_provider_mapping(self) -> None:
+        """Test that flavor names correctly map to provider names"""
+        from freeplay.resources.adapters import MissingFlavorError
+
+        # Test the private method through its name-mangled form
+        # Type checker doesn't like accessing private methods, so we use type: ignore
+        flavor_to_provider = (  # type: ignore[attr-defined]
+            FilesystemTemplateResolver._FilesystemTemplateResolver__flavor_to_provider  # type: ignore[attr-defined]
+        )
+
+        # Test all supported flavor mappings
+        self.assertEqual(flavor_to_provider("openai_chat"), "openai")
+        self.assertEqual(flavor_to_provider("azure_openai_chat"), "azure")
+        self.assertEqual(flavor_to_provider("anthropic_chat"), "anthropic")
+        self.assertEqual(
+            flavor_to_provider("gemini_chat"), "gemini"
+        )  # Key test: gemini_chat -> gemini
+
+        # Test that unknown flavors raise an error
+        with self.assertRaises(MissingFlavorError):
+            flavor_to_provider("unknown_flavor")
 
     def test_prompt_format_with_output_schema_openai(self) -> None:
         messages: List[TemplateMessage] = [

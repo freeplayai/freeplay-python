@@ -599,7 +599,7 @@ class FilesystemTemplateResolver(TemplateResolver):
             "azure_openai_chat": "azure",
             "anthropic_chat": "anthropic",
             "openai_chat": "openai",
-            "gemini_chat": "vertex",
+            "gemini_chat": "gemini",
         }
         provider = flavor_provider.get(flavor)
         if not provider:

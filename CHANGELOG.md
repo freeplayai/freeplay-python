@@ -6,9 +6,34 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
 ### Added
 
+- **Gemini API Provider Support**: Added support for Google's Gemini API as a new provider option (`provider="gemini"`), complementing the existing Vertex AI provider. This provides a simpler authentication method using API keys instead of GCP service accounts.
+  
+  ```python
+  # Vertex AI (existing - uses GCP authentication)
+  client.recordings.create(
+      RecordPayload(
+          project_id=project_id,
+          all_messages=[...],
+          call_info=CallInfo(provider="vertex", model="gemini-1.5-pro")
+      )
+  )
+  
+  # Gemini API (new - uses simple API key authentication)
+  client.recordings.create(
+      RecordPayload(
+          project_id=project_id,
+          all_messages=[...],
+          call_info=CallInfo(provider="gemini", model="gemini-2.0-flash")
+      )
+  )
+  ```
+  
+  **Note**: Both providers remain fully supported. Vertex AI is recommended for GCP-integrated environments, while Gemini API provides a simpler setup for standalone applications.
+
 - Interactive REPL for development and testing:
   - `make repl` - Production mode (connects to app.freeplay.ai with SSL verification enabled)
   - `make repl-local` - Local development mode (connects to localhost:8000 with SSL verification disabled)
+  - `make repl ARGS="--local"` - Alternative syntax for local mode
   - Pre-loaded imports (Freeplay client, etc.)
   - Environment variables automatically loaded from `.env` file
   - Pre-initialized `client` variable ready to use
@@ -43,13 +68,13 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
       }
   ]
 
-  # Use in recordings
+  # Use in recordings - works with both Vertex and Gemini providers
   client.recordings.create(
       RecordPayload(
           project_id=project_id,
           all_messages=[...],
           tool_schema=tool_schema,
-          call_info=CallInfo(provider="gemini", model="gemini-2.0-flash")
+          call_info=CallInfo(provider="vertex", model="gemini-1.5-pro")  # or provider="gemini"
       )
   )
   ```

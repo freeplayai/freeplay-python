@@ -39,6 +39,21 @@ ApiStyle = Union[Literal["batch"], Literal["default"]]
 
 @dataclass
 class CallInfo:
+    """
+    Information about an LLM call.
+    
+    Attributes:
+        provider: LLM provider name. Supported: "openai", "anthropic", "azure", 
+                 "bedrock", "vertex", "gemini". Use "vertex" for Vertex AI (GCP),
+                 "gemini" for Gemini API (simple API key).
+        model: Model identifier (e.g., "gpt-4", "gemini-2.0-flash")
+        start_time: Unix timestamp when the call started
+        end_time: Unix timestamp when the call ended
+        model_parameters: Model configuration (temperature, max_tokens, etc.)
+        provider_info: Additional provider-specific metadata
+        usage: Token usage information
+        api_style: API style (chat, completion, etc.)
+    """
     provider: Optional[str] = None
     model: Optional[str] = None
     start_time: Optional[float] = None

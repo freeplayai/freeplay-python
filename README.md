@@ -88,6 +88,37 @@ fp_client.recordings.create(
 
 See the [SDK Setup guide](https://docs.freeplay.ai/freeplay-sdk/setup) for complete examples.
 
+## Supported Providers
+
+Freeplay supports multiple LLM providers for recording and observability:
+
+- **OpenAI** (`provider="openai"`)
+- **Anthropic** (`provider="anthropic"`)
+- **Azure OpenAI** (`provider="azure"`)
+- **AWS Bedrock** (`provider="bedrock"`)
+- **Google Vertex AI** (`provider="vertex"`) - Google's cloud AI platform
+- **Google Gemini API** (`provider="gemini"`) - Google's API with simple key auth ⭐ **NEW**
+
+### Gemini API vs Vertex AI
+
+Both providers support Google's Gemini models but differ in setup:
+
+| Feature | Vertex AI | Gemini API |
+|---------|-----------|------------|
+| **Authentication** | GCP Service Account | API Key |
+| **Setup Complexity** | High (GCP infrastructure) | Low (just API key) |
+| **Use Case** | Enterprise, GCP-integrated | Standalone applications |
+
+```python
+# Vertex AI (enterprise, GCP)
+CallInfo(provider="vertex", model="gemini-1.5-pro")
+
+# Gemini API (simple setup)
+CallInfo(provider="gemini", model="gemini-2.0-flash")
+```
+
+See [`examples/gemini_api_example.py`](https://github.com/freeplayai/freeplay-python/blob/main/examples/gemini_api_example.py) for detailed examples.
+
 ## Configuration
 
 ### Environment variables

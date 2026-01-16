@@ -32,9 +32,10 @@ run-%:
 # Start interactive REPL with Freeplay client initialized
 # By default connects to production (app.freeplay.ai)
 # Use 'make repl-local' for local development with SSL bypass
+# Or pass arguments: make repl ARGS="--local"
 .PHONY: repl
 repl:
-	set -a; source .env 2>/dev/null || true; set +a; uv run python -i scripts/repl_setup.py
+	set -a; source .env 2>/dev/null || true; set +a; uv run python -i scripts/repl_setup.py $(ARGS)
 
 # Start REPL in local mode (connects to localhost, disables SSL verification)
 .PHONY: repl-local

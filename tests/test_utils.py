@@ -250,3 +250,243 @@ class TestUtils(unittest.TestCase):
             "metadata": {"timestamp": 12345, "source": "test"},
         }
         self.assertEqual(result, expected)
+
+    # ========== Comprehensive Empty Array Tests ==========
+
+    def test_empty_array_section_no_render(self) -> None:
+        """Empty array with section should not render"""
+        template = "{{#items}}Item: {{.}}{{/items}}"
+        variables: InputVariables = {"items": []}
+        formatted = bind_template_variables(template, variables)
+        self.assertEqual(formatted, "")
+
+    def test_empty_array_inverse_renders(self) -> None:
+        """Empty array with inverse section should render"""
+        template = "{{^items}}No items available{{/items}}"
+        variables: InputVariables = {"items": []}
+        formatted = bind_template_variables(template, variables)
+        self.assertEqual(formatted, "No items available")
+
+    def test_non_empty_array_section_renders(self) -> None:
+        """Non-empty array with section should render"""
+        template = "{{#items}}Item: {{.}}{{/items}}"
+        variables = {"items": ["foo", "bar"]}
+        formatted = bind_template_variables(template, variables)
+        self.assertEqual(formatted, "Item: fooItem: bar")
+
+    def test_non_empty_array_inverse_no_render(self) -> None:
+        """Non-empty array with inverse section should not render"""
+        template = "{{^items}}No items available{{/items}}"
+        variables = {"items": ["foo", "bar"]}
+        formatted = bind_template_variables(template, variables)
+        self.assertEqual(formatted, "")
+
+    def test_empty_array_both_sections_detailed(self) -> None:
+        """Empty array with both section and inverse"""
+        template = """{{#items}}
+Item: {{.}}
+{{/items}}
+{{^items}}
+No items available
+{{/items}}"""
+        variables: InputVariables = {"items": []}
+        formatted = bind_template_variables(template, variables)
+        self.assertIn("No items available", formatted)
+        self.assertNotIn("Item:", formatted)
+
+    def test_non_empty_array_both_sections_detailed(self) -> None:
+        """Non-empty array with both section and inverse"""
+        template = """{{#items}}
+Item: {{.}}
+{{/items}}
+{{^items}}
+No items available
+{{/items}}"""
+        variables = {"items": ["foo"]}
+        formatted = bind_template_variables(template, variables)
+        self.assertIn("Item: foo", formatted)
+        self.assertNotIn("No items available", formatted)
+
+    def test_empty_unique_offers_bug_report(self) -> None:
+        """Empty array with unique_offers template from bug report"""
+        template = """{{#unique_offers}}
+DATA: {{.}}
+{{/unique_offers}}
+{{^unique_offers}}
+You have no knowledge of personalized unique offers for this subscriber.
+{{/unique_offers}}"""
+        variables: InputVariables = {"unique_offers": []}
+        formatted = bind_template_variables(template, variables)
+        self.assertIn(
+            "You have no knowledge of personalized unique offers for this subscriber.",
+            formatted,
+        )
+        self.assertNotIn("DATA:", formatted)
+
+    def test_non_empty_unique_offers(self) -> None:
+        """Non-empty array with unique_offers template"""
+        template = """{{#unique_offers}}
+DATA: {{.}}
+{{/unique_offers}}
+{{^unique_offers}}
+You have no knowledge of personalized unique offers for this subscriber.
+{{/unique_offers}}"""
+        variables = {"unique_offers": ["offer1", "offer2"]}
+        formatted = bind_template_variables(template, variables)
+        self.assertIn("DATA: offer1", formatted)
+        self.assertIn("DATA: offer2", formatted)
+        self.assertNotIn(
+            "You have no knowledge of personalized unique offers for this subscriber.",
+            formatted,
+        )
+
+    def test_undefined_variable_inverse_renders(self) -> None:
+        """Undefined variable with inverse section should render"""
+        template = "{{^items}}No items available{{/items}}"
+        variables: InputVariables = {}
+        formatted = bind_template_variables(template, variables)
+        self.assertEqual(formatted, "No items available")
+
+    def test_false_boolean_inverse_renders(self) -> None:
+        """False boolean with inverse section should render"""
+        template = "{{^flag}}Flag is false{{/flag}}"
+        variables = {"flag": False}
+        formatted = bind_template_variables(template, variables)
+        self.assertEqual(formatted, "Flag is false")
+
+    def test_empty_string_inverse_renders(self) -> None:
+        """Empty string with inverse section should render"""
+        template = "{{^text}}No text available{{/text}}"
+        variables = {"text": ""}
+        formatted = bind_template_variables(template, variables)
+        self.assertEqual(formatted, "No text available")
+
+    def test_json_stringified_empty_array_truthy(self) -> None:
+        """JSON stringified empty array is truthy (edge case)"""
+        template = """{{#items}}
+Item: {{.}}
+{{/items}}
+{{^items}}
+No items available
+{{/items}}"""
+        variables = {"items": "[]"}
+        formatted = bind_template_variables(template, variables)
+        # String "[]" is truthy, so the section renders, not the inverse
+        self.assertIn("Item: []", formatted)
+        self.assertNotIn("No items available", formatted)
+
+    def test_nested_object_empty_array(self) -> None:
+        """Nested object with empty array property"""
+        template = """{{#data.items}}
+Item: {{.}}
+{{/data.items}}
+{{^data.items}}
+No items in data
+{{/data.items}}"""
+        variables: InputVariables = {"data": {"items": []}}
+        formatted = bind_template_variables(template, variables)
+        self.assertIn("No items in data", formatted)
+        self.assertNotIn("Item:", formatted)
+
+    def test_array_single_empty_string_renders(self) -> None:
+        """Array with single empty string should render section"""
+        template = """{{#items}}
+Item: [{{.}}]
+{{/items}}
+{{^items}}
+No items
+{{/items}}"""
+        variables = {"items": [""]}
+        formatted = bind_template_variables(template, variables)
+        self.assertIn("Item: []", formatted)
+        self.assertNotIn("No items", formatted)
+
+    def test_array_with_null_throws(self) -> None:
+        """Array with null should throw error"""
+        template = """{{#items}}
+Item: {{.}}
+{{/items}}
+{{^items}}
+No items
+{{/items}}"""
+        variables = {"items": [None]}  # type: ignore
+        with self.assertRaises(Exception):
+            bind_template_variables(template, variables)  # type: ignore
+
+    # ========== Zero Value Handling Tests ==========
+
+    def test_zero_simple_variable_renders(self) -> None:
+        """Zero as simple variable should render"""
+        template = "Count: {{count}}"
+        variables = {"count": 0}
+        formatted = bind_template_variables(template, variables)
+        self.assertEqual(formatted, "Count: 0")
+
+    def test_zero_section_no_render(self) -> None:
+        """Zero in section should not render (falsy)"""
+        template = "{{#count}}Count is: {{.}}{{/count}}"
+        variables = {"count": 0}
+        formatted = bind_template_variables(template, variables)
+        self.assertEqual(formatted, "")
+
+    def test_zero_inverse_renders(self) -> None:
+        """Zero with inverse section should render inverse"""
+        template = "{{^count}}No count{{/count}}"
+        variables = {"count": 0}
+        formatted = bind_template_variables(template, variables)
+        self.assertEqual(formatted, "No count")
+
+    def test_zero_both_sections(self) -> None:
+        """Zero with both section and inverse"""
+        template = """{{#count}}
+Count is: {{.}}
+{{/count}}
+{{^count}}
+Count is zero or missing
+{{/count}}"""
+        variables = {"count": 0}
+        formatted = bind_template_variables(template, variables)
+        self.assertIn("Count is zero or missing", formatted)
+        self.assertNotIn("Count is: 0", formatted)
+
+    def test_positive_number_section_renders(self) -> None:
+        """Positive number in section should render"""
+        template = "{{#count}}Count is: {{.}}{{/count}}"
+        variables = {"count": 5}
+        formatted = bind_template_variables(template, variables)
+        self.assertEqual(formatted, "Count is: 5")
+
+    def test_positive_number_inverse_no_render(self) -> None:
+        """Positive number with inverse section should not render inverse"""
+        template = "{{^count}}No count{{/count}}"
+        variables = {"count": 5}
+        formatted = bind_template_variables(template, variables)
+        self.assertEqual(formatted, "")
+
+    def test_negative_number_section_renders(self) -> None:
+        """Negative number in section should render"""
+        template = "{{#count}}Count is: {{.}}{{/count}}"
+        variables = {"count": -5}
+        formatted = bind_template_variables(template, variables)
+        self.assertEqual(formatted, "Count is: -5")
+
+    def test_array_with_zero_renders(self) -> None:
+        """Array with zero should render section"""
+        template = "{{#numbers}}Number: {{.}} {{/numbers}}"
+        variables = {"numbers": [0, 1, 2]}
+        formatted = bind_template_variables(template, variables)
+        self.assertEqual(formatted, "Number: 0 Number: 1 Number: 2 ")
+
+    def test_zero_vs_undefined_vs_null_behavior(self) -> None:
+        """Zero vs undefined vs null behavior"""
+        template = "Value: {{value}}"
+
+        # Zero should render as "0"
+        self.assertEqual(bind_template_variables(template, {"value": 0}), "Value: 0")
+
+        # Undefined should render as empty string
+        self.assertEqual(bind_template_variables(template, {}), "Value: ")
+
+        # Null should throw
+        with self.assertRaises(Exception):
+            bind_template_variables(template, {"value": None})  # type: ignore

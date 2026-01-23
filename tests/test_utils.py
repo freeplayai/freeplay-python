@@ -256,14 +256,14 @@ class TestUtils(unittest.TestCase):
     def test_empty_array_section_no_render(self) -> None:
         """Empty array with section should not render"""
         template = "{{#items}}Item: {{.}}{{/items}}"
-        variables = {"items": []}
+        variables: InputVariables = {"items": []}
         formatted = bind_template_variables(template, variables)
         self.assertEqual(formatted, "")
 
     def test_empty_array_inverse_renders(self) -> None:
         """Empty array with inverse section should render"""
         template = "{{^items}}No items available{{/items}}"
-        variables = {"items": []}
+        variables: InputVariables = {"items": []}
         formatted = bind_template_variables(template, variables)
         self.assertEqual(formatted, "No items available")
 
@@ -289,7 +289,7 @@ Item: {{.}}
 {{^items}}
 No items available
 {{/items}}"""
-        variables = {"items": []}
+        variables: InputVariables = {"items": []}
         formatted = bind_template_variables(template, variables)
         self.assertIn("No items available", formatted)
         self.assertNotIn("Item:", formatted)
@@ -315,7 +315,7 @@ DATA: {{.}}
 {{^unique_offers}}
 You have no knowledge of personalized unique offers for this subscriber.
 {{/unique_offers}}"""
-        variables = {"unique_offers": []}
+        variables: InputVariables = {"unique_offers": []}
         formatted = bind_template_variables(template, variables)
         self.assertIn(
             "You have no knowledge of personalized unique offers for this subscriber.",
@@ -383,7 +383,7 @@ Item: {{.}}
 {{^data.items}}
 No items in data
 {{/data.items}}"""
-        variables = {"data": {"items": []}}
+        variables: InputVariables = {"data": {"items": []}}
         formatted = bind_template_variables(template, variables)
         self.assertIn("No items in data", formatted)
         self.assertNotIn("Item:", formatted)

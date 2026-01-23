@@ -252,7 +252,7 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(result, expected)
 
     # ========== Comprehensive Empty Array Tests ==========
-    
+
     def test_empty_array_section_no_render(self) -> None:
         """Empty array with section should not render"""
         template = "{{#items}}Item: {{.}}{{/items}}"
@@ -317,7 +317,10 @@ You have no knowledge of personalized unique offers for this subscriber.
 {{/unique_offers}}"""
         variables = {"unique_offers": []}
         formatted = bind_template_variables(template, variables)
-        self.assertIn("You have no knowledge of personalized unique offers for this subscriber.", formatted)
+        self.assertIn(
+            "You have no knowledge of personalized unique offers for this subscriber.",
+            formatted,
+        )
         self.assertNotIn("DATA:", formatted)
 
     def test_non_empty_unique_offers(self) -> None:
@@ -332,7 +335,10 @@ You have no knowledge of personalized unique offers for this subscriber.
         formatted = bind_template_variables(template, variables)
         self.assertIn("DATA: offer1", formatted)
         self.assertIn("DATA: offer2", formatted)
-        self.assertNotIn("You have no knowledge of personalized unique offers for this subscriber.", formatted)
+        self.assertNotIn(
+            "You have no knowledge of personalized unique offers for this subscriber.",
+            formatted,
+        )
 
     def test_undefined_variable_inverse_renders(self) -> None:
         """Undefined variable with inverse section should render"""
@@ -474,13 +480,13 @@ Count is zero or missing
     def test_zero_vs_undefined_vs_null_behavior(self) -> None:
         """Zero vs undefined vs null behavior"""
         template = "Value: {{value}}"
-        
+
         # Zero should render as "0"
         self.assertEqual(bind_template_variables(template, {"value": 0}), "Value: 0")
-        
+
         # Undefined should render as empty string
         self.assertEqual(bind_template_variables(template, {}), "Value: ")
-        
+
         # Null should throw
         with self.assertRaises(Exception):
             bind_template_variables(template, {"value": None})  # type: ignore

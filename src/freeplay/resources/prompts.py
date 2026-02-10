@@ -236,6 +236,16 @@ class BoundPrompt:
                 return [Tool(function_declarations=function_declarations)]
             except ImportError:
                 raise VertexAIToolSchemaError()
+        elif flavor_name == "gemini_api_chat":
+            function_declarations = [
+                {
+                    "name": schema.name,
+                    "description": schema.description,
+                    "parameters": schema.parameters,
+                }
+                for schema in tool_schema
+            ]
+            return [{"functionDeclarations": function_declarations}]
 
         raise UnsupportedToolSchemaError()
 
@@ -600,6 +610,7 @@ class FilesystemTemplateResolver(TemplateResolver):
             "anthropic_chat": "anthropic",
             "openai_chat": "openai",
             "gemini_chat": "vertex",
+            "gemini_api_chat": "gemini",
         }
         provider = flavor_provider.get(flavor)
         if not provider:

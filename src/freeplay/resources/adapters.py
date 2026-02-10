@@ -202,7 +202,14 @@ class GeminiAdapter(LLMAdapter):
             if message["role"] == "system":
                 continue
 
-            if "has_media" in message and message["has_media"]:
+            # Already in Gemini format (e.g., history from previous turns
+            # with function calls, function responses, or multi-part content)
+            if "parts" in message:
+                msg_copy = copy.deepcopy(message)
+                if msg_copy.get("role") == "assistant":
+                    msg_copy["role"] = "model"
+                gemini_messages.append(msg_copy)
+            elif "has_media" in message and message["has_media"]:
                 gemini_messages.append(
                     {
                         "role": self.__translate_role(message["role"]),
@@ -336,7 +343,7 @@ def adaptor_for_flavor(flavor_name: str) -> LLMAdapter:
         return AnthropicAdapter()
     elif flavor_name == "llama_3_chat":
         return Llama3Adapter()
-    elif flavor_name == "gemini_chat":
+    elif flavor_name in ["gemini_chat", "gemini_api_chat"]:
         return GeminiAdapter()
     elif flavor_name == "amazon_bedrock_converse":
         return BedrockConverseAdapter()

@@ -6,6 +6,9 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
 ### Added
 
+- **`gemini_api_chat` flavor**: New flavor for the Gemini API (`google-generativeai` SDK). Returns plain-dict tool schemas compatible with `google.genai`, while `gemini_chat` continues to return `vertexai.generative_models.Tool` objects for Vertex AI users.
+- **Gemini message parts passthrough**: History messages already in Gemini format (with `parts`, e.g., function calls and function responses) are now passed through without re-wrapping. Role `"assistant"` is automatically translated to `"model"`.
+
 - Interactive REPL for development and testing:
   - `make repl` - Production mode (connects to app.freeplay.ai with SSL verification enabled)
   - `make repl-local` - Local development mode (connects to localhost:8000 with SSL verification disabled)

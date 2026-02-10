@@ -1458,6 +1458,111 @@ class TestFreeplay(TestCase):
         except ImportError:
             self.skipTest("Vertex AI SDK not installed")
 
+    def test_prompt_format_with_tool_schema_gemini_api_chat(self) -> None:
+        """gemini_api_chat returns plain dicts (no Vertex AI SDK dependency)."""
+        messages: List[TemplateMessage] = [
+            TemplateChatMessage(role="system", content="System message"),
+            TemplateChatMessage(role="user", content="User message {{number}}"),
+        ]
+        tool_schema = [
+            ToolSchema(
+                name="get_weather",
+                description="Get weather information",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "The city and state",
+                        },
+                    },
+                    "required": ["location"],
+                },
+            )
+        ]
+
+        gemini_api_prompt_info = PromptInfo(
+            prompt_template_id=str(uuid.uuid4()),
+            prompt_template_version_id=str(uuid.uuid4()),
+            template_name="template-name",
+            environment="environment",
+            model_parameters=LLMParameters({}),
+            provider_info=None,
+            provider="gemini",
+            model="gemini-2.0-flash",
+            flavor_name="gemini_api_chat",
+        )
+
+        template_prompt = TemplatePrompt(
+            gemini_api_prompt_info, messages=messages, tool_schema=tool_schema
+        )
+
+        bound_prompt = template_prompt.bind({"number": 1})
+        formatted_prompt = bound_prompt.format()
+
+        # Verify plain dicts are returned (not vertexai.generative_models.Tool)
+        self.assertIsInstance(formatted_prompt.tool_schema, list)
+        self.assertEqual(len(formatted_prompt.tool_schema), 1)
+        self.assertIsInstance(formatted_prompt.tool_schema[0], dict)
+
+        # Verify structure: single Tool with functionDeclarations
+        tool = formatted_prompt.tool_schema[0]
+        self.assertIn("functionDeclarations", tool)
+        self.assertEqual(len(tool["functionDeclarations"]), 1)
+
+        fd = tool["functionDeclarations"][0]
+        self.assertEqual(fd["name"], "get_weather")
+        self.assertEqual(fd["description"], "Get weather information")
+        self.assertEqual(fd["parameters"]["required"], ["location"])
+
+    def test_prompt_format_with_tool_schema_gemini_api_chat_multiple_tools(
+        self,
+    ) -> None:
+        """Multiple tools are grouped into a single functionDeclarations array."""
+        messages: List[TemplateMessage] = [
+            TemplateChatMessage(role="user", content="User message {{number}}"),
+        ]
+        tool_schema = [
+            ToolSchema(
+                name="get_weather",
+                description="Get weather",
+                parameters={"type": "object", "properties": {}},
+            ),
+            ToolSchema(
+                name="get_time",
+                description="Get time",
+                parameters={"type": "object", "properties": {}},
+            ),
+        ]
+
+        prompt_info = PromptInfo(
+            prompt_template_id=str(uuid.uuid4()),
+            prompt_template_version_id=str(uuid.uuid4()),
+            template_name="template-name",
+            environment="environment",
+            model_parameters=LLMParameters({}),
+            provider_info=None,
+            provider="gemini",
+            model="gemini-2.0-flash",
+            flavor_name="gemini_api_chat",
+        )
+
+        template_prompt = TemplatePrompt(
+            prompt_info, messages=messages, tool_schema=tool_schema
+        )
+
+        bound_prompt = template_prompt.bind({"number": 1})
+        formatted_prompt = bound_prompt.format()
+
+        # Single Tool with two functionDeclarations
+        self.assertEqual(len(formatted_prompt.tool_schema), 1)
+        self.assertEqual(len(formatted_prompt.tool_schema[0]["functionDeclarations"]), 2)
+        names = [
+            fd["name"]
+            for fd in formatted_prompt.tool_schema[0]["functionDeclarations"]
+        ]
+        self.assertEqual(names, ["get_weather", "get_time"])
+
     def test_prompt_format_with_output_schema_openai(self) -> None:
         messages: List[TemplateMessage] = [
             TemplateChatMessage(role="system", content="System message"),

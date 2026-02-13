@@ -205,7 +205,7 @@ class GeminiAdapter(LLMAdapter):
             # Already in Gemini format (e.g., history from previous turns
             # with function calls, function responses, or multi-part content)
             if "parts" in message:
-                msg_copy = copy.deepcopy(message)
+                msg_copy: Dict[str, Any] = copy.deepcopy(message)
                 if msg_copy.get("role") == "assistant":
                     msg_copy["role"] = "model"
                 gemini_messages.append(msg_copy)
@@ -227,7 +227,8 @@ class GeminiAdapter(LLMAdapter):
                     }
                 )
             else:
-                gemini_messages.append(copy.deepcopy(message))
+                fallback: Dict[str, Any] = copy.deepcopy(message)
+                gemini_messages.append(fallback)
 
         return gemini_messages
 
@@ -244,12 +245,11 @@ class GeminiAdapter(LLMAdapter):
                     "mime_type": content.content_type,
                 }
             }
-        elif isinstance(content, MediaContentUrl):
+        else:
+            # MediaContentUrl -- Gemini does not support image URLs
             raise ValueError(
                 "Message contains an image URL, but image URLs are not supported by Gemini"
             )
-        else:
-            raise ValueError(f"Unexpected content type {type(content)}")
 
     @staticmethod
     def __translate_role(role: str) -> str:

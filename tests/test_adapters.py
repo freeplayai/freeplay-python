@@ -380,21 +380,22 @@ class TestAdapters(unittest.TestCase):
             },
         ]
 
-        formatted = GeminiAdapter().to_llm_syntax(messages)
+        result = GeminiAdapter().to_llm_syntax(messages)
+        assert isinstance(result, list)
 
-        self.assertEqual(len(formatted), 4)
+        self.assertEqual(len(result), 4)
         # All messages should be preserved as-is
-        self.assertEqual(formatted[0]["role"], "user")
-        self.assertEqual(formatted[0]["parts"], [{"text": "What is the weather?"}])
+        self.assertEqual(result[0]["role"], "user")
+        self.assertEqual(result[0]["parts"], [{"text": "What is the weather?"}])
 
-        self.assertEqual(formatted[1]["role"], "model")
-        self.assertIn("functionCall", formatted[1]["parts"][0])
+        self.assertEqual(result[1]["role"], "model")
+        self.assertIn("functionCall", result[1]["parts"][0])
 
-        self.assertEqual(formatted[2]["role"], "user")
-        self.assertIn("functionResponse", formatted[2]["parts"][0])
+        self.assertEqual(result[2]["role"], "user")
+        self.assertIn("functionResponse", result[2]["parts"][0])
 
-        self.assertEqual(formatted[3]["role"], "model")
-        self.assertEqual(formatted[3]["parts"], [{"text": "It's 72°F in Seattle."}])
+        self.assertEqual(result[3]["role"], "model")
+        self.assertEqual(result[3]["parts"], [{"text": "It's 72°F in Seattle."}])
 
     def test_gemini_parts_passthrough_translates_assistant_to_model(self) -> None:
         """Parts messages with role 'assistant' are translated to 'model'."""
@@ -412,11 +413,12 @@ class TestAdapters(unittest.TestCase):
             },
         ]
 
-        formatted = GeminiAdapter().to_llm_syntax(messages)
+        result = GeminiAdapter().to_llm_syntax(messages)
+        assert isinstance(result, list)
 
-        self.assertEqual(len(formatted), 1)
-        self.assertEqual(formatted[0]["role"], "model")
-        self.assertIn("functionCall", formatted[0]["parts"][0])
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["role"], "model")
+        self.assertIn("functionCall", result[0]["parts"][0])
 
     def test_gemini_parts_passthrough_does_not_mutate_original(self) -> None:
         """Parts passthrough deep-copies, so original messages are not mutated."""
@@ -426,9 +428,10 @@ class TestAdapters(unittest.TestCase):
         }
         messages: List[Dict[str, Any]] = [original]
 
-        formatted = GeminiAdapter().to_llm_syntax(messages)
+        result = GeminiAdapter().to_llm_syntax(messages)
+        assert isinstance(result, list)
 
-        self.assertEqual(formatted[0]["role"], "model")
+        self.assertEqual(result[0]["role"], "model")
         self.assertEqual(original["role"], "assistant")
 
     def test_gemini_mixed_content_and_parts(self) -> None:
@@ -456,15 +459,60 @@ class TestAdapters(unittest.TestCase):
             {"role": "assistant", "content": "Done"},
         ]
 
-        formatted = GeminiAdapter().to_llm_syntax(messages)
+        result = GeminiAdapter().to_llm_syntax(messages)
+        assert isinstance(result, list)
 
-        self.assertEqual(len(formatted), 4)  # system is skipped
-        self.assertEqual(formatted[0], {"role": "user", "parts": [{"text": "Hello"}]})
-        self.assertEqual(formatted[1]["role"], "model")
-        self.assertIn("functionCall", formatted[1]["parts"][0])
-        self.assertEqual(formatted[2]["role"], "user")
-        self.assertIn("functionResponse", formatted[2]["parts"][0])
-        self.assertEqual(formatted[3], {"role": "model", "parts": [{"text": "Done"}]})
+        self.assertEqual(len(result), 4)  # system is skipped
+        self.assertEqual(result[0], {"role": "user", "parts": [{"text": "Hello"}]})
+        self.assertEqual(result[1]["role"], "model")
+        self.assertIn("functionCall", result[1]["parts"][0])
+        self.assertEqual(result[2]["role"], "user")
+        self.assertIn("functionResponse", result[2]["parts"][0])
+        self.assertEqual(result[3], {"role": "model", "parts": [{"text": "Done"}]})
+
+    def test_gemini_media_in_history_parts(self) -> None:
+        """History messages with inlineData parts are passed through correctly."""
+        messages: List[Dict[str, Any]] = [
+            {
+                "role": "user",
+                "parts": [
+                    {"text": "What's in this image?"},
+                    {
+                        "inlineData": {
+                            "mimeType": "image/png",
+                            "data": "iVBORw0KGgoAAAANSUhEUg==",
+                        }
+                    },
+                ],
+            },
+            {"role": "model", "parts": [{"text": "I see a cat."}]},
+            {"role": "user", "content": "Can you describe it in more detail?"},
+        ]
+
+        result = GeminiAdapter().to_llm_syntax(messages)
+        assert isinstance(result, list)
+
+        self.assertEqual(len(result), 3)
+
+        # First message: media parts passed through unchanged
+        self.assertEqual(result[0]["role"], "user")
+        self.assertEqual(len(result[0]["parts"]), 2)
+        self.assertEqual(result[0]["parts"][0], {"text": "What's in this image?"})
+        self.assertIn("inlineData", result[0]["parts"][1])
+        self.assertEqual(result[0]["parts"][1]["inlineData"]["mimeType"], "image/png")
+        self.assertEqual(
+            result[0]["parts"][1]["inlineData"]["data"], "iVBORw0KGgoAAAANSUhEUg=="
+        )
+
+        # Second message: text parts passed through
+        self.assertEqual(result[1]["role"], "model")
+        self.assertEqual(result[1]["parts"], [{"text": "I see a cat."}])
+
+        # Third message: standard content converted to Gemini format
+        self.assertEqual(
+            result[2],
+            {"role": "user", "parts": [{"text": "Can you describe it in more detail?"}]},
+        )
 
     # ------------------------------------------------------------------
     # adaptor_for_flavor() registry tests

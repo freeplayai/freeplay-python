@@ -1261,6 +1261,160 @@ class TestFreeplay(TestCase):
             formatted_prompt.llm_prompt_text,
         )
 
+    def test_prompt_format__history_gemini(self) -> None:
+        """Full bind→format flow with Gemini-format history (function call cycle)."""
+        messages: List[TemplateMessage] = [
+            TemplateChatMessage(role="system", content="System message"),
+            HistoryTemplateMessage(kind="history"),
+            TemplateChatMessage(role="user", content="User message {{number}}"),
+        ]
+
+        gemini_api_prompt_info = PromptInfo(
+            prompt_template_id=str(uuid.uuid4()),
+            prompt_template_version_id=str(uuid.uuid4()),
+            template_name="template-name",
+            environment="environment",
+            model_parameters=LLMParameters({}),
+            provider_info=None,
+            provider="gemini",
+            model="gemini-2.0-flash",
+            flavor_name="gemini_api_chat",
+        )
+
+        template_prompt = TemplatePrompt(gemini_api_prompt_info, messages=messages)
+
+        # History in Gemini format -- function call/response cycle from a previous turn
+        history = [
+            {"role": "user", "parts": [{"text": "What is the weather?"}]},
+            {
+                "role": "model",
+                "parts": [
+                    {
+                        "functionCall": {
+                            "name": "get_weather",
+                            "args": {"location": "Seattle"},
+                        }
+                    }
+                ],
+            },
+            {
+                "role": "user",
+                "parts": [
+                    {
+                        "functionResponse": {
+                            "name": "get_weather",
+                            "response": {"temperature": "72°F"},
+                        }
+                    }
+                ],
+            },
+            {"role": "model", "parts": [{"text": "It's 72°F in Seattle."}]},
+        ]
+
+        bound_prompt = template_prompt.bind({"number": 2}, history=history)
+        formatted_prompt = bound_prompt.format()
+
+        # System message extracted to system_content
+        self.assertEqual(formatted_prompt.system_content, "System message")
+
+        # llm_prompt: history messages pass through unchanged,
+        # template user message converted to Gemini format
+        self.assertEqual(
+            formatted_prompt.llm_prompt,
+            [
+                {"role": "user", "parts": [{"text": "What is the weather?"}]},
+                {
+                    "role": "model",
+                    "parts": [
+                        {
+                            "functionCall": {
+                                "name": "get_weather",
+                                "args": {"location": "Seattle"},
+                            }
+                        }
+                    ],
+                },
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "functionResponse": {
+                                "name": "get_weather",
+                                "response": {"temperature": "72°F"},
+                            }
+                        }
+                    ],
+                },
+                {"role": "model", "parts": [{"text": "It's 72°F in Seattle."}]},
+                {"role": "user", "parts": [{"text": "User message 2"}]},
+            ],
+        )
+
+    def test_prompt_format__history_gemini_with_media(self) -> None:
+        """Full bind→format flow with Gemini-format history containing inline media."""
+        messages: List[TemplateMessage] = [
+            TemplateChatMessage(role="system", content="System message"),
+            HistoryTemplateMessage(kind="history"),
+            TemplateChatMessage(role="user", content="User message {{number}}"),
+        ]
+
+        gemini_api_prompt_info = PromptInfo(
+            prompt_template_id=str(uuid.uuid4()),
+            prompt_template_version_id=str(uuid.uuid4()),
+            template_name="template-name",
+            environment="environment",
+            model_parameters=LLMParameters({}),
+            provider_info=None,
+            provider="gemini",
+            model="gemini-2.0-flash",
+            flavor_name="gemini_api_chat",
+        )
+
+        template_prompt = TemplatePrompt(gemini_api_prompt_info, messages=messages)
+
+        # History with inline media from a previous turn
+        history = [
+            {
+                "role": "user",
+                "parts": [
+                    {"text": "What's in this image?"},
+                    {
+                        "inlineData": {
+                            "mimeType": "image/png",
+                            "data": "iVBORw0KGgoAAAANSUhEUg==",
+                        }
+                    },
+                ],
+            },
+            {"role": "model", "parts": [{"text": "I see a cat in the image."}]},
+        ]
+
+        bound_prompt = template_prompt.bind({"number": 2}, history=history)
+        formatted_prompt = bound_prompt.format()
+
+        self.assertEqual(formatted_prompt.system_content, "System message")
+
+        # History with inlineData parts passes through unchanged
+        self.assertEqual(
+            formatted_prompt.llm_prompt,
+            [
+                {
+                    "role": "user",
+                    "parts": [
+                        {"text": "What's in this image?"},
+                        {
+                            "inlineData": {
+                                "mimeType": "image/png",
+                                "data": "iVBORw0KGgoAAAANSUhEUg==",
+                            }
+                        },
+                    ],
+                },
+                {"role": "model", "parts": [{"text": "I see a cat in the image."}]},
+                {"role": "user", "parts": [{"text": "User message 2"}]},
+            ],
+        )
+
     def test_prompt_format__bad_history(self) -> None:
         # send pass history to prompt that doesn't support it
         messages: List[TemplateMessage] = [

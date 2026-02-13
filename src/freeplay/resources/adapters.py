@@ -196,7 +196,7 @@ class GeminiAdapter(LLMAdapter):
         if len(messages) < 1:
             raise ValueError("Must have at least one message to format")
 
-        gemini_messages = []
+        gemini_messages: List[Dict[str, Any]] = []
 
         for message in messages:
             if message["role"] == "system":

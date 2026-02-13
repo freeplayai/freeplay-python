@@ -1261,6 +1261,160 @@ class TestFreeplay(TestCase):
             formatted_prompt.llm_prompt_text,
         )
 
+    def test_prompt_format__history_gemini(self) -> None:
+        """Full bind→format flow with Gemini-format history (function call cycle)."""
+        messages: List[TemplateMessage] = [
+            TemplateChatMessage(role="system", content="System message"),
+            HistoryTemplateMessage(kind="history"),
+            TemplateChatMessage(role="user", content="User message {{number}}"),
+        ]
+
+        gemini_api_prompt_info = PromptInfo(
+            prompt_template_id=str(uuid.uuid4()),
+            prompt_template_version_id=str(uuid.uuid4()),
+            template_name="template-name",
+            environment="environment",
+            model_parameters=LLMParameters({}),
+            provider_info=None,
+            provider="gemini",
+            model="gemini-2.0-flash",
+            flavor_name="gemini_api_chat",
+        )
+
+        template_prompt = TemplatePrompt(gemini_api_prompt_info, messages=messages)
+
+        # History in Gemini format -- function call/response cycle from a previous turn
+        history = [
+            {"role": "user", "parts": [{"text": "What is the weather?"}]},
+            {
+                "role": "model",
+                "parts": [
+                    {
+                        "functionCall": {
+                            "name": "get_weather",
+                            "args": {"location": "Seattle"},
+                        }
+                    }
+                ],
+            },
+            {
+                "role": "user",
+                "parts": [
+                    {
+                        "functionResponse": {
+                            "name": "get_weather",
+                            "response": {"temperature": "72°F"},
+                        }
+                    }
+                ],
+            },
+            {"role": "model", "parts": [{"text": "It's 72°F in Seattle."}]},
+        ]
+
+        bound_prompt = template_prompt.bind({"number": 2}, history=history)
+        formatted_prompt = bound_prompt.format()
+
+        # System message extracted to system_content
+        self.assertEqual(formatted_prompt.system_content, "System message")
+
+        # llm_prompt: history messages pass through unchanged,
+        # template user message converted to Gemini format
+        self.assertEqual(
+            formatted_prompt.llm_prompt,
+            [
+                {"role": "user", "parts": [{"text": "What is the weather?"}]},
+                {
+                    "role": "model",
+                    "parts": [
+                        {
+                            "functionCall": {
+                                "name": "get_weather",
+                                "args": {"location": "Seattle"},
+                            }
+                        }
+                    ],
+                },
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "functionResponse": {
+                                "name": "get_weather",
+                                "response": {"temperature": "72°F"},
+                            }
+                        }
+                    ],
+                },
+                {"role": "model", "parts": [{"text": "It's 72°F in Seattle."}]},
+                {"role": "user", "parts": [{"text": "User message 2"}]},
+            ],
+        )
+
+    def test_prompt_format__history_gemini_with_media(self) -> None:
+        """Full bind→format flow with Gemini-format history containing inline media."""
+        messages: List[TemplateMessage] = [
+            TemplateChatMessage(role="system", content="System message"),
+            HistoryTemplateMessage(kind="history"),
+            TemplateChatMessage(role="user", content="User message {{number}}"),
+        ]
+
+        gemini_api_prompt_info = PromptInfo(
+            prompt_template_id=str(uuid.uuid4()),
+            prompt_template_version_id=str(uuid.uuid4()),
+            template_name="template-name",
+            environment="environment",
+            model_parameters=LLMParameters({}),
+            provider_info=None,
+            provider="gemini",
+            model="gemini-2.0-flash",
+            flavor_name="gemini_api_chat",
+        )
+
+        template_prompt = TemplatePrompt(gemini_api_prompt_info, messages=messages)
+
+        # History with inline media from a previous turn
+        history = [
+            {
+                "role": "user",
+                "parts": [
+                    {"text": "What's in this image?"},
+                    {
+                        "inlineData": {
+                            "mimeType": "image/png",
+                            "data": "iVBORw0KGgoAAAANSUhEUg==",
+                        }
+                    },
+                ],
+            },
+            {"role": "model", "parts": [{"text": "I see a cat in the image."}]},
+        ]
+
+        bound_prompt = template_prompt.bind({"number": 2}, history=history)
+        formatted_prompt = bound_prompt.format()
+
+        self.assertEqual(formatted_prompt.system_content, "System message")
+
+        # History with inlineData parts passes through unchanged
+        self.assertEqual(
+            formatted_prompt.llm_prompt,
+            [
+                {
+                    "role": "user",
+                    "parts": [
+                        {"text": "What's in this image?"},
+                        {
+                            "inlineData": {
+                                "mimeType": "image/png",
+                                "data": "iVBORw0KGgoAAAANSUhEUg==",
+                            }
+                        },
+                    ],
+                },
+                {"role": "model", "parts": [{"text": "I see a cat in the image."}]},
+                {"role": "user", "parts": [{"text": "User message 2"}]},
+            ],
+        )
+
     def test_prompt_format__bad_history(self) -> None:
         # send pass history to prompt that doesn't support it
         messages: List[TemplateMessage] = [
@@ -1457,6 +1611,112 @@ class TestFreeplay(TestCase):
             self.assertIn("location", str(fd.parameters))
         except ImportError:
             self.skipTest("Vertex AI SDK not installed")
+
+    def test_prompt_format_with_tool_schema_gemini_api_chat(self) -> None:
+        """gemini_api_chat returns plain dicts (no Vertex AI SDK dependency)."""
+        messages: List[TemplateMessage] = [
+            TemplateChatMessage(role="system", content="System message"),
+            TemplateChatMessage(role="user", content="User message {{number}}"),
+        ]
+        tool_schema = [
+            ToolSchema(
+                name="get_weather",
+                description="Get weather information",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "The city and state",
+                        },
+                    },
+                    "required": ["location"],
+                },
+            )
+        ]
+
+        gemini_api_prompt_info = PromptInfo(
+            prompt_template_id=str(uuid.uuid4()),
+            prompt_template_version_id=str(uuid.uuid4()),
+            template_name="template-name",
+            environment="environment",
+            model_parameters=LLMParameters({}),
+            provider_info=None,
+            provider="gemini",
+            model="gemini-2.0-flash",
+            flavor_name="gemini_api_chat",
+        )
+
+        template_prompt = TemplatePrompt(
+            gemini_api_prompt_info, messages=messages, tool_schema=tool_schema
+        )
+
+        bound_prompt = template_prompt.bind({"number": 1})
+        formatted_prompt = bound_prompt.format()
+
+        # Verify plain dicts are returned (not vertexai.generative_models.Tool)
+        self.assertIsInstance(formatted_prompt.tool_schema, list)
+        self.assertEqual(len(formatted_prompt.tool_schema), 1)
+        self.assertIsInstance(formatted_prompt.tool_schema[0], dict)
+
+        # Verify structure: single Tool with functionDeclarations
+        tool = formatted_prompt.tool_schema[0]
+        self.assertIn("functionDeclarations", tool)
+        self.assertEqual(len(tool["functionDeclarations"]), 1)
+
+        fd = tool["functionDeclarations"][0]
+        self.assertEqual(fd["name"], "get_weather")
+        self.assertEqual(fd["description"], "Get weather information")
+        self.assertEqual(fd["parameters"]["required"], ["location"])
+
+    def test_prompt_format_with_tool_schema_gemini_api_chat_multiple_tools(
+        self,
+    ) -> None:
+        """Multiple tools are grouped into a single functionDeclarations array."""
+        messages: List[TemplateMessage] = [
+            TemplateChatMessage(role="user", content="User message {{number}}"),
+        ]
+        tool_schema = [
+            ToolSchema(
+                name="get_weather",
+                description="Get weather",
+                parameters={"type": "object", "properties": {}},
+            ),
+            ToolSchema(
+                name="get_time",
+                description="Get time",
+                parameters={"type": "object", "properties": {}},
+            ),
+        ]
+
+        prompt_info = PromptInfo(
+            prompt_template_id=str(uuid.uuid4()),
+            prompt_template_version_id=str(uuid.uuid4()),
+            template_name="template-name",
+            environment="environment",
+            model_parameters=LLMParameters({}),
+            provider_info=None,
+            provider="gemini",
+            model="gemini-2.0-flash",
+            flavor_name="gemini_api_chat",
+        )
+
+        template_prompt = TemplatePrompt(
+            prompt_info, messages=messages, tool_schema=tool_schema
+        )
+
+        bound_prompt = template_prompt.bind({"number": 1})
+        formatted_prompt = bound_prompt.format()
+
+        # Single Tool with two functionDeclarations
+        self.assertEqual(len(formatted_prompt.tool_schema), 1)
+        self.assertEqual(
+            len(formatted_prompt.tool_schema[0]["functionDeclarations"]), 2
+        )
+        names = [
+            fd["name"] for fd in formatted_prompt.tool_schema[0]["functionDeclarations"]
+        ]
+        self.assertEqual(names, ["get_weather", "get_time"])
 
     def test_prompt_format_with_output_schema_openai(self) -> None:
         messages: List[TemplateMessage] = [

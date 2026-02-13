@@ -196,13 +196,20 @@ class GeminiAdapter(LLMAdapter):
         if len(messages) < 1:
             raise ValueError("Must have at least one message to format")
 
-        gemini_messages = []
+        gemini_messages: List[Dict[str, Any]] = []
 
         for message in messages:
             if message["role"] == "system":
                 continue
 
-            if "has_media" in message and message["has_media"]:
+            # Already in Gemini format (e.g., history from previous turns
+            # with function calls, function responses, or multi-part content)
+            if "parts" in message:
+                msg_copy: Dict[str, Any] = copy.deepcopy(message)
+                if msg_copy.get("role") == "assistant":
+                    msg_copy["role"] = "model"
+                gemini_messages.append(msg_copy)
+            elif "has_media" in message and message["has_media"]:
                 gemini_messages.append(
                     {
                         "role": self.__translate_role(message["role"]),
@@ -220,7 +227,8 @@ class GeminiAdapter(LLMAdapter):
                     }
                 )
             else:
-                gemini_messages.append(copy.deepcopy(message))
+                fallback: Dict[str, Any] = copy.deepcopy(message)
+                gemini_messages.append(fallback)
 
         return gemini_messages
 
@@ -237,12 +245,11 @@ class GeminiAdapter(LLMAdapter):
                     "mime_type": content.content_type,
                 }
             }
-        elif isinstance(content, MediaContentUrl):
+        else:
+            # MediaContentUrl -- Gemini does not support image URLs
             raise ValueError(
                 "Message contains an image URL, but image URLs are not supported by Gemini"
             )
-        else:
-            raise ValueError(f"Unexpected content type {type(content)}")
 
     @staticmethod
     def __translate_role(role: str) -> str:
@@ -336,7 +343,7 @@ def adaptor_for_flavor(flavor_name: str) -> LLMAdapter:
         return AnthropicAdapter()
     elif flavor_name == "llama_3_chat":
         return Llama3Adapter()
-    elif flavor_name == "gemini_chat":
+    elif flavor_name in ["gemini_chat", "gemini_api_chat"]:
         return GeminiAdapter()
     elif flavor_name == "amazon_bedrock_converse":
         return BedrockConverseAdapter()

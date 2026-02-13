@@ -6,9 +6,11 @@ from freeplay.resources.adapters import (
     AnthropicAdapter,
     GeminiAdapter,
     BedrockConverseAdapter,
+    MissingFlavorError,
     TextContent,
     MediaContentUrl,
     MediaContentBase64,
+    adaptor_for_flavor,
 )
 
 
@@ -338,3 +340,193 @@ class TestAdapters(unittest.TestCase):
                 }
             },
         )
+
+    # ------------------------------------------------------------------
+    # Gemini parts passthrough (history with function calls / responses)
+    # ------------------------------------------------------------------
+
+    def test_gemini_parts_passthrough(self) -> None:
+        """Messages with 'parts' key are passed through without re-wrapping."""
+        messages: List[Dict[str, Any]] = [
+            {
+                "role": "user",
+                "parts": [{"text": "What is the weather?"}],
+            },
+            {
+                "role": "model",
+                "parts": [
+                    {
+                        "functionCall": {
+                            "name": "get_weather",
+                            "args": {"location": "Seattle"},
+                        }
+                    }
+                ],
+            },
+            {
+                "role": "user",
+                "parts": [
+                    {
+                        "functionResponse": {
+                            "name": "get_weather",
+                            "response": {"temperature": "72°F"},
+                        }
+                    }
+                ],
+            },
+            {
+                "role": "model",
+                "parts": [{"text": "It's 72°F in Seattle."}],
+            },
+        ]
+
+        result = GeminiAdapter().to_llm_syntax(messages)
+        assert isinstance(result, list)
+
+        self.assertEqual(len(result), 4)
+        # All messages should be preserved as-is
+        self.assertEqual(result[0]["role"], "user")
+        self.assertEqual(result[0]["parts"], [{"text": "What is the weather?"}])
+
+        self.assertEqual(result[1]["role"], "model")
+        self.assertIn("functionCall", result[1]["parts"][0])
+
+        self.assertEqual(result[2]["role"], "user")
+        self.assertIn("functionResponse", result[2]["parts"][0])
+
+        self.assertEqual(result[3]["role"], "model")
+        self.assertEqual(result[3]["parts"], [{"text": "It's 72°F in Seattle."}])
+
+    def test_gemini_parts_passthrough_translates_assistant_to_model(self) -> None:
+        """Parts messages with role 'assistant' are translated to 'model'."""
+        messages: List[Dict[str, Any]] = [
+            {
+                "role": "assistant",
+                "parts": [
+                    {
+                        "functionCall": {
+                            "name": "search",
+                            "args": {"query": "test"},
+                        }
+                    }
+                ],
+            },
+        ]
+
+        result = GeminiAdapter().to_llm_syntax(messages)
+        assert isinstance(result, list)
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["role"], "model")
+        self.assertIn("functionCall", result[0]["parts"][0])
+
+    def test_gemini_parts_passthrough_does_not_mutate_original(self) -> None:
+        """Parts passthrough deep-copies, so original messages are not mutated."""
+        original: Dict[str, Any] = {
+            "role": "assistant",
+            "parts": [{"text": "original"}],
+        }
+        messages: List[Dict[str, Any]] = [original]
+
+        result = GeminiAdapter().to_llm_syntax(messages)
+        assert isinstance(result, list)
+
+        self.assertEqual(result[0]["role"], "model")
+        self.assertEqual(original["role"], "assistant")
+
+    def test_gemini_mixed_content_and_parts(self) -> None:
+        """Handles a mix of standard content and pre-formatted parts messages."""
+        messages: List[Dict[str, Any]] = [
+            {"role": "system", "content": "System instructions"},
+            {"role": "user", "content": "Hello"},
+            {
+                "role": "model",
+                "parts": [{"functionCall": {"name": "greet", "args": {}}}],
+            },
+            {
+                "role": "user",
+                "parts": [
+                    {
+                        "functionResponse": {
+                            "name": "greet",
+                            "response": {"greeting": "Hi!"},
+                        }
+                    }
+                ],
+            },
+            {"role": "assistant", "content": "Done"},
+        ]
+
+        result = GeminiAdapter().to_llm_syntax(messages)
+        assert isinstance(result, list)
+
+        self.assertEqual(len(result), 4)  # system is skipped
+        self.assertEqual(result[0], {"role": "user", "parts": [{"text": "Hello"}]})
+        self.assertEqual(result[1]["role"], "model")
+        self.assertIn("functionCall", result[1]["parts"][0])
+        self.assertEqual(result[2]["role"], "user")
+        self.assertIn("functionResponse", result[2]["parts"][0])
+        self.assertEqual(result[3], {"role": "model", "parts": [{"text": "Done"}]})
+
+    def test_gemini_media_in_history_parts(self) -> None:
+        """History messages with inlineData parts are passed through correctly."""
+        messages: List[Dict[str, Any]] = [
+            {
+                "role": "user",
+                "parts": [
+                    {"text": "What's in this image?"},
+                    {
+                        "inlineData": {
+                            "mimeType": "image/png",
+                            "data": "iVBORw0KGgoAAAANSUhEUg==",
+                        }
+                    },
+                ],
+            },
+            {"role": "model", "parts": [{"text": "I see a cat."}]},
+            {"role": "user", "content": "Can you describe it in more detail?"},
+        ]
+
+        result = GeminiAdapter().to_llm_syntax(messages)
+        assert isinstance(result, list)
+
+        self.assertEqual(len(result), 3)
+
+        # First message: media parts passed through unchanged
+        self.assertEqual(result[0]["role"], "user")
+        self.assertEqual(len(result[0]["parts"]), 2)
+        self.assertEqual(result[0]["parts"][0], {"text": "What's in this image?"})
+        self.assertIn("inlineData", result[0]["parts"][1])
+        self.assertEqual(result[0]["parts"][1]["inlineData"]["mimeType"], "image/png")
+        self.assertEqual(
+            result[0]["parts"][1]["inlineData"]["data"], "iVBORw0KGgoAAAANSUhEUg=="
+        )
+
+        # Second message: text parts passed through
+        self.assertEqual(result[1]["role"], "model")
+        self.assertEqual(result[1]["parts"], [{"text": "I see a cat."}])
+
+        # Third message: standard content converted to Gemini format
+        self.assertEqual(
+            result[2],
+            {
+                "role": "user",
+                "parts": [{"text": "Can you describe it in more detail?"}],
+            },
+        )
+
+    # ------------------------------------------------------------------
+    # adaptor_for_flavor() registry tests
+    # ------------------------------------------------------------------
+
+    def test_adaptor_for_gemini_chat(self) -> None:
+        adapter = adaptor_for_flavor("gemini_chat")
+        self.assertIsInstance(adapter, GeminiAdapter)
+
+    def test_adaptor_for_gemini_api_chat(self) -> None:
+        adapter = adaptor_for_flavor("gemini_api_chat")
+        self.assertIsInstance(adapter, GeminiAdapter)
+
+    def test_adaptor_for_unknown_flavor_raises(self) -> None:
+        with self.assertRaises(MissingFlavorError):
+            adaptor_for_flavor("nonexistent_flavor")

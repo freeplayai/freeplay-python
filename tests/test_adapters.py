@@ -441,9 +441,7 @@ class TestAdapters(unittest.TestCase):
             {"role": "user", "content": "Hello"},
             {
                 "role": "model",
-                "parts": [
-                    {"functionCall": {"name": "greet", "args": {}}}
-                ],
+                "parts": [{"functionCall": {"name": "greet", "args": {}}}],
             },
             {
                 "role": "user",
@@ -511,7 +509,10 @@ class TestAdapters(unittest.TestCase):
         # Third message: standard content converted to Gemini format
         self.assertEqual(
             result[2],
-            {"role": "user", "parts": [{"text": "Can you describe it in more detail?"}]},
+            {
+                "role": "user",
+                "parts": [{"text": "Can you describe it in more detail?"}],
+            },
         )
 
     # ------------------------------------------------------------------

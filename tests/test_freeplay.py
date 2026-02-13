@@ -1710,10 +1710,11 @@ class TestFreeplay(TestCase):
 
         # Single Tool with two functionDeclarations
         self.assertEqual(len(formatted_prompt.tool_schema), 1)
-        self.assertEqual(len(formatted_prompt.tool_schema[0]["functionDeclarations"]), 2)
+        self.assertEqual(
+            len(formatted_prompt.tool_schema[0]["functionDeclarations"]), 2
+        )
         names = [
-            fd["name"]
-            for fd in formatted_prompt.tool_schema[0]["functionDeclarations"]
+            fd["name"] for fd in formatted_prompt.tool_schema[0]["functionDeclarations"]
         ]
         self.assertEqual(names, ["get_weather", "get_time"])
 

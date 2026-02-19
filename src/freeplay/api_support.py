@@ -6,8 +6,15 @@ from typing import Dict
 import dacite
 import requests
 from requests import Response
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from freeplay.utils import build_request_header
+
+_retry = Retry(connect=3, backoff_factor=0.5)
+_session = requests.Session()
+_session.mount("https://", HTTPAdapter(max_retries=_retry))
+_session.mount("http://", HTTPAdapter(max_retries=_retry))
 
 T = t.TypeVar("T")
 
@@ -33,7 +40,7 @@ def post(
     url: str,
     payload: t.Optional[Dict[str, str]] = None,
 ) -> T:
-    response = requests.post(
+    response = _session.post(
         url=url, headers=build_request_header(api_key), json=payload
     )
 
@@ -52,30 +59,30 @@ def post(
 def put_raw(
     api_key: str, url: str, payload: t.Optional[Dict[str, t.Any]] = None
 ) -> Response:
-    return requests.put(url=url, headers=build_request_header(api_key), json=payload)
+    return _session.put(url=url, headers=build_request_header(api_key), json=payload)
 
 
 def patch_raw(
     api_key: str, url: str, payload: t.Optional[Dict[str, t.Any]] = None
 ) -> Response:
-    return requests.patch(url=url, headers=build_request_header(api_key), json=payload)
+    return _session.patch(url=url, headers=build_request_header(api_key), json=payload)
 
 
 def post_raw(
     api_key: str, url: str, payload: t.Optional[Dict[str, t.Any]] = None
 ) -> Response:
-    return requests.post(url=url, headers=build_request_header(api_key), json=payload)
+    return _session.post(url=url, headers=build_request_header(api_key), json=payload)
 
 
 def delete_raw(api_key: str, url: str) -> Response:
-    return requests.delete(
+    return _session.delete(
         url=url,
         headers=build_request_header(api_key),
     )
 
 
 def get(target_type: t.Type[T], api_key: str, url: str) -> T:
-    response = requests.get(
+    response = _session.get(
         url=url,
         headers=build_request_header(api_key),
     )
@@ -95,4 +102,4 @@ def get(target_type: t.Type[T], api_key: str, url: str) -> T:
 def get_raw(
     api_key: str, url: str, params: t.Optional[Dict[str, str]] = None
 ) -> Response:
-    return requests.get(url=url, headers=build_request_header(api_key), params=params)
+    return _session.get(url=url, headers=build_request_header(api_key), params=params)

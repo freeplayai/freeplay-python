@@ -500,6 +500,78 @@ class CallSupport:
                 response,
             )
 
+    def _build_trace_update_payload(
+        self,
+        custom_metadata: CustomMetadata = None,
+        feedback: Optional[Dict[str, FeedbackValue]] = None,
+        eval_results: Optional[Dict[str, Union[bool, float]]] = None,
+        test_run_info: Optional[TestRunInfo] = None,
+    ) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {}
+        if custom_metadata is not None:
+            payload["custom_metadata"] = custom_metadata
+        if feedback is not None:
+            payload["feedback"] = feedback
+        if eval_results is not None:
+            payload["eval_results"] = eval_results
+        if test_run_info is not None:
+            payload["test_run_info"] = asdict(test_run_info)
+        return payload
+
+    def update_trace(
+        self,
+        project_id: str,
+        session_id: str,
+        trace_id: str,
+        custom_metadata: CustomMetadata = None,
+        feedback: Optional[Dict[str, FeedbackValue]] = None,
+        eval_results: Optional[Dict[str, Union[bool, float]]] = None,
+        test_run_info: Optional[TestRunInfo] = None,
+    ) -> None:
+        payload = self._build_trace_update_payload(
+            custom_metadata=custom_metadata,
+            feedback=feedback,
+            eval_results=eval_results,
+            test_run_info=test_run_info,
+        )
+        response = api_support.patch_raw(
+            self.freeplay_api_key,
+            f"{self.api_base}/v2/projects/{project_id}/sessions/{session_id}/traces/id/{trace_id}",
+            payload,
+        )
+        if response.status_code != 200:
+            raise freeplay_response_error(
+                f"Error updating trace {trace_id} in project {project_id}",
+                response,
+            )
+
+    def update_trace_by_otel_span_id(
+        self,
+        project_id: str,
+        session_id: str,
+        otel_span_id_hex: str,
+        custom_metadata: CustomMetadata = None,
+        feedback: Optional[Dict[str, FeedbackValue]] = None,
+        eval_results: Optional[Dict[str, Union[bool, float]]] = None,
+        test_run_info: Optional[TestRunInfo] = None,
+    ) -> None:
+        payload = self._build_trace_update_payload(
+            custom_metadata=custom_metadata,
+            feedback=feedback,
+            eval_results=eval_results,
+            test_run_info=test_run_info,
+        )
+        response = api_support.patch_raw(
+            self.freeplay_api_key,
+            f"{self.api_base}/v2/projects/{project_id}/sessions/{session_id}/traces/otel-span-id/{otel_span_id_hex}",
+            payload,
+        )
+        if response.status_code != 200:
+            raise freeplay_response_error(
+                f"Error updating trace with otel span id {otel_span_id_hex} in project {project_id}",
+                response,
+            )
+
     def create_test_run(
         self,
         project_id: str,

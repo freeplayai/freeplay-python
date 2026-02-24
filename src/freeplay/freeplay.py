@@ -8,6 +8,7 @@ from freeplay.resources.recordings import Recordings
 from freeplay.resources.sessions import Sessions
 from freeplay.resources.test_cases import TestCases
 from freeplay.resources.test_runs import TestRuns
+from freeplay.resources.traces import Traces
 from freeplay.support import CallSupport
 
 
@@ -41,3 +42,4 @@ class Freeplay:
         self.sessions = Sessions(self.call_support)
         self.test_runs = TestRuns(self.call_support)
         self.test_cases = TestCases(self.call_support)
+        self.traces = Traces(self.call_support)

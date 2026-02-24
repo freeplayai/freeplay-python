@@ -11,7 +11,7 @@ from urllib3.util.retry import Retry
 
 from freeplay.utils import build_request_header
 
-_retry = Retry(connect=3, read=3, backoff_factor=0.5)
+_retry = Retry(connect=3, read=3, backoff_factor=0.5, allowed_methods=frozenset(["GET"]))
 _session = requests.Session()
 _session.mount("https://", HTTPAdapter(max_retries=_retry))
 _session.mount("http://", HTTPAdapter(max_retries=_retry))

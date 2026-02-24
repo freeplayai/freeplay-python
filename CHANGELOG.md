@@ -2,6 +2,12 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
+## [0.5.9]
+
+### Fixed
+
+- Added automatic retries for read failures on HTTP requests.
+
 ## [0.5.8]
 
 ### Fixed

@@ -1,6 +1,6 @@
 [project]
 name = "freeplay"
-version = "0.5.8"
+version = "0.5.9"
 description = ""
 authors = [
     {name = "Freeplay Engineering", email = "support@freeplay.ai"},

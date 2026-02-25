@@ -173,13 +173,14 @@ class FormattedPrompt:
 
     def all_messages(self, new_message: ProviderMessage) -> List[Dict[str, Any]]:
         converted = convert_provider_message_to_dict(new_message)
-        if not isinstance(converted, list):
-            return self._messages + [converted]
-        # Responses API: output is a list of typed items (function_call,
-        # reasoning, message, etc.). Use the adapter-formatted prompt
-        # which already has the right item format (e.g. {"type": "message"})
-        # rather than re-wrapping raw messages.
-        return list(self._llm_prompt or []) + converted
+        # Use adapter-formatted messages when available (proper provider
+        # format, media mapped, system handling per-flavor). Fall back to
+        # raw messages for string-format adapters (e.g. Llama) where
+        # _llm_prompt is None.
+        input_messages: List[Dict[str, Any]] = list(self._llm_prompt or self._messages)
+        if isinstance(converted, list):
+            return input_messages + converted
+        return input_messages + [converted]
 
 
 class BoundPrompt:

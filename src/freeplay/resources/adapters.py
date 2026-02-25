@@ -266,11 +266,7 @@ class OpenAIResponsesAdapter(OpenAIAdapter):
         self, messages: List[Dict[str, Any]]
     ) -> Union[str, List[Dict[str, Any]]]:
         formatted = super().to_llm_syntax(messages)
-        return [
-            {"type": "message", **m}
-            for m in formatted
-            if m["role"] != "system"
-        ]
+        return [{"type": "message", **m} for m in formatted if m["role"] != "system"]
 
 
 class BedrockConverseAdapter(LLMAdapter):

@@ -49,9 +49,6 @@ completion = openai_client.responses.create(
 end = time.time()
 print("Completion: %s" % completion)
 
-# all_messages combines the formatted input (already in Responses API native
-# format with "type": "message") with completion.output items (which carry
-# their own type discriminators like "function_call", "reasoning", etc.).
 session = fp_client.sessions.create()
 messages = formatted_prompt.all_messages(completion.output)
 

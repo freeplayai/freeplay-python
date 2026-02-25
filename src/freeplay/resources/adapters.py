@@ -266,6 +266,7 @@ class OpenAIResponsesAdapter(OpenAIAdapter):
         self, messages: List[Dict[str, Any]]
     ) -> Union[str, List[Dict[str, Any]]]:
         formatted = super().to_llm_syntax(messages)
+        assert isinstance(formatted, list)
         return [{"type": "message", **m} for m in formatted if m["role"] != "system"]
 
 

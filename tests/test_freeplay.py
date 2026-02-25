@@ -884,7 +884,8 @@ class TestFreeplay(TestCase):
         self.assertTrue(
             input_variables.get("question") in formatted_prompt.llm_prompt[1]["content"]
         )
-        self.assertTrue(llm_response in all_messages[3]["content"])
+        # all_messages uses llm_prompt (Anthropic strips system), so index is 2
+        self.assertTrue(llm_response in all_messages[2]["content"])
 
     @responses.activate
     def test_all_messages(self) -> None:
@@ -900,6 +901,9 @@ class TestFreeplay(TestCase):
         bound_prompt = template_prompt.bind(input_variables)
         formatted_prompt = bound_prompt.format()
 
+        # all_messages uses llm_prompt which for Anthropic strips system,
+        # so base is 2 messages (assistant + user) + 1 appended = 3
+
         # Can append Anthropic messages from Pydantic models
         all_messages = formatted_prompt.all_messages(
             {
@@ -910,7 +914,7 @@ class TestFreeplay(TestCase):
                 "role": "assistant",
             }
         )
-        self.assertEqual(4, len(all_messages))
+        self.assertEqual(3, len(all_messages))
         json.dumps(all_messages)
 
         # Can append Anthropic messages as raw dict
@@ -923,7 +927,7 @@ class TestFreeplay(TestCase):
                 "role": "assistant",
             }
         )
-        self.assertEqual(4, len(all_messages))
+        self.assertEqual(3, len(all_messages))
         json.dumps(all_messages)
 
         # Can append Freeplay standard format messages
@@ -931,7 +935,7 @@ class TestFreeplay(TestCase):
             {"content": "text", "role": "assistant"}
         )
 
-        self.assertEqual(4, len(all_messages))
+        self.assertEqual(3, len(all_messages))
         json.dumps(all_messages)
 
         # Can append OpenAI Pydantic models
@@ -948,7 +952,7 @@ class TestFreeplay(TestCase):
                 ],
             )
         )
-        self.assertEqual(4, len(all_messages))
+        self.assertEqual(3, len(all_messages))
         json.dumps(all_messages)
 
         # Can append OpenAI as dict models
@@ -966,7 +970,7 @@ class TestFreeplay(TestCase):
             }
         )
 
-        self.assertEqual(4, len(all_messages))
+        self.assertEqual(3, len(all_messages))
         json.dumps(all_messages)
 
     @responses.activate

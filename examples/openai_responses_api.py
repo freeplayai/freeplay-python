@@ -1,6 +1,6 @@
 import os
 import time
-from typing import Any
+from typing import Any, Dict
 
 from openai import OpenAI
 
@@ -13,7 +13,7 @@ fp_client = Freeplay(
 )
 openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-input_variables = {"location": "San Francisco"}
+input_variables = {"location": ""}
 
 project_id = os.environ["FREEPLAY_PROJECT_ID"]
 
@@ -30,7 +30,7 @@ print(f"Tool schema: {formatted_prompt.tool_schema}")
 print(f"Output schema: {formatted_prompt.formatted_output_schema}")
 
 # Build the Responses API call
-response_params: dict[str, Any] = {
+response_params: Dict[str, Any] = {
     **formatted_prompt.prompt_info.model_parameters,
 }
 if formatted_prompt.system_content:

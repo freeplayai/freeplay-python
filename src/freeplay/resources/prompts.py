@@ -289,7 +289,8 @@ class BoundPrompt:
             m.get("role") == "developer" for m in messages
         ):
             log_freeplay_client_warning(
-                "developer role is not supported by %s; coercing to system" % final_flavor
+                "developer role is not supported by %s; coercing to system"
+                % final_flavor
             )
             messages = [
                 {**m, "role": "system"} if m.get("role") == "developer" else m

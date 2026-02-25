@@ -1986,7 +1986,11 @@ class TestFreeplay(TestCase):
         # llm_prompt wraps as Responses API format: system stripped, developer kept
         self.assertEqual(
             [
-                {"type": "message", "role": "developer", "content": "Developer instructions."},
+                {
+                    "type": "message",
+                    "role": "developer",
+                    "content": "Developer instructions.",
+                },
                 {"type": "message", "role": "user", "content": "User message 1"},
             ],
             formatted_prompt.llm_prompt,

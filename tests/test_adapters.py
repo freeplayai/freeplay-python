@@ -608,7 +608,11 @@ class TestAdapters(unittest.TestCase):
         self.assertEqual(
             formatted,
             [
-                {"type": "message", "role": "developer", "content": "Developer instructions."},
+                {
+                    "type": "message",
+                    "role": "developer",
+                    "content": "Developer instructions.",
+                },
                 {"type": "message", "role": "user", "content": "Hello"},
             ],
         )

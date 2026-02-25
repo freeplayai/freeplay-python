@@ -175,13 +175,11 @@ class FormattedPrompt:
         converted = convert_provider_message_to_dict(new_message)
         if not isinstance(converted, list):
             return self._messages + [converted]
-        # Responses API: output is a list of typed items. Wrap input
-        # messages as OpenAI Responses message items so the full list
-        # uses a consistent format for the recording API.
-        wrapped: List[Dict[str, Any]] = [
-            {"type": "message", **m} for m in self._messages
-        ]
-        return wrapped + converted
+        # Responses API: output is a list of typed items (function_call,
+        # reasoning, message, etc.). Use the adapter-formatted prompt
+        # which already has the right item format (e.g. {"type": "message"})
+        # rather than re-wrapping raw messages.
+        return list(self._llm_prompt or []) + converted
 
 
 class BoundPrompt:

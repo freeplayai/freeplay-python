@@ -281,8 +281,23 @@ class BoundPrompt:
 
     def format(self, flavor_name: Optional[str] = None) -> FormattedPrompt:
         final_flavor = flavor_name or self.prompt_info.flavor_name
+
+        # Coerce developer → system for flavors that don't support the developer role.
+        # openai_responses supports developer natively; all others treat it as system.
+        messages = self.messages
+        if final_flavor != "openai_responses" and any(
+            m.get("role") == "developer" for m in messages
+        ):
+            log_freeplay_client_warning(
+                "developer role is not supported by %s; coercing to system" % final_flavor
+            )
+            messages = [
+                {**m, "role": "system"} if m.get("role") == "developer" else m
+                for m in messages
+            ]
+
         adapter = adaptor_for_flavor(final_flavor)
-        formatted_prompt = adapter.to_llm_syntax(self.messages)
+        formatted_prompt = adapter.to_llm_syntax(messages)
         formatted_tool_schema = (
             BoundPrompt.__format_tool_schema(final_flavor, self.tool_schema)
             if self.tool_schema
@@ -303,7 +318,7 @@ class BoundPrompt:
         if isinstance(formatted_prompt, str):
             return FormattedPrompt(
                 prompt_info=effective_prompt_info,
-                messages=self.messages,
+                messages=messages,
                 formatted_prompt_text=formatted_prompt,
                 tool_schema=formatted_tool_schema,
                 formatted_output_schema=formatted_output_schema,
@@ -311,7 +326,7 @@ class BoundPrompt:
         else:
             return FormattedPrompt(
                 prompt_info=effective_prompt_info,
-                messages=self.messages,
+                messages=messages,
                 formatted_prompt=formatted_prompt,
                 tool_schema=formatted_tool_schema,
                 formatted_output_schema=formatted_output_schema,
@@ -448,6 +463,7 @@ class FilesystemTemplateResolver(TemplateResolver):
         "system": "system",
         "user": "user",
         "assistant": "assistant",
+        "developer": "developer",
         "Assistant": "assistant",
         "Human": "user",  # Don't think we ever store this, but in case...
     }

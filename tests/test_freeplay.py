@@ -188,6 +188,17 @@ class TestFreeplay(TestCase):
             model="mistral-model-name",
             flavor_name="mistral_chat",
         )
+        self.openai_responses_prompt_info = PromptInfo(
+            prompt_template_id=str(uuid.uuid4()),
+            prompt_template_version_id=str(uuid.uuid4()),
+            template_name="openai-responses-template-name",
+            environment="environment",
+            model_parameters=LLMParameters({}),
+            provider_info=None,
+            provider="openai",
+            model="gpt-4.1",
+            flavor_name="openai_responses",
+        )
 
     @responses.activate
     def test_single_prompt_get_and_record(self) -> None:
@@ -1928,6 +1939,81 @@ class TestFreeplay(TestCase):
             formatted_prompt.llm_prompt,
         )
         self.assertEqual("System message 1", formatted_prompt.system_content)
+
+    def test_developer_role_coerced_to_system_for_anthropic(self) -> None:
+        bound_prompt = BoundPrompt(
+            self.anthropic_prompt_info,
+            messages=[
+                {"role": "developer", "content": "Developer instructions."},
+                {"role": "user", "content": "User message 1"},
+            ],
+        )
+
+        with self.assertWarnsRegex(
+            FreeplayClientWarning, "developer role is not supported by anthropic_chat"
+        ):
+            formatted_prompt = bound_prompt.format()
+
+        # developer content lands in system_content (coerced to system)
+        self.assertEqual("Developer instructions.", formatted_prompt.system_content)
+        # Anthropic adapter strips system, so llm_prompt has only the user message
+        self.assertEqual(
+            [{"role": "user", "content": "User message 1"}],
+            formatted_prompt.llm_prompt,
+        )
+
+    def test_developer_role_preserved_for_openai_responses(self) -> None:
+        bound_prompt = BoundPrompt(
+            self.openai_responses_prompt_info,
+            messages=[
+                {"role": "system", "content": "System instructions."},
+                {"role": "developer", "content": "Developer instructions."},
+                {"role": "user", "content": "User message 1"},
+            ],
+        )
+
+        # No warning should be emitted for openai_responses
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", FreeplayClientWarning)
+            formatted_prompt = bound_prompt.format()
+
+        # system_content is the first system message only
+        self.assertEqual("System instructions.", formatted_prompt.system_content)
+        # llm_prompt wraps as Responses API format: system stripped, developer kept
+        self.assertEqual(
+            [
+                {"type": "message", "role": "developer", "content": "Developer instructions."},
+                {"type": "message", "role": "user", "content": "User message 1"},
+            ],
+            formatted_prompt.llm_prompt,
+        )
+
+    def test_developer_role_coerced_to_system_for_openai_chat(self) -> None:
+        bound_prompt = BoundPrompt(
+            self.openai_api_prompt_info,
+            messages=[
+                {"role": "system", "content": "System instructions."},
+                {"role": "developer", "content": "Developer instructions."},
+                {"role": "user", "content": "User message 1"},
+            ],
+        )
+
+        with self.assertWarnsRegex(
+            FreeplayClientWarning, "developer role is not supported by openai_chat"
+        ):
+            formatted_prompt = bound_prompt.format()
+
+        # system_content is still the first system message
+        self.assertEqual("System instructions.", formatted_prompt.system_content)
+        # developer coerced to system in llm_prompt
+        self.assertEqual(
+            [
+                {"role": "system", "content": "System instructions."},
+                {"role": "system", "content": "Developer instructions."},
+                {"role": "user", "content": "User message 1"},
+            ],
+            formatted_prompt.llm_prompt,
+        )
 
     @responses.activate
     def test_create_test_run(self) -> None:

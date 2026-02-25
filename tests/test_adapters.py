@@ -595,6 +595,41 @@ class TestAdapters(unittest.TestCase):
         adapter = adaptor_for_flavor("openai_responses")
         self.assertIsInstance(adapter, OpenAIResponsesAdapter)
 
+    def test_openai_responses_developer_passthrough(self) -> None:
+        """OpenAI Responses adapter keeps developer messages and strips system."""
+        messages: List[Dict[str, Any]] = [
+            {"role": "system", "content": "System instructions."},
+            {"role": "developer", "content": "Developer instructions."},
+            {"role": "user", "content": "Hello"},
+        ]
+
+        formatted = OpenAIResponsesAdapter().to_llm_syntax(messages)
+
+        self.assertEqual(
+            formatted,
+            [
+                {"type": "message", "role": "developer", "content": "Developer instructions."},
+                {"type": "message", "role": "user", "content": "Hello"},
+            ],
+        )
+
+    def test_openai_adapter_developer_passthrough(self) -> None:
+        """OpenAI chat adapter passes developer through unchanged (coercion is in format())."""
+        messages: List[Dict[str, Any]] = [
+            {"role": "developer", "content": "Developer instructions."},
+            {"role": "user", "content": "Hello"},
+        ]
+
+        formatted = OpenAIAdapter().to_llm_syntax(messages)
+
+        self.assertEqual(
+            formatted,
+            [
+                {"role": "developer", "content": "Developer instructions."},
+                {"role": "user", "content": "Hello"},
+            ],
+        )
+
     def test_adaptor_for_unknown_flavor_raises(self) -> None:
         with self.assertRaises(MissingFlavorError):
             adaptor_for_flavor("nonexistent_flavor")

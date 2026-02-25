@@ -3,6 +3,7 @@ from typing import Any, List, Dict
 
 from freeplay.resources.adapters import (
     OpenAIAdapter,
+    OpenAIResponsesAdapter,
     AnthropicAdapter,
     GeminiAdapter,
     BedrockConverseAdapter,
@@ -526,6 +527,73 @@ class TestAdapters(unittest.TestCase):
     def test_adaptor_for_gemini_api_chat(self) -> None:
         adapter = adaptor_for_flavor("gemini_api_chat")
         self.assertIsInstance(adapter, GeminiAdapter)
+
+    def test_openai_responses_strips_system(self) -> None:
+        messages: List[Dict[str, Any]] = [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": "Hello"},
+            {"role": "assistant", "content": "Hi there!"},
+        ]
+
+        formatted = OpenAIResponsesAdapter().to_llm_syntax(messages)
+
+        self.assertEqual(
+            formatted,
+            [
+                {"type": "message", "role": "user", "content": "Hello"},
+                {"type": "message", "role": "assistant", "content": "Hi there!"},
+            ],
+        )
+
+    def test_openai_responses_media(self) -> None:
+        messages: List[Dict[str, Any]] = [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {
+                "role": "user",
+                "has_media": True,
+                "content": [
+                    TextContent("Take a look at these images!"),
+                    MediaContentUrl(
+                        type="image",
+                        url="https://localhost/image.png",
+                        slot_name="image1",
+                    ),
+                    MediaContentBase64(
+                        type="image",
+                        content_type="image/png",
+                        data="some-data",
+                        slot_name="image2",
+                    ),
+                ],
+            },
+        ]
+
+        formatted = OpenAIResponsesAdapter().to_llm_syntax(messages)
+
+        self.assertEqual(
+            formatted,
+            [
+                {
+                    "type": "message",
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Take a look at these images!"},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": "https://localhost/image.png"},
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": "data:image/png;base64,some-data"},
+                        },
+                    ],
+                },
+            ],
+        )
+
+    def test_adaptor_for_openai_responses(self) -> None:
+        adapter = adaptor_for_flavor("openai_responses")
+        self.assertIsInstance(adapter, OpenAIResponsesAdapter)
 
     def test_adaptor_for_unknown_flavor_raises(self) -> None:
         with self.assertRaises(MissingFlavorError):

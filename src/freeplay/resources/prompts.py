@@ -2,7 +2,7 @@ import json
 import logging
 import warnings
 from abc import ABC, abstractmethod
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import (
     Any,
@@ -172,8 +172,16 @@ class FormattedPrompt:
         return self._formatted_output_schema
 
     def all_messages(self, new_message: ProviderMessage) -> List[Dict[str, Any]]:
-        converted_message = convert_provider_message_to_dict(new_message)
-        return self._messages + [converted_message]
+        converted = convert_provider_message_to_dict(new_message)
+        if not isinstance(converted, list):
+            return self._messages + [converted]
+        # Responses API: output is a list of typed items. Wrap input
+        # messages as OpenAI Responses message items so the full list
+        # uses a consistent format for the recording API.
+        wrapped: List[Dict[str, Any]] = [
+            {"type": "message", **m} for m in self._messages
+        ]
+        return wrapped + converted
 
 
 class BoundPrompt:
@@ -236,6 +244,16 @@ class BoundPrompt:
                 return [Tool(function_declarations=function_declarations)]
             except ImportError:
                 raise VertexAIToolSchemaError()
+        elif flavor_name == "openai_responses":
+            return [
+                {
+                    "type": "function",
+                    "name": t.name,
+                    "description": t.description,
+                    "parameters": t.parameters,
+                }
+                for t in tool_schema
+            ]
         elif flavor_name == "gemini_api_chat":
             function_declarations = [
                 {
@@ -256,6 +274,9 @@ class BoundPrompt:
         # For OpenAI and Azure OpenAI, the normalized format is compatible with the API format
         if flavor_name in ["openai_chat", "azure_openai_chat"]:
             return output_schema
+        elif flavor_name == "openai_responses":
+            inner = output_schema.get("json_schema", {})
+            return {"format": {"type": "json_schema", **inner}}
         # Add other flavors as necessary - currently only OpenAI-compatible models support output schema
         raise UnsupportedOutputSchema()
 
@@ -274,9 +295,15 @@ class BoundPrompt:
             else None
         )
 
+        effective_prompt_info = (
+            replace(self.prompt_info, flavor_name=final_flavor)
+            if final_flavor != self.prompt_info.flavor_name
+            else self.prompt_info
+        )
+
         if isinstance(formatted_prompt, str):
             return FormattedPrompt(
-                prompt_info=self.prompt_info,
+                prompt_info=effective_prompt_info,
                 messages=self.messages,
                 formatted_prompt_text=formatted_prompt,
                 tool_schema=formatted_tool_schema,
@@ -284,7 +311,7 @@ class BoundPrompt:
             )
         else:
             return FormattedPrompt(
-                prompt_info=self.prompt_info,
+                prompt_info=effective_prompt_info,
                 messages=self.messages,
                 formatted_prompt=formatted_prompt,
                 tool_schema=formatted_tool_schema,
@@ -609,6 +636,7 @@ class FilesystemTemplateResolver(TemplateResolver):
             "azure_openai_chat": "azure",
             "anthropic_chat": "anthropic",
             "openai_chat": "openai",
+            "openai_responses": "openai",
             "gemini_chat": "vertex",
             "gemini_api_chat": "gemini",
         }

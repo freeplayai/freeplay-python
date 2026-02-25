@@ -261,6 +261,18 @@ class GeminiAdapter(LLMAdapter):
             raise ValueError(f"Gemini formatting found unexpected role {role}")
 
 
+class OpenAIResponsesAdapter(OpenAIAdapter):
+    def to_llm_syntax(
+        self, messages: List[Dict[str, Any]]
+    ) -> Union[str, List[Dict[str, Any]]]:
+        formatted = super().to_llm_syntax(messages)
+        return [
+            {"type": "message", **m}
+            for m in formatted
+            if m["role"] != "system"
+        ]
+
+
 class BedrockConverseAdapter(LLMAdapter):
     def to_llm_syntax(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         converse_messages: List[Dict[str, Any]] = []
@@ -339,6 +351,8 @@ def adaptor_for_flavor(flavor_name: str) -> LLMAdapter:
         return PassthroughAdapter()
     elif flavor_name in ["azure_openai_chat", "openai_chat"]:
         return OpenAIAdapter()
+    elif flavor_name == "openai_responses":
+        return OpenAIResponsesAdapter()
     elif flavor_name == "anthropic_chat":
         return AnthropicAdapter()
     elif flavor_name == "llama_3_chat":

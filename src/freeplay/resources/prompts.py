@@ -174,10 +174,8 @@ class FormattedPrompt:
     def all_messages(self, new_message: ProviderMessage) -> List[Dict[str, Any]]:
         converted = convert_provider_message_to_dict(new_message)
         # Use adapter-formatted messages when available (proper provider
-        # format, media mapped, system handling per-flavor). Fall back to
-        # raw messages for string-format adapters (e.g. Llama) where
-        # _llm_prompt is None.
-        input_messages: List[Dict[str, Any]] = list(self._llm_prompt or self._messages)
+        # format, media mapped, system handling per-flavor).
+        input_messages: List[Dict[str, Any]] = list(self._messages or [])
         if isinstance(converted, list):
             return input_messages + converted
         return input_messages + [converted]

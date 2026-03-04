@@ -35,6 +35,7 @@ from freeplay.resources.adapters import (
     MissingFlavorError,
     TextContent,
     adaptor_for_flavor,
+    prepare_messages,
 )
 from freeplay.support import (
     CallSupport,
@@ -277,22 +278,8 @@ class BoundPrompt:
     def format(self, flavor_name: Optional[str] = None) -> FormattedPrompt:
         final_flavor = flavor_name or self.prompt_info.flavor_name
 
-        # Coerce developer → system for flavors that don't support the developer role.
-        # openai_responses supports developer natively; all others treat it as system.
-        messages = self.messages
-        if final_flavor != "openai_responses" and any(
-            m.get("role") == "developer" for m in messages
-        ):
-            log_freeplay_client_warning(
-                "developer role is not supported by %s; coercing to system"
-                % final_flavor
-            )
-            messages = [
-                {**m, "role": "system"} if m.get("role") == "developer" else m
-                for m in messages
-            ]
-
         adapter = adaptor_for_flavor(final_flavor)
+        messages = prepare_messages(final_flavor, adapter.role_support, self.messages)
         formatted_prompt = adapter.to_llm_syntax(messages)
         formatted_tool_schema = (
             BoundPrompt.__format_tool_schema(final_flavor, self.tool_schema)

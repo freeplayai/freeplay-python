@@ -2,7 +2,7 @@
   "generalDiagnostics": [
     {
       "file": "src/freeplay/resources/adapters.py",
-      "line": 92,
+      "line": 87,
       "character": 9,
       "message": "Function with declared return type \"str | List[Dict[str, Any]]\" must return value on all code paths\n\u00a0\u00a0Type \"None\" is not assignable to type \"str | List[Dict[str, Any]]\"\n\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"str\"\n\u00a0\u00a0\u00a0\u00a0\"None\" is not assignable to \"List[Dict[str, Any]]\"",
       "rule": "reportReturnType",
@@ -10,7 +10,7 @@
     },
     {
       "file": "src/freeplay/resources/adapters.py",
-      "line": 118,
+      "line": 113,
       "character": 16,
       "message": "Type of \"append\" is partially unknown\n\u00a0\u00a0Type of \"append\" is \"(object: Unknown, /) -> None\"",
       "rule": "reportUnknownMemberType",
@@ -18,7 +18,7 @@
     },
     {
       "file": "src/freeplay/resources/adapters.py",
-      "line": 128,
+      "line": 123,
       "character": 16,
       "message": "Type of \"append\" is partially unknown\n\u00a0\u00a0Type of \"append\" is \"(object: Unknown, /) -> None\"",
       "rule": "reportUnknownMemberType",
@@ -26,7 +26,7 @@
     },
     {
       "file": "src/freeplay/resources/adapters.py",
-      "line": 130,
+      "line": 125,
       "character": 15,
       "message": "Return type, \"list[Unknown]\", is partially unknown",
       "rule": "reportUnknownVariableType",
@@ -34,7 +34,7 @@
     },
     {
       "file": "src/freeplay/resources/adapters.py",
-      "line": 151,
+      "line": 146,
       "character": 13,
       "message": "Unnecessary isinstance call; \"MediaContentUrl\" is always an instance of \"MediaContentUrl\"",
       "rule": "reportUnnecessaryIsInstance",
@@ -42,7 +42,7 @@
     },
     {
       "file": "src/freeplay/resources/adapters.py",
-      "line": 173,
+      "line": 168,
       "character": 16,
       "message": "Type of \"append\" is partially unknown\n\u00a0\u00a0Type of \"append\" is \"(object: Unknown, /) -> None\"",
       "rule": "reportUnknownMemberType",
@@ -50,7 +50,7 @@
     },
     {
       "file": "src/freeplay/resources/adapters.py",
-      "line": 183,
+      "line": 178,
       "character": 16,
       "message": "Type of \"append\" is partially unknown\n\u00a0\u00a0Type of \"append\" is \"(object: Unknown, /) -> None\"",
       "rule": "reportUnknownMemberType",
@@ -58,7 +58,7 @@
     },
     {
       "file": "src/freeplay/resources/adapters.py",
-      "line": 185,
+      "line": 180,
       "character": 15,
       "message": "Return type, \"list[Unknown]\", is partially unknown",
       "rule": "reportUnknownVariableType",
@@ -66,7 +66,7 @@
     },
     {
       "file": "src/freeplay/resources/adapters.py",
-      "line": 195,
+      "line": 190,
       "character": 13,
       "message": "Unnecessary isinstance call; \"MediaContentUrl\" is always an instance of \"MediaContentUrl\"",
       "rule": "reportUnnecessaryIsInstance",

@@ -269,11 +269,8 @@ class BoundPrompt:
         flavor_name: str, output_schema: NormalizedOutputSchema
     ) -> Dict[str, Any]:
         # For OpenAI and Azure OpenAI, the normalized format is compatible with the API format
-        if flavor_name in ["openai_chat", "azure_openai_chat"]:
+        if flavor_name in ["openai_chat", "azure_openai_chat", "openai_responses"]:
             return output_schema
-        elif flavor_name == "openai_responses":
-            inner = output_schema.get("json_schema", {})
-            return {"format": {"type": "json_schema", **inner}}
         # Add other flavors as necessary - currently only OpenAI-compatible models support output schema
         raise UnsupportedOutputSchema()
 

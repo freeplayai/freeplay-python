@@ -13,7 +13,7 @@ fp_client = Freeplay(
 )
 openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-input_variables = {"location": ""}
+input_variables = {"location": "San Francisco"}
 
 project_id = os.environ["FREEPLAY_PROJECT_ID"]
 
@@ -38,7 +38,14 @@ if formatted_prompt.system_content:
 if formatted_prompt.tool_schema:
     response_params["tools"] = formatted_prompt.tool_schema
 if formatted_prompt.formatted_output_schema:
-    response_params["text"] = formatted_prompt.formatted_output_schema
+    response_params["text"] = {
+        "format": {
+            "type": "json_schema",
+            "strict": True,
+            "schema": formatted_prompt.formatted_output_schema,
+            "name": "COTReasoning",
+        }
+    }
 
 start = time.time()
 completion = openai_client.responses.create(

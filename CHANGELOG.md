@@ -2,6 +2,14 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
+## [0.5.10]
+
+### Added
+
+- **`openai_responses` flavor**: New adapter for the OpenAI Responses API.
+- **`developer` role support**: Messages with `role: "developer"` are now supported. Each adapter coerces the role appropriately for its provider — e.g. mapped to `system` for providers that don't support it natively, preserved as-is for OpenAI flavors.
+
+
 ## [0.5.9]
 
 ### Fixed

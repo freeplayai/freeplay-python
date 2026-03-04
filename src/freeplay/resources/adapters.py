@@ -1,8 +1,8 @@
 import copy
 from dataclasses import dataclass
-from typing import Any, Dict, List, Protocol, Union
+from typing import Any, ClassVar, Dict, FrozenSet, List, Protocol, Set, Union
 
-from freeplay.errors import FreeplayConfigurationError
+from freeplay.errors import FreeplayConfigurationError, log_freeplay_client_warning
 from freeplay.support import MediaType
 
 
@@ -34,7 +34,54 @@ class MissingFlavorError(FreeplayConfigurationError):
         )
 
 
+@dataclass
+class RoleSupport:
+    supported: FrozenSet[str]
+    coerce_map: Dict[str, str]
+
+    def __post_init__(self) -> None:
+        for source, target in self.coerce_map.items():
+            if target not in self.supported:
+                raise ValueError(
+                    "coerce_map target '%s' (from '%s') is not in supported roles"
+                    % (target, source)
+                )
+
+
+_DEFAULT_ROLE_SUPPORT = RoleSupport(
+    supported=frozenset({"system", "user", "assistant"}),
+    coerce_map={"developer": "system"},
+)
+
+
+def prepare_messages(
+    flavor_name: str,
+    role_support: RoleSupport,
+    messages: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Coerce or reject message roles based on adapter's RoleSupport declaration."""
+    result: List[Dict[str, Any]] = []
+    coerced_roles: Set[str] = set()
+    for m in messages:
+        role = m.get("role", "")
+        if role in role_support.supported:
+            result.append(m)
+        elif role in role_support.coerce_map:
+            coerced_roles.add(role)
+            result.append({**m, "role": role_support.coerce_map[role]})
+        else:
+            raise ValueError("role '%s' is not supported by %s" % (role, flavor_name))
+    for role in sorted(coerced_roles):
+        log_freeplay_client_warning(
+            "%s role is not supported by %s; coercing to %s"
+            % (role, flavor_name, role_support.coerce_map[role])
+        )
+    return result
+
+
 class LLMAdapter(Protocol):
+    role_support: ClassVar[RoleSupport]
+
     # This method must handle BOTH prompt template messages and provider specific messages.
     def to_llm_syntax(
         self, messages: List[Dict[str, Any]]
@@ -43,6 +90,8 @@ class LLMAdapter(Protocol):
 
 
 class PassthroughAdapter(LLMAdapter):
+    role_support = _DEFAULT_ROLE_SUPPORT
+
     def to_llm_syntax(
         self, messages: List[Dict[str, Any]]
     ) -> Union[str, List[Dict[str, Any]]]:
@@ -51,6 +100,8 @@ class PassthroughAdapter(LLMAdapter):
 
 
 class AnthropicAdapter(LLMAdapter):
+    role_support = _DEFAULT_ROLE_SUPPORT
+
     def to_llm_syntax(
         self, messages: List[Dict[str, Any]]
     ) -> Union[str, List[Dict[str, Any]]]:
@@ -106,6 +157,8 @@ class AnthropicAdapter(LLMAdapter):
 
 
 class OpenAIAdapter(LLMAdapter):
+    role_support = _DEFAULT_ROLE_SUPPORT
+
     def to_llm_syntax(
         self, messages: List[Dict[str, Any]]
     ) -> Union[str, List[Dict[str, Any]]]:
@@ -175,6 +228,8 @@ class OpenAIAdapter(LLMAdapter):
 
 
 class Llama3Adapter(LLMAdapter):
+    role_support = _DEFAULT_ROLE_SUPPORT
+
     def to_llm_syntax(
         self, messages: List[Dict[str, Any]]
     ) -> Union[str, List[Dict[str, Any]]]:
@@ -190,6 +245,11 @@ class Llama3Adapter(LLMAdapter):
 
 
 class GeminiAdapter(LLMAdapter):
+    role_support = RoleSupport(
+        supported=frozenset({"system", "user", "assistant", "model"}),
+        coerce_map={"developer": "system"},
+    )
+
     def to_llm_syntax(
         self, messages: List[Dict[str, Any]]
     ) -> Union[str, List[Dict[str, Any]]]:
@@ -261,7 +321,23 @@ class GeminiAdapter(LLMAdapter):
             raise ValueError(f"Gemini formatting found unexpected role {role}")
 
 
+class OpenAIResponsesAdapter(OpenAIAdapter):
+    role_support = RoleSupport(
+        supported=frozenset({"system", "user", "assistant", "developer"}),
+        coerce_map={},
+    )
+
+    def to_llm_syntax(
+        self, messages: List[Dict[str, Any]]
+    ) -> Union[str, List[Dict[str, Any]]]:
+        formatted = super().to_llm_syntax(messages)
+        assert isinstance(formatted, list)
+        return [{"type": "message", **m} for m in formatted if m["role"] != "system"]
+
+
 class BedrockConverseAdapter(LLMAdapter):
+    role_support = _DEFAULT_ROLE_SUPPORT
+
     def to_llm_syntax(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         converse_messages: List[Dict[str, Any]] = []
         for message in messages:
@@ -339,6 +415,8 @@ def adaptor_for_flavor(flavor_name: str) -> LLMAdapter:
         return PassthroughAdapter()
     elif flavor_name in ["azure_openai_chat", "openai_chat"]:
         return OpenAIAdapter()
+    elif flavor_name == "openai_responses":
+        return OpenAIResponsesAdapter()
     elif flavor_name == "anthropic_chat":
         return AnthropicAdapter()
     elif flavor_name == "llama_3_chat":

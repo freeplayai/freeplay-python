@@ -50,7 +50,7 @@ class ToolSchema:
     parameters: Dict[str, Any]
 
 
-Role = Literal["system", "user", "assistant"]
+Role = Literal["system", "user", "assistant", "developer"]
 
 MediaType = Literal["image", "audio", "video", "file"]
 

@@ -27,7 +27,7 @@ test-ci: type-check lint
 # Example usage: make run-example
 # This will run examples/example.py
 run-%:
-	source .env; uv run python examples/$*.py
+	source .env; REQUESTS_CA_BUNDLE="$$(mkcert -CAROOT)/rootCA.pem" uv run python examples/$*.py
 
 # Start interactive REPL with Freeplay client initialized
 # By default connects to production (app.freeplay.ai)

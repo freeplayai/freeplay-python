@@ -2,7 +2,7 @@ import json
 import logging
 import warnings
 from abc import ABC, abstractmethod
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import (
     Any,
@@ -35,6 +35,7 @@ from freeplay.resources.adapters import (
     MissingFlavorError,
     TextContent,
     adaptor_for_flavor,
+    prepare_messages,
 )
 from freeplay.support import (
     CallSupport,
@@ -172,8 +173,13 @@ class FormattedPrompt:
         return self._formatted_output_schema
 
     def all_messages(self, new_message: ProviderMessage) -> List[Dict[str, Any]]:
-        converted_message = convert_provider_message_to_dict(new_message)
-        return self._messages + [converted_message]
+        converted = convert_provider_message_to_dict(new_message)
+        # Use adapter-formatted messages when available (proper provider
+        # format, media mapped, system handling per-flavor).
+        input_messages: List[Dict[str, Any]] = list(self._messages or [])
+        if isinstance(converted, list):
+            return input_messages + converted
+        return input_messages + [converted]
 
 
 class BoundPrompt:
@@ -236,6 +242,16 @@ class BoundPrompt:
                 return [Tool(function_declarations=function_declarations)]
             except ImportError:
                 raise VertexAIToolSchemaError()
+        elif flavor_name == "openai_responses":
+            return [
+                {
+                    "type": "function",
+                    "name": t.name,
+                    "description": t.description,
+                    "parameters": t.parameters,
+                }
+                for t in tool_schema
+            ]
         elif flavor_name == "gemini_api_chat":
             function_declarations = [
                 {
@@ -254,15 +270,17 @@ class BoundPrompt:
         flavor_name: str, output_schema: NormalizedOutputSchema
     ) -> Dict[str, Any]:
         # For OpenAI and Azure OpenAI, the normalized format is compatible with the API format
-        if flavor_name in ["openai_chat", "azure_openai_chat"]:
+        if flavor_name in ["openai_chat", "azure_openai_chat", "openai_responses"]:
             return output_schema
         # Add other flavors as necessary - currently only OpenAI-compatible models support output schema
         raise UnsupportedOutputSchema()
 
     def format(self, flavor_name: Optional[str] = None) -> FormattedPrompt:
         final_flavor = flavor_name or self.prompt_info.flavor_name
+
         adapter = adaptor_for_flavor(final_flavor)
-        formatted_prompt = adapter.to_llm_syntax(self.messages)
+        messages = prepare_messages(final_flavor, adapter.role_support, self.messages)
+        formatted_prompt = adapter.to_llm_syntax(messages)
         formatted_tool_schema = (
             BoundPrompt.__format_tool_schema(final_flavor, self.tool_schema)
             if self.tool_schema
@@ -274,18 +292,24 @@ class BoundPrompt:
             else None
         )
 
+        effective_prompt_info = (
+            replace(self.prompt_info, flavor_name=final_flavor)
+            if final_flavor != self.prompt_info.flavor_name
+            else self.prompt_info
+        )
+
         if isinstance(formatted_prompt, str):
             return FormattedPrompt(
-                prompt_info=self.prompt_info,
-                messages=self.messages,
+                prompt_info=effective_prompt_info,
+                messages=messages,
                 formatted_prompt_text=formatted_prompt,
                 tool_schema=formatted_tool_schema,
                 formatted_output_schema=formatted_output_schema,
             )
         else:
             return FormattedPrompt(
-                prompt_info=self.prompt_info,
-                messages=self.messages,
+                prompt_info=effective_prompt_info,
+                messages=messages,
                 formatted_prompt=formatted_prompt,
                 tool_schema=formatted_tool_schema,
                 formatted_output_schema=formatted_output_schema,
@@ -422,6 +446,7 @@ class FilesystemTemplateResolver(TemplateResolver):
         "system": "system",
         "user": "user",
         "assistant": "assistant",
+        "developer": "developer",
         "Assistant": "assistant",
         "Human": "user",  # Don't think we ever store this, but in case...
     }
@@ -609,6 +634,7 @@ class FilesystemTemplateResolver(TemplateResolver):
             "azure_openai_chat": "azure",
             "anthropic_chat": "anthropic",
             "openai_chat": "openai",
+            "openai_responses": "openai",
             "gemini_chat": "vertex",
             "gemini_api_chat": "gemini",
         }

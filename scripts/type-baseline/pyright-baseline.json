@@ -42,7 +42,7 @@
     },
     {
       "file": "src/freeplay/resources/adapters.py",
-      "line": 168,
+      "line": 174,
       "character": 16,
       "message": "Type of \"append\" is partially unknown\n\u00a0\u00a0Type of \"append\" is \"(object: Unknown, /) -> None\"",
       "rule": "reportUnknownMemberType",
@@ -50,7 +50,7 @@
     },
     {
       "file": "src/freeplay/resources/adapters.py",
-      "line": 178,
+      "line": 184,
       "character": 16,
       "message": "Type of \"append\" is partially unknown\n\u00a0\u00a0Type of \"append\" is \"(object: Unknown, /) -> None\"",
       "rule": "reportUnknownMemberType",
@@ -58,7 +58,7 @@
     },
     {
       "file": "src/freeplay/resources/adapters.py",
-      "line": 180,
+      "line": 186,
       "character": 15,
       "message": "Return type, \"list[Unknown]\", is partially unknown",
       "rule": "reportUnknownVariableType",
@@ -66,7 +66,7 @@
     },
     {
       "file": "src/freeplay/resources/adapters.py",
-      "line": 190,
+      "line": 196,
       "character": 13,
       "message": "Unnecessary isinstance call; \"MediaContentUrl\" is always an instance of \"MediaContentUrl\"",
       "rule": "reportUnnecessaryIsInstance",

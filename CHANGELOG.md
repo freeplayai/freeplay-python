@@ -2,6 +2,12 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
+## [0.5.11]
+
+### Fixed
+
+- **`tool` role support for OpenAI adapters**: `OpenAIAdapter` and `OpenAIResponsesAdapter` now accept `tool` role messages in history. Previously, tool-use conversation history would crash with `ValueError: role 'tool' is not supported`.
+
 ## [0.5.10]
 
 ### Added

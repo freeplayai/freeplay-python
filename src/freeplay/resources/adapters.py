@@ -156,8 +156,14 @@ class AnthropicAdapter(LLMAdapter):
             raise ValueError(f"Unexpected content type {type(content)}")
 
 
+_OPENAI_ROLE_SUPPORT = RoleSupport(
+    supported=frozenset({"system", "user", "assistant", "tool"}),
+    coerce_map={"developer": "system"},
+)
+
+
 class OpenAIAdapter(LLMAdapter):
-    role_support = _DEFAULT_ROLE_SUPPORT
+    role_support = _OPENAI_ROLE_SUPPORT
 
     def to_llm_syntax(
         self, messages: List[Dict[str, Any]]
@@ -323,7 +329,7 @@ class GeminiAdapter(LLMAdapter):
 
 class OpenAIResponsesAdapter(OpenAIAdapter):
     role_support = RoleSupport(
-        supported=frozenset({"system", "user", "assistant", "developer"}),
+        supported=frozenset({"system", "user", "assistant", "developer", "tool"}),
         coerce_map={},
     )
 

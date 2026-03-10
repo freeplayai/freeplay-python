@@ -336,9 +336,64 @@ class OpenAIResponsesAdapter(OpenAIAdapter):
     def to_llm_syntax(
         self, messages: List[Dict[str, Any]]
     ) -> Union[str, List[Dict[str, Any]]]:
-        formatted = super().to_llm_syntax(messages)
-        assert isinstance(formatted, list)
-        return [{"type": "message", **m} for m in formatted if m["role"] != "system"]
+        result: List[Dict[str, Any]] = []
+        for message in messages:
+            if message["role"] == "system":
+                continue
+            if "has_media" in message and message["has_media"]:
+                result.append(
+                    {
+                        "type": "message",
+                        "role": message["role"],
+                        "content": [
+                            OpenAIResponsesAdapter._map_responses_content(content)
+                            for content in message["content"]
+                        ],
+                    }
+                )
+            else:
+                msg = copy.deepcopy(message)
+                content = msg.get("content")
+                # Pass through assistant string content or already-formatted
+                # Responses API content blocks (dicts from history) as-is.
+                if isinstance(content, list) and all(
+                    isinstance(item, dict) for item in content
+                ):
+                    result.append({"type": "message", **msg})
+                else:
+                    result.append({"type": "message", **msg})
+        return result
+
+    @staticmethod
+    def _map_responses_content(
+        content: Union[TextContent, MediaContentBase64, MediaContentUrl],
+    ) -> Dict[str, Any]:
+        if isinstance(content, TextContent):
+            return {"type": "input_text", "text": content.text}
+        if isinstance(content, dict):
+            return content
+        if content.type == "audio":
+            raise ValueError(
+                "Audio content is not yet supported by the Responses API"
+            )
+        if isinstance(content, MediaContentUrl):
+            if content.type != "image":
+                raise ValueError(
+                    "Message contains a non-image URL, but the Responses API only supports image URLs."
+                )
+            return {"type": "input_image", "image_url": content.url}
+        if isinstance(content, MediaContentBase64):
+            if content.type == "file":
+                return {
+                    "type": "input_file",
+                    "filename": f"{content.slot_name}.{content.content_type.split('/')[-1]}",
+                    "file_data": f"data:{content.content_type};base64,{content.data}",
+                }
+            return {
+                "type": "input_image",
+                "image_url": f"data:{content.content_type};base64,{content.data}",
+            }
+        raise ValueError(f"Unexpected content type {type(content)}")
 
 
 class BedrockConverseAdapter(LLMAdapter):

@@ -577,14 +577,51 @@ class TestAdapters(unittest.TestCase):
                     "type": "message",
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": "Take a look at these images!"},
+                        {"type": "input_text", "text": "Take a look at these images!"},
                         {
-                            "type": "image_url",
-                            "image_url": {"url": "https://localhost/image.png"},
+                            "type": "input_image",
+                            "image_url": "https://localhost/image.png",
                         },
                         {
-                            "type": "image_url",
-                            "image_url": {"url": "data:image/png;base64,some-data"},
+                            "type": "input_image",
+                            "image_url": "data:image/png;base64,some-data",
+                        },
+                    ],
+                },
+            ],
+        )
+
+    def test_openai_responses_file_media(self) -> None:
+        messages: List[Dict[str, Any]] = [
+            {
+                "role": "user",
+                "has_media": True,
+                "content": [
+                    TextContent("Check this file"),
+                    MediaContentBase64(
+                        type="file",
+                        content_type="application/pdf",
+                        data="pdf-data",
+                        slot_name="report",
+                    ),
+                ],
+            },
+        ]
+
+        formatted = OpenAIResponsesAdapter().to_llm_syntax(messages)
+
+        self.assertEqual(
+            formatted,
+            [
+                {
+                    "type": "message",
+                    "role": "user",
+                    "content": [
+                        {"type": "input_text", "text": "Check this file"},
+                        {
+                            "type": "input_file",
+                            "filename": "report.pdf",
+                            "file_data": "data:application/pdf;base64,pdf-data",
                         },
                     ],
                 },

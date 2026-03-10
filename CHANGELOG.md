@@ -6,6 +6,7 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
 ### Fixed
 
+- **`openai_responses` adapter**: Content blocks now use Responses API native types (`input_text`, `input_image`, `input_file`) instead of Chat Completions types (`text`, `image_url`, `file`) which OpenAI rejects.
 - **`tool` role support for OpenAI adapters**: `OpenAIAdapter` and `OpenAIResponsesAdapter` now accept `tool` role messages in history. Previously, tool-use conversation history would crash with `ValueError: role 'tool' is not supported`.
 
 ## [0.5.10]

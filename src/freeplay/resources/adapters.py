@@ -353,15 +353,7 @@ class OpenAIResponsesAdapter(OpenAIAdapter):
                 )
             else:
                 msg = copy.deepcopy(message)
-                content = msg.get("content")
-                # Pass through assistant string content or already-formatted
-                # Responses API content blocks (dicts from history) as-is.
-                if isinstance(content, list) and all(
-                    isinstance(item, dict) for item in content
-                ):
-                    result.append({"type": "message", **msg})
-                else:
-                    result.append({"type": "message", **msg})
+                result.append({"type": "message", **msg})
         return result
 
     @staticmethod
@@ -382,16 +374,16 @@ class OpenAIResponsesAdapter(OpenAIAdapter):
                     "Message contains a non-image URL, but the Responses API only supports image URLs."
                 )
             return {"type": "input_image", "image_url": content.url}
-        if isinstance(content, MediaContentBase64):
-            if content.type == "file":
-                return {
-                    "type": "input_file",
-                    "filename": f"{content.slot_name}.{content.content_type.split('/')[-1]}",
-                    "file_data": f"data:{content.content_type};base64,{content.data}",
-                }
+        # Must be MediaContentBase64 at this point
+        if content.type == "file":
             return {
-                "type": "input_image",
-                "image_url": f"data:{content.content_type};base64,{content.data}",
+                "type": "input_file",
+                "filename": f"{content.slot_name}.{content.content_type.split('/')[-1]}",
+                "file_data": f"data:{content.content_type};base64,{content.data}",
+            }
+        return {
+            "type": "input_image",
+            "image_url": f"data:{content.content_type};base64,{content.data}",
             }
         raise ValueError(f"Unexpected content type {type(content)}")
 

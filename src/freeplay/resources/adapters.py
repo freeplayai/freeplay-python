@@ -358,12 +358,12 @@ class OpenAIResponsesAdapter(OpenAIAdapter):
 
     @staticmethod
     def _map_responses_content(
-        content: Union[TextContent, MediaContentBase64, MediaContentUrl],
+        content: Union[TextContent, MediaContentBase64, MediaContentUrl, Dict[str, Any]],
     ) -> Dict[str, Any]:
-        if isinstance(content, TextContent):
-            return {"type": "input_text", "text": content.text}
         if isinstance(content, dict):
             return content
+        if isinstance(content, TextContent):
+            return {"type": "input_text", "text": content.text}
         if content.type == "audio":
             raise ValueError(
                 "Audio content is not yet supported by the Responses API"
@@ -384,8 +384,7 @@ class OpenAIResponsesAdapter(OpenAIAdapter):
         return {
             "type": "input_image",
             "image_url": f"data:{content.content_type};base64,{content.data}",
-            }
-        raise ValueError(f"Unexpected content type {type(content)}")
+        }
 
 
 class BedrockConverseAdapter(LLMAdapter):

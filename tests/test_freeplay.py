@@ -2101,6 +2101,7 @@ class TestFreeplay(TestCase):
         self.assertIsNotNone(test_run_results.summary_statistics)
         self.assertIsNotNone(test_run_results.summary_statistics.auto_evaluation)
         self.assertIsNotNone(test_run_results.summary_statistics.human_evaluation)
+        self.assertEqual("complete", test_run_results.status)
 
     @responses.activate
     def test_auth_error(self) -> None:
@@ -2836,6 +2837,7 @@ class TestFreeplay(TestCase):
                         "Faithfulness": {"no": 1, "yes": 7},
                     },
                 },
+                "status": "complete",
             }
         )
         responses.get(

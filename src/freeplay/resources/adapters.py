@@ -358,16 +358,16 @@ class OpenAIResponsesAdapter(OpenAIAdapter):
 
     @staticmethod
     def _map_responses_content(
-        content: Union[TextContent, MediaContentBase64, MediaContentUrl, Dict[str, Any]],
+        content: Union[
+            TextContent, MediaContentBase64, MediaContentUrl, Dict[str, Any]
+        ],
     ) -> Dict[str, Any]:
         if isinstance(content, dict):
             return content
         if isinstance(content, TextContent):
             return {"type": "input_text", "text": content.text}
         if content.type == "audio":
-            raise ValueError(
-                "Audio content is not yet supported by the Responses API"
-            )
+            raise ValueError("Audio content is not yet supported by the Responses API")
         if isinstance(content, MediaContentUrl):
             if content.type != "image":
                 raise ValueError(

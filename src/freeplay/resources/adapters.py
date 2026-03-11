@@ -358,12 +358,8 @@ class OpenAIResponsesAdapter(OpenAIAdapter):
 
     @staticmethod
     def _map_responses_content(
-        content: Union[
-            TextContent, MediaContentBase64, MediaContentUrl, Dict[str, Any]
-        ],
+        content: Union[TextContent, MediaContentBase64, MediaContentUrl],
     ) -> Dict[str, Any]:
-        if isinstance(content, dict):
-            return content
         if isinstance(content, TextContent):
             return {"type": "input_text", "text": content.text}
         if content.type == "audio":

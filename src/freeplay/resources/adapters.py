@@ -327,7 +327,7 @@ class GeminiAdapter(LLMAdapter):
             raise ValueError(f"Gemini formatting found unexpected role {role}")
 
 
-class OpenAIResponsesAdapter(OpenAIAdapter):
+class OpenAIResponsesAdapter(LLMAdapter):
     role_support = RoleSupport(
         supported=frozenset({"system", "user", "assistant", "developer", "tool"}),
         coerce_map={},

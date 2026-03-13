@@ -281,6 +281,27 @@ class BoundPrompt:
         adapter = adaptor_for_flavor(final_flavor)
         messages = prepare_messages(final_flavor, adapter.role_support, self.messages)
         formatted_prompt = adapter.to_llm_syntax(messages)
+
+        # Kind of a hack: _messages stores raw template messages for recording, but
+        # media messages contain dataclass instances (TextContent, MediaContentBase64,
+        # etc.) and a has_media flag that are internal to the SDK.  These aren't
+        # JSON-serializable and don't match any backend provider schema.
+        # Ideally bind() wouldn't produce dataclass content at all — media
+        # content should be built in provider format from the start.  For now,
+        # we re-run each media message through the adapter individually to get
+        # provider-formatted content while preserving messages the adapter
+        # would otherwise drop (e.g. system for Responses API).
+        recording_messages: List[Dict[str, Any]] = []
+        for msg in messages:
+            if msg.get("has_media"):
+                converted = adapter.to_llm_syntax([msg])
+                if isinstance(converted, list) and len(converted) == 1:
+                    recording_messages.append(converted[0])
+                else:
+                    recording_messages.append(msg)
+            else:
+                recording_messages.append(msg)
+        messages = recording_messages
         formatted_tool_schema = (
             BoundPrompt.__format_tool_schema(final_flavor, self.tool_schema)
             if self.tool_schema

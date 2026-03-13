@@ -2,6 +2,12 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
+## [0.5.13] - 2026-03-13
+
+### Fixed
+
+- Media content in recorded messages now uses provider-formatted dicts instead of internal dataclass instances, fixing 400 errors when recording prompts with media inputs.
+
 ## [0.5.12] - 2026-03-11
 
 ### Fixed

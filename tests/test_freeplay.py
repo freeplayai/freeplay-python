@@ -47,6 +47,7 @@ from freeplay.resources.test_cases import DatasetTestCase
 from freeplay.support import (
     CallSupport,
     HistoryTemplateMessage,
+    MediaSlot,
     PromptTemplateMetadata,
     TemplateChatMessage,
     TemplateMessage,
@@ -968,6 +969,74 @@ class TestFreeplay(TestCase):
 
         self.assertEqual(4, len(all_messages))
         json.dumps(all_messages)
+
+    def test_all_messages_with_media_is_serializable(self) -> None:
+        """all_messages() with media content must produce JSON-serializable dicts."""
+        prompt_info = PromptInfo(
+            prompt_template_id="tmpl",
+            prompt_template_version_id="v1",
+            template_name="test",
+            environment="latest",
+            flavor_name="openai_responses",
+            model_parameters={},
+            provider_info=None,
+            provider="openai",
+            model="gpt-4o",
+        )
+        template_prompt = TemplatePrompt(
+            prompt_info=prompt_info,
+            messages=[
+                TemplateChatMessage(role="system", content="You are helpful"),
+                TemplateChatMessage(
+                    role="user",
+                    content="Describe this image",
+                    media_slots=[MediaSlot(type="image", placeholder_name="img")],
+                ),
+            ],
+        )
+
+        media_inputs: MediaInputMap = {
+            "img": MediaInputBase64(
+                type="base64",
+                content_type="image/png",
+                data="iVBORw0KGgo=",
+            ),
+        }
+
+        bound = template_prompt.bind({"location": "test"}, media_inputs=media_inputs)
+        formatted = bound.format()
+
+        # Simulate what the Responses API example does
+        completion_output = [
+            {"id": "rs_1", "type": "reasoning", "summary": []},
+            {
+                "id": "msg_1",
+                "type": "message",
+                "role": "assistant",
+                "status": "completed",
+                "content": [
+                    {"type": "output_text", "text": "I see an image.", "annotations": []}
+                ],
+            },
+        ]
+        all_msgs = formatted.all_messages(completion_output)
+
+        # Must be JSON-serializable — this was the original bug
+        serialized = json.dumps(all_msgs)
+        self.assertIsInstance(serialized, str)
+
+        # System message must be preserved (not dropped by adapter)
+        self.assertEqual(all_msgs[0]["role"], "system")
+
+        # Media message content must be plain dicts with type discriminators,
+        # not dataclass instances
+        media_msg = all_msgs[1]
+        self.assertIsInstance(media_msg.get("content"), list)
+        for block in media_msg["content"]:
+            self.assertIsInstance(block, dict)
+            self.assertIn("type", block)
+        # has_media flag must not leak into the output
+        self.assertNotIn("has_media", media_msg)
 
     @responses.activate
     def test_get_template_prompt_with_tool_schema(self) -> None:

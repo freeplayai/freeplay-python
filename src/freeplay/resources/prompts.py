@@ -97,7 +97,9 @@ class MessageDict(TypedDict):
 #  with OpenAI and Anthropic's message format, as well as most other SDKs. If
 #  not using a common provider, use {'content': str, 'role': str} to record. If
 #  using a common provider, this is usually the `.content` field.
-ProviderMessage = Union[MessageDict, Dict[str, Any], List[Dict[str, Any]], ProviderMessageProtocol]
+ProviderMessage = Union[
+    MessageDict, Dict[str, Any], List[Dict[str, Any]], ProviderMessageProtocol
+]
 
 # DEPRECATED: Use ProviderMessage instead
 GenericProviderMessage = ProviderMessage

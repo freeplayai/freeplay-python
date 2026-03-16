@@ -1015,7 +1015,11 @@ class TestFreeplay(TestCase):
                 "role": "assistant",
                 "status": "completed",
                 "content": [
-                    {"type": "output_text", "text": "I see an image.", "annotations": []}
+                    {
+                        "type": "output_text",
+                        "text": "I see an image.",
+                        "annotations": [],
+                    }
                 ],
             },
         ]

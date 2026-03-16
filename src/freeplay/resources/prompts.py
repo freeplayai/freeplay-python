@@ -173,6 +173,12 @@ class FormattedPrompt:
         return self._formatted_output_schema
 
     def all_messages(self, new_message: ProviderMessage) -> List[Dict[str, Any]]:
+        warnings.warn(
+            "all_messages() is deprecated and will be removed in a future version. "
+            "Use formatted_prompt.llm_prompt with the completion output directly when constructing RecordPayload.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         converted = convert_provider_message_to_dict(new_message)
         # Use adapter-formatted messages when available (proper provider
         # format, media mapped, system handling per-flavor).

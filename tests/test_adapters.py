@@ -671,6 +671,270 @@ class TestAdapters(unittest.TestCase):
             ],
         )
 
+    # ------------------------------------------------------------------
+    # Anthropic tool call / tool result handling
+    # ------------------------------------------------------------------
+
+    def test_anthropic_tool_call_sdk_format(self) -> None:
+        """SDK-internal tool_call dicts are converted to Anthropic tool_use."""
+        messages: List[Dict[str, Any]] = [
+            {"role": "user", "content": "What is the weather in NYC?"},
+            {
+                "role": "assistant",
+                "content": [
+                    {"type": "text", "text": "Let me check."},
+                    {
+                        "type": "tool_call",
+                        "id": "call_123",
+                        "name": "get_weather",
+                        "arguments": {"location": "NYC"},
+                    },
+                ],
+            },
+        ]
+
+        formatted = AnthropicAdapter().to_llm_syntax(messages)
+
+        self.assertEqual(len(formatted), 2)
+        self.assertEqual(
+            formatted[1],
+            {
+                "role": "assistant",
+                "content": [
+                    {"type": "text", "text": "Let me check."},
+                    {
+                        "type": "tool_use",
+                        "id": "call_123",
+                        "name": "get_weather",
+                        "input": {"location": "NYC"},
+                    },
+                ],
+            },
+        )
+
+    def test_anthropic_tool_result_sdk_format(self) -> None:
+        """SDK-internal tool_result dicts (with tool_call_id) are converted to Anthropic format (tool_use_id)."""
+        messages: List[Dict[str, Any]] = [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_call_id": "call_123",
+                        "content": "72°F and sunny",
+                    }
+                ],
+            },
+        ]
+
+        formatted = AnthropicAdapter().to_llm_syntax(messages)
+
+        self.assertEqual(len(formatted), 1)
+        self.assertEqual(
+            formatted[0],
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": "call_123",
+                        "content": "72°F and sunny",
+                    }
+                ],
+            },
+        )
+
+    def test_anthropic_tool_result_with_is_error(self) -> None:
+        """SDK-internal tool_result with is_error flag is preserved."""
+        messages: List[Dict[str, Any]] = [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_call_id": "call_123",
+                        "content": "API error: rate limited",
+                        "is_error": True,
+                    }
+                ],
+            },
+        ]
+
+        formatted = AnthropicAdapter().to_llm_syntax(messages)
+
+        self.assertEqual(
+            formatted[0]["content"][0],
+            {
+                "type": "tool_result",
+                "tool_use_id": "call_123",
+                "content": "API error: rate limited",
+                "is_error": True,
+            },
+        )
+
+    def test_anthropic_native_format_passthrough(self) -> None:
+        """Messages already in Anthropic format (tool_use, tool_use_id) pass through."""
+        messages: List[Dict[str, Any]] = [
+            {
+                "role": "assistant",
+                "content": [
+                    {"type": "text", "text": "Checking..."},
+                    {
+                        "type": "tool_use",
+                        "id": "toolu_abc",
+                        "name": "search",
+                        "input": {"query": "python"},
+                    },
+                ],
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": "toolu_abc",
+                        "content": "Found 10 results",
+                    }
+                ],
+            },
+        ]
+
+        formatted = AnthropicAdapter().to_llm_syntax(messages)
+
+        self.assertEqual(len(formatted), 2)
+        self.assertEqual(formatted[0]["content"][1]["type"], "tool_use")
+        self.assertEqual(formatted[0]["content"][1]["id"], "toolu_abc")
+        self.assertEqual(formatted[0]["content"][1]["input"], {"query": "python"})
+        self.assertEqual(formatted[1]["content"][0]["tool_use_id"], "toolu_abc")
+
+    def test_anthropic_tool_call_dataclass_blocks(self) -> None:
+        """ToolCallBlock and ToolResultBlock dataclass instances are converted."""
+        from freeplay.model import ToolCallBlock, ToolResultBlock, TextBlock
+
+        messages: List[Dict[str, Any]] = [
+            {
+                "role": "assistant",
+                "content": [
+                    TextBlock(text="Let me look that up."),
+                    ToolCallBlock(
+                        id="call_789",
+                        name="get_weather",
+                        arguments={"location": "Seattle"},
+                    ),
+                ],
+            },
+            {
+                "role": "user",
+                "content": [
+                    ToolResultBlock(
+                        tool_call_id="call_789",
+                        content="55°F and rainy",
+                    ),
+                ],
+            },
+        ]
+
+        formatted = AnthropicAdapter().to_llm_syntax(messages)
+
+        self.assertEqual(
+            formatted[0]["content"],
+            [
+                {"type": "text", "text": "Let me look that up."},
+                {
+                    "type": "tool_use",
+                    "id": "call_789",
+                    "name": "get_weather",
+                    "input": {"location": "Seattle"},
+                },
+            ],
+        )
+        self.assertEqual(
+            formatted[1]["content"],
+            [
+                {
+                    "type": "tool_result",
+                    "tool_use_id": "call_789",
+                    "content": "55°F and rainy",
+                },
+            ],
+        )
+
+    def test_anthropic_tool_calls_do_not_mutate_original(self) -> None:
+        """Tool call conversion does not mutate the original messages."""
+        original_block = {
+            "type": "tool_call",
+            "id": "call_1",
+            "name": "func",
+            "arguments": {"key": "value"},
+        }
+        messages: List[Dict[str, Any]] = [
+            {"role": "assistant", "content": [original_block]},
+        ]
+
+        formatted = AnthropicAdapter().to_llm_syntax(messages)
+
+        self.assertEqual(original_block["type"], "tool_call")
+        self.assertIn("arguments", original_block)
+        self.assertNotIn("input", original_block)
+        self.assertEqual(formatted[0]["content"][0]["type"], "tool_use")
+
+    def test_anthropic_full_tool_conversation(self) -> None:
+        """End-to-end conversation with tool calls formats correctly."""
+        messages: List[Dict[str, Any]] = [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": "What's the weather in Seattle?"},
+            {
+                "role": "assistant",
+                "content": [
+                    {"type": "text", "text": "I'll check the weather for you."},
+                    {
+                        "type": "tool_call",
+                        "id": "toolu_weather_1",
+                        "name": "get_weather",
+                        "arguments": {"location": "Seattle, WA"},
+                    },
+                ],
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_call_id": "toolu_weather_1",
+                        "content": "55°F, cloudy with a chance of rain",
+                    }
+                ],
+            },
+            {
+                "role": "assistant",
+                "content": "The weather in Seattle is 55°F, cloudy with a chance of rain.",
+            },
+        ]
+
+        formatted = AnthropicAdapter().to_llm_syntax(messages)
+
+        # System message stripped
+        self.assertEqual(len(formatted), 4)
+
+        # User text message
+        self.assertEqual(formatted[0]["content"], "What's the weather in Seattle?")
+
+        # Assistant with tool_use
+        self.assertEqual(formatted[1]["content"][0]["type"], "text")
+        self.assertEqual(formatted[1]["content"][1]["type"], "tool_use")
+        self.assertEqual(formatted[1]["content"][1]["input"], {"location": "Seattle, WA"})
+
+        # User with tool_result
+        self.assertEqual(formatted[2]["content"][0]["type"], "tool_result")
+        self.assertEqual(formatted[2]["content"][0]["tool_use_id"], "toolu_weather_1")
+        self.assertNotIn("tool_call_id", formatted[2]["content"][0])
+
+        # Final assistant text
+        self.assertEqual(
+            formatted[3]["content"],
+            "The weather in Seattle is 55°F, cloudy with a chance of rain.",
+        )
+
     def test_adaptor_for_unknown_flavor_raises(self) -> None:
         with self.assertRaises(MissingFlavorError):
             adaptor_for_flavor("nonexistent_flavor")

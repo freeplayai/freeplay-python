@@ -120,10 +120,72 @@ class AnthropicAdapter(LLMAdapter):
                         ],
                     }
                 )
+            elif isinstance(message.get("content"), list):
+                anthropic_messages.append(
+                    {
+                        "role": message["role"],
+                        "content": [
+                            self.__map_content_block(block)
+                            for block in message["content"]
+                        ],
+                    }
+                )
             else:
                 anthropic_messages.append(copy.deepcopy(message))
 
         return anthropic_messages
+
+    @staticmethod
+    def __map_content_block(block: Any) -> Dict[str, Any]:
+        """Convert a content block to Anthropic API format.
+
+        Handles SDK-internal dataclass instances (ToolCallBlock, ToolResultBlock,
+        TextBlock) and dict blocks in either SDK-internal format (tool_call /
+        tool_result with tool_call_id) or native Anthropic format (tool_use /
+        tool_result with tool_use_id).
+        """
+        from freeplay.model import TextBlock, ToolCallBlock, ToolResultBlock
+
+        if isinstance(block, ToolCallBlock):
+            return {
+                "type": "tool_use",
+                "id": block.id,
+                "name": block.name,
+                "input": block.arguments,
+            }
+        if isinstance(block, ToolResultBlock):
+            return {
+                "type": "tool_result",
+                "tool_use_id": block.tool_call_id,
+                "content": block.content,
+            }
+        if isinstance(block, TextBlock):
+            return {"type": "text", "text": block.text}
+
+        if not isinstance(block, dict):
+            return copy.deepcopy(block)
+
+        block_type = block.get("type")
+
+        if block_type == "tool_call":
+            return {
+                "type": "tool_use",
+                "id": block["id"],
+                "name": block["name"],
+                "input": block.get("arguments", block.get("input", {})),
+            }
+
+        if block_type == "tool_result" and "tool_call_id" in block:
+            result: Dict[str, Any] = {
+                "type": "tool_result",
+                "tool_use_id": block["tool_call_id"],
+                "content": block.get("content", ""),
+            }
+            if "is_error" in block:
+                result["is_error"] = block["is_error"]
+            return result
+
+        return copy.deepcopy(block)
 
     @staticmethod
     def __map_content(

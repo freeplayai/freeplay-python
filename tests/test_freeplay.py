@@ -978,7 +978,7 @@ class TestFreeplay(TestCase):
             template_name="test",
             environment="latest",
             flavor_name="openai_responses",
-            model_parameters={},
+            model_parameters=LLMParameters({}),
             provider_info=None,
             provider="openai",
             model="gpt-4o",

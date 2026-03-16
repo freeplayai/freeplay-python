@@ -1007,7 +1007,7 @@ class TestFreeplay(TestCase):
         formatted = bound.format()
 
         # Simulate what the Responses API example does
-        completion_output = [
+        completion_output: List[Dict[str, Any]] = [
             {"id": "rs_1", "type": "reasoning", "summary": []},
             {
                 "id": "msg_1",

@@ -242,6 +242,7 @@ class TestRunRetrievalResponse:
         description: str,
         test_run_id: str,
         summary_statistics: Dict[str, Any],
+        status: Optional[str] = None,
     ):
         self.name = name
         self.description = description
@@ -250,6 +251,7 @@ class TestRunRetrievalResponse:
             auto_evaluation=summary_statistics["auto_evaluation"],
             human_evaluation=summary_statistics["human_evaluation"],
         )
+        self.status = status
 
 
 class DatasetTestCaseRequest:
@@ -557,6 +559,7 @@ class CallSupport:
             description=json_dom["description"],
             test_run_id=json_dom["id"],
             summary_statistics=json_dom["summary_statistics"],
+            status=json_dom.get("status"),
         )
 
     def record_trace(

@@ -101,11 +101,13 @@ class TestRunResults:
         description: str,
         test_run_id: str,
         summary_statistics: SummaryStatistics,
+        status: Optional[str] = None,
     ):
         self.name = name
         self.description = description
         self.test_run_id = test_run_id
         self.summary_statistics = summary_statistics
+        self.status = status
 
 
 class TestRuns:
@@ -163,4 +165,5 @@ class TestRuns:
             test_run_results.description,
             test_run_results.test_run_id,
             test_run_results.summary_statistics,
+            test_run_results.status,
         )

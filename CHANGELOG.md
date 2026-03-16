@@ -2,6 +2,12 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
+## [0.5.13] - 2026-03-10
+
+### Added
+
+- **Test run status**: `TestRunResults` now includes a `status` field (`"complete"`, `"in-progress"`, `"failed"`, or `None`) from the Get Test Run Results API.
+
 ## [0.5.12] - 2026-03-11
 
 ### Fixed

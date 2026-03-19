@@ -502,6 +502,31 @@ class CallSupport:
                 response,
             )
 
+    def update_trace(
+        self,
+        project_id: str,
+        session_id: str,
+        trace_id: str,
+        output: Optional[JSONValue] = None,
+        eval_results: Optional[Dict[str, Union[bool, float]]] = None,
+    ) -> None:
+        payload: Dict[str, Any] = {}
+        if output is not None:
+            payload["output"] = output
+        if eval_results is not None:
+            payload["eval_results"] = eval_results
+
+        response = api_support.patch_raw(
+            self.freeplay_api_key,
+            f"{self.api_base}/v2/projects/{project_id}/sessions/{session_id}/traces/id/{trace_id}",
+            payload,
+        )
+        if response.status_code != 200:
+            raise freeplay_response_error(
+                f"Error updating trace {trace_id} in project {project_id}",
+                response,
+            )
+
     def create_test_run(
         self,
         project_id: str,

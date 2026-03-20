@@ -508,13 +508,25 @@ class CallSupport:
         session_id: str,
         trace_id: str,
         output: Optional[JSONValue] = None,
+        metadata: Optional[CustomMetadata] = None,
+        feedback: Optional[Dict[str, Union[str, int, float, bool]]] = None,
         eval_results: Optional[Dict[str, Union[bool, float]]] = None,
+        test_run_info: Optional["TestRunInfo"] = None,
     ) -> None:
         payload: Dict[str, Any] = {}
         if output is not None:
             payload["output"] = output
+        if metadata is not None:
+            payload["metadata"] = metadata
+        if feedback is not None:
+            payload["feedback"] = feedback
         if eval_results is not None:
             payload["eval_results"] = eval_results
+        if test_run_info is not None:
+            payload["test_run_info"] = {
+                "test_run_id": test_run_info.test_run_id,
+                "test_case_id": test_run_info.test_case_id,
+            }
 
         response = api_support.patch_raw(
             self.freeplay_api_key,

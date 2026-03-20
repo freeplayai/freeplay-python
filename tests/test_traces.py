@@ -5,6 +5,7 @@ from uuid import uuid4
 import responses
 
 from freeplay.errors import FreeplayClientError, FreeplayServerError
+from freeplay.model import TestRunInfo
 from freeplay.resources.traces import TraceUpdatePayload
 from tests.test_base import FreeplayTestBase
 
@@ -72,6 +73,99 @@ class TestTraces(FreeplayTestBase):
         self.assertEqual(body["output"], "new output text")
         self.assertEqual(body["eval_results"], {"score": 0.8})
 
+    @responses.activate
+    def test_update_trace_with_metadata(self) -> None:
+        self._mock_trace_update_endpoint(status=200)
+
+        self.client.traces.update(
+            TraceUpdatePayload(
+                project_id=self.project_id,
+                session_id=self.session_id,
+                trace_id=self.trace_id,
+                metadata={"env": "production", "version": 2},
+            )
+        )
+
+        self._assert_patch_method_used()
+        body = self._get_request_body()
+        self.assertEqual(body["metadata"], {"env": "production", "version": 2})
+        self.assertNotIn("output", body)
+        self.assertNotIn("eval_results", body)
+
+    @responses.activate
+    def test_update_trace_with_feedback(self) -> None:
+        self._mock_trace_update_endpoint(status=200)
+
+        self.client.traces.update(
+            TraceUpdatePayload(
+                project_id=self.project_id,
+                session_id=self.session_id,
+                trace_id=self.trace_id,
+                feedback={"freeplay_feedback": "positive", "custom_score": 0.9},
+            )
+        )
+
+        self._assert_patch_method_used()
+        body = self._get_request_body()
+        self.assertEqual(
+            body["feedback"],
+            {"freeplay_feedback": "positive", "custom_score": 0.9},
+        )
+        self.assertNotIn("output", body)
+
+    @responses.activate
+    def test_update_trace_with_test_run_info(self) -> None:
+        self._mock_trace_update_endpoint(status=200)
+        run_id = str(uuid4())
+        case_id = str(uuid4())
+
+        self.client.traces.update(
+            TraceUpdatePayload(
+                project_id=self.project_id,
+                session_id=self.session_id,
+                trace_id=self.trace_id,
+                test_run_info=TestRunInfo(test_run_id=run_id, test_case_id=case_id),
+            )
+        )
+
+        self._assert_patch_method_used()
+        body = self._get_request_body()
+        self.assertEqual(
+            body["test_run_info"],
+            {"test_run_id": run_id, "test_case_id": case_id},
+        )
+        self.assertNotIn("output", body)
+
+    @responses.activate
+    def test_update_trace_with_all_fields(self) -> None:
+        self._mock_trace_update_endpoint(status=200)
+        run_id = str(uuid4())
+        case_id = str(uuid4())
+
+        self.client.traces.update(
+            TraceUpdatePayload(
+                project_id=self.project_id,
+                session_id=self.session_id,
+                trace_id=self.trace_id,
+                output="updated",
+                metadata={"key": "value"},
+                feedback={"freeplay_feedback": "negative"},
+                eval_results={"accuracy": 0.99},
+                test_run_info=TestRunInfo(test_run_id=run_id, test_case_id=case_id),
+            )
+        )
+
+        self._assert_patch_method_used()
+        body = self._get_request_body()
+        self.assertEqual(body["output"], "updated")
+        self.assertEqual(body["metadata"], {"key": "value"})
+        self.assertEqual(body["feedback"], {"freeplay_feedback": "negative"})
+        self.assertEqual(body["eval_results"], {"accuracy": 0.99})
+        self.assertEqual(
+            body["test_run_info"],
+            {"test_run_id": run_id, "test_case_id": case_id},
+        )
+
     # ========== URL Construction ==========
 
     @responses.activate
@@ -98,7 +192,8 @@ class TestTraces(FreeplayTestBase):
 
     def test_update_trace_requires_at_least_one_field(self) -> None:
         with self.assertRaisesRegex(
-            FreeplayClientError, r"At least one of 'output' or 'eval_results'"
+            FreeplayClientError,
+            r"At least one of 'output', 'metadata', 'feedback', 'eval_results', or 'test_run_info'",
         ):
             self.client.traces.update(
                 TraceUpdatePayload(

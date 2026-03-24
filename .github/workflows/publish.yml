@@ -25,7 +25,7 @@ concurrency:
 
 jobs:
   publish:
-    if: github.ref == 'refs/heads/main'
+    if: github.event.inputs.use_testpypi == 'true' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.use_testpypi == 'true' && 'testpypi' || 'pypi' }}
     permissions:

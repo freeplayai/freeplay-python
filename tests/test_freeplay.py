@@ -1429,20 +1429,22 @@ class TestFreeplay(TestCase):
     def test_prompt_format__history_without_placeholder(self) -> None:
         messages: List[TemplateMessage] = [
             TemplateChatMessage(role="system", content="System message"),
-            TemplateChatMessage(role="user", content="User message {{number}}"),
+            TemplateChatMessage(role="user", content="Current question"),
         ]
         template_prompt = TemplatePrompt(self.openai_api_prompt_info, messages)
-        bound = template_prompt.bind(
-            {"number": 1}, history=[{"role": "user", "content": "User message 1"}]
-        )
-        formatted = bound.format()
+        history = [
+            {"role": "user", "content": "Previous question"},
+            {"role": "assistant", "content": "Previous answer"},
+        ]
+        bound = template_prompt.bind({"number": 1}, history=history)
         self.assertEqual(
             [
                 {"role": "system", "content": "System message"},
-                {"role": "user", "content": "User message 1"},
-                {"role": "user", "content": "User message 1"},
+                {"role": "user", "content": "Current question"},
+                {"role": "user", "content": "Previous question"},
+                {"role": "assistant", "content": "Previous answer"},
             ],
-            formatted.llm_prompt,
+            bound.messages,
         )
 
     def test_prompt_format__no_history_no_placeholder(self) -> None:

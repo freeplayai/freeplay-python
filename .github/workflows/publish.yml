@@ -2,20 +2,6 @@ name: Publish to PyPI
 
 on:
   workflow_dispatch:
-    inputs:
-      release_type:
-        description: 'Release type'
-        required: false
-        default: 'prerelease'
-        type: choice
-        options:
-          - prerelease
-          - stable
-      use_testpypi:
-        description: 'Use TestPyPI for testing'
-        required: false
-        default: false
-        type: boolean
 
 permissions: {}
 
@@ -25,100 +11,65 @@ concurrency:
 
 jobs:
   publish:
-    if: github.event.inputs.use_testpypi == 'true' || github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.use_testpypi == 'true' && 'testpypi' || 'pypi' }}
+    environment: pypi
     permissions:
       contents: write
       id-token: write
       attestations: write
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           persist-credentials: false
-        
+
       - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.8'
-          
+
       - name: Install uv
         uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4
         with:
           version: "0.11.0"
-          
+
       - name: Install dependencies
         run: uv sync --group dev --locked
-        
+
       - name: Determine release version
         id: release_version
-        run: |
-          release_type="${{ github.event.inputs.release_type }}"
-          if [ -z "$release_type" ]; then
-            release_type="prerelease"
-          fi
-          
-          repository="${{ github.event.inputs.use_testpypi == 'true' && 'testpypi' || 'pypi' }}"
-          uv run python scripts/determine_version.py "$release_type" "$repository"
-        
+        run: uv run python scripts/determine_version.py stable pypi
+
       - name: Confirm final version
         run: |
           final_version="${{ steps.release_version.outputs.version }}"
-          release_type="${{ steps.release_version.outputs.release_type }}"
-          echo "Final version to publish: $final_version ($release_type)"
-        
-      - name: Set repository target
-        id: repo_config
-        run: |
-          if [ "${{ github.event.inputs.use_testpypi }}" = "true" ]; then
-            echo "repository=testpypi" >> $GITHUB_OUTPUT
-            echo "repository_name=TestPyPI" >> $GITHUB_OUTPUT
-            echo "publish_url=https://test.pypi.org/legacy/" >> $GITHUB_OUTPUT
-            echo "view_url=https://test.pypi.org/project/freeplay" >> $GITHUB_OUTPUT
-          else
-            echo "repository=pypi" >> $GITHUB_OUTPUT
-            echo "repository_name=PyPI" >> $GITHUB_OUTPUT
-            echo "publish_url=https://upload.pypi.org/legacy/" >> $GITHUB_OUTPUT
-            echo "view_url=https://pypi.org/project/freeplay" >> $GITHUB_OUTPUT
-          fi
-        
-      - name: Get latest version from repository
+          echo "Final version to publish: $final_version"
+
+      - name: Get latest version from PyPI
         id: pypi_version
         run: |
-          repository="${{ steps.repo_config.outputs.repository }}"
-          pypi_version=$(uv run python scripts/version_utils.py get-pypi-latest "$repository")
+          pypi_version=$(uv run python scripts/version_utils.py get-pypi-latest pypi)
           echo "version=$pypi_version" >> $GITHUB_OUTPUT
-          echo "${{ steps.repo_config.outputs.repository_name }} version: $pypi_version"
-        
+          echo "PyPI version: $pypi_version"
+
       - name: Check if version already exists
-        run: |
-          publish_version="${{ steps.release_version.outputs.version }}"
-          release_type="${{ steps.release_version.outputs.release_type }}"
-          repository="${{ steps.repo_config.outputs.repository }}"
-          
-          if [ "$release_type" = "stable" ]; then
-            echo "Checking stable version availability..."
-            uv run python scripts/check_version.py "$publish_version" "$release_type" "$repository"
-          else
-            echo "✅ Skipping version check for prerelease (auto-bump guarantees uniqueness)"
-            echo "Prerelease version: $publish_version"
-          fi
-        
+        run: uv run python scripts/check_version.py "${{ steps.release_version.outputs.version }}" stable pypi
+
       - name: Set version for later steps
         id: version
         run: echo "version=${{ steps.release_version.outputs.version }}" >> $GITHUB_OUTPUT
-        
+
       - name: Run tests
         run: make test-ci
-        
+
       - name: Clean dist directory
         run: rm -rf dist/*
-        
+
       - name: Build package
         run: uv build
-        
+
       - name: Check build artifacts
         run: |
           echo "Built packages:"
@@ -129,28 +80,20 @@ jobs:
         with:
           subject-path: dist/*
 
-      - name: Publish to TestPyPI
-        if: steps.repo_config.outputs.repository == 'testpypi'
-        env:
-          UV_PUBLISH_URL: https://test.pypi.org/legacy/
+      - name: Publish to PyPI
         run: uv publish
 
-      - name: Publish to PyPI
-        if: steps.repo_config.outputs.repository != 'testpypi'
-        run: uv publish
-        
       - name: Create GitHub Release
-        if: steps.repo_config.outputs.repository == 'pypi'
         uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: Release v${{ steps.version.outputs.version }}
           draft: false
-          prerelease: ${{ steps.release_version.outputs.release_type == 'prerelease' }}
+          prerelease: false
           body: |
             Release v${{ steps.version.outputs.version }}
-            
-            Published to ${{ steps.repo_config.outputs.repository_name }}: ${{ steps.repo_config.outputs.view_url }}/${{ steps.version.outputs.version }}/
+
+            Published to PyPI: https://pypi.org/project/freeplay/${{ steps.version.outputs.version }}/
           files: |
             dist/*.whl
             dist/*.tar.gz

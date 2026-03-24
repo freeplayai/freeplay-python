@@ -2,6 +2,12 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
+## [0.5.14] - 2026-03-24
+
+### Changed
+
+- **History support without explicit placeholder**: `TemplatePrompt.bind()` now accepts `history` even when the prompt template does not contain a history placeholder. The history messages are appended after the template messages.
+
 ## [0.5.13] - 2026-03-16
 
 ### Added

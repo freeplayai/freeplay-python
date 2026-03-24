@@ -390,10 +390,6 @@ class TemplatePrompt:
         has_history_placeholder = any(
             isinstance(message, HistoryTemplateMessage) for message in self.messages
         )
-        if history and not has_history_placeholder:
-            raise FreeplayClientError(
-                "History provided for prompt that does not expect history"
-            )
         if has_history_placeholder and history is None:
             log_freeplay_client_warning(
                 "History missing for prompt that expects history"
@@ -421,6 +417,9 @@ class TemplatePrompt:
                     bound_messages.append(
                         {"role": msg.role, "content": content},
                     )
+
+        if not has_history_placeholder and history_clean:
+            bound_messages.extend(history_clean)
 
         return BoundPrompt(
             self.prompt_info, bound_messages, self.tool_schema, self.output_schema

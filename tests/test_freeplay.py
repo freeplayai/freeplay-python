@@ -1426,21 +1426,42 @@ class TestFreeplay(TestCase):
             ],
         )
 
-    def test_prompt_format__bad_history(self) -> None:
-        # send pass history to prompt that doesn't support it
+    def test_prompt_format__history_without_placeholder(self) -> None:
         messages: List[TemplateMessage] = [
             TemplateChatMessage(role="system", content="System message"),
             TemplateChatMessage(role="user", content="User message {{number}}"),
         ]
         template_prompt = TemplatePrompt(self.openai_api_prompt_info, messages)
-        with self.assertRaisesRegex(
-            FreeplayClientError,
-            "History provided for prompt that does not expect history",
-        ):
-            template_prompt.bind(
-                {"number": 1}, history=[{"role": "user", "content": "User message 1"}]
-            )
+        bound = template_prompt.bind(
+            {"number": 1}, history=[{"role": "user", "content": "User message 1"}]
+        )
+        formatted = bound.format()
+        self.assertEqual(
+            [
+                {"role": "system", "content": "System message"},
+                {"role": "user", "content": "User message 1"},
+                {"role": "user", "content": "User message 1"},
+            ],
+            formatted.llm_prompt,
+        )
 
+    def test_prompt_format__no_history_no_placeholder(self) -> None:
+        messages: List[TemplateMessage] = [
+            TemplateChatMessage(role="system", content="System message"),
+            TemplateChatMessage(role="user", content="User message {{number}}"),
+        ]
+        template_prompt = TemplatePrompt(self.openai_api_prompt_info, messages)
+        bound = template_prompt.bind({"number": 1})
+        formatted = bound.format()
+        self.assertEqual(
+            [
+                {"role": "system", "content": "System message"},
+                {"role": "user", "content": "User message 1"},
+            ],
+            formatted.llm_prompt,
+        )
+
+    def test_prompt_format__bad_history(self) -> None:
         # send no history to prompt that expects it
         messages = [
             TemplateChatMessage(role="system", content="System message"),

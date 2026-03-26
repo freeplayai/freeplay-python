@@ -1,7 +1,7 @@
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from json import JSONEncoder
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 from urllib.parse import quote
 from uuid import UUID
 
@@ -718,3 +718,59 @@ class CallSupport:
                 for jsn in json_dom
             ]
         )
+
+    # --- Test Suites ---
+
+    def create_test_suite_run(
+        self, project_id: str, suite_id: str
+    ) -> Dict[str, Any]:
+        response = api_support.post_raw(
+            api_key=self.freeplay_api_key,
+            url=f"{self.api_base}/v2/projects/{project_id}/test-suites/{suite_id}/runs",
+            payload={},
+        )
+        if response.status_code != 201:
+            raise freeplay_response_error(
+                "Error creating test suite run", response
+            )
+        return response.json()
+
+    def get_test_suite_run_test_cases(
+        self,
+        project_id: str,
+        suite_id: str,
+        run_id: str,
+        page: int,
+        page_size: int,
+    ) -> Tuple[List[Dict[str, Any]], bool]:
+        response = api_support.get_raw(
+            api_key=self.freeplay_api_key,
+            url=(
+                f"{self.api_base}/v2/projects/{project_id}"
+                f"/test-suites/{suite_id}/runs/{run_id}/test-cases"
+            ),
+            params={"page": str(page), "page_size": str(page_size)},
+        )
+        if response.status_code != 200:
+            raise freeplay_response_error(
+                "Error fetching test cases for suite run", response
+            )
+        json_data = response.json()
+        has_next = json_data.get("pagination", {}).get("has_next", False)
+        return json_data.get("data", []), has_next
+
+    def get_test_suite_run_results(
+        self, project_id: str, suite_id: str, run_id: str
+    ) -> Dict[str, Any]:
+        response = api_support.get_raw(
+            api_key=self.freeplay_api_key,
+            url=(
+                f"{self.api_base}/v2/projects/{project_id}"
+                f"/test-suites/{suite_id}/runs/{run_id}/results"
+            ),
+        )
+        if response.status_code != 200:
+            raise freeplay_response_error(
+                "Error fetching suite run results", response
+            )
+        return response.json()

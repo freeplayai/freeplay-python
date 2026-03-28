@@ -6,7 +6,7 @@ Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
 ### Breaking changes
 
-- **Minimum Python version raised to 3.10**: Python 3.8 and 3.9 are no longer supported have been EOL'd by Python Software Foundation.
+- **Minimum Python version raised to 3.10**: Python 3.8 and 3.9 are no longer supported and have been EOL'd by Python Software Foundation.
 - **Minimum `requests` version raised to 2.33.0**: Previously 2.20.0.
 
 ### Changed

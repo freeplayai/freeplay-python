@@ -69,10 +69,10 @@ class TestUtils(unittest.TestCase):
             bind_template_variables("Hello", bad_variables)
 
     def test_python_version(self) -> None:
-        self.assertEqual(
-            (3, 8),
+        self.assertGreaterEqual(
             (sys.version_info[0], sys.version_info[1]),
-            "Tests not running in Python 3.8",
+            (3, 10),
+            "Tests not running in Python 3.10+",
         )
 
     def test_all_valid(self) -> None:

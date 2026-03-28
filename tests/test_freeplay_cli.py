@@ -209,8 +209,8 @@ class TestFreeplayCLI(TestCase):
             result = runner.invoke(cli, arguments)
 
             self.assertEqual(1, result.exit_code)
-            # This actually goes to stderr, but Click combines it with stdout
-            self.assertTrue("Error getting prompt templates [404]" in result.stdout)
+            # This goes to stderr; Click 8.2+ separates stderr from stdout by default
+            self.assertTrue("Error getting prompt templates [404]" in result.output)
 
     def __assert_prompt_basics(
         self, out_dir: str, project_id: str, environment: str, prompt_name: str

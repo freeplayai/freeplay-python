@@ -13,6 +13,8 @@ updates:
     groups:
       security-updates:
         applies-to: security-updates
+        patterns:
+          - "*"
       minor-and-patch:
         applies-to: version-updates
         update-types:

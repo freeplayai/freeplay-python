@@ -2,6 +2,17 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
+## [0.6.0] - 2026-03-28
+
+### Breaking changes
+
+- **Minimum Python version raised to 3.10**: Python 3.8 and 3.9 are no longer supported and have been EOL'd by Python Software Foundation.
+- **Minimum `requests` version raised to 2.33.0**: Previously 2.20.0.
+
+### Changed
+
+- Pinned transitive dependencies (`protobuf`, `pyasn1`, `urllib3`) to address security vulnerabilities.
+
 ## [0.5.14] - 2026-03-24
 
 ### Changed

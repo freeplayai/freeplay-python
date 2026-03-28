@@ -321,22 +321,6 @@
       "severity": "error"
     },
     {
-      "file": "tests/integration/test_vertex_ai_tools.py",
-      "line": 76,
-      "character": 13,
-      "message": "Stub file not found for \"vertexai.generative_models\"",
-      "rule": "reportMissingTypeStubs",
-      "severity": "error"
-    },
-    {
-      "file": "tests/integration/test_vertex_ai_tools.py",
-      "line": 163,
-      "character": 17,
-      "message": "Stub file not found for \"vertexai.generative_models\"",
-      "rule": "reportMissingTypeStubs",
-      "severity": "error"
-    },
-    {
       "file": "tests/slow_test_support.py",
       "line": 9,
       "character": 12,

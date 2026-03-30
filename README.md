@@ -37,7 +37,7 @@ Use this SDK to integrate with Freeplay's core capabilities:
 
 ## Requirements
 
-- Python 3.8 or higher
+- Python 3.10 or higher
 - A Freeplay account + API key
 
 ## Installation

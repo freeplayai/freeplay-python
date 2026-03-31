@@ -18,7 +18,6 @@ from freeplay.model import (
     InputVariables,
     JSONValue,
     MediaInput,
-    MediaInputBase64,
     MediaInputMap,
     MediaInputUrl,
     NormalizedMessage,
@@ -712,12 +711,15 @@ class CallSupport:
         suite_id: str,
         environment: Optional[str] = None,
         name: Optional[str] = None,
+        prompt_template_version_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         payload: Dict[str, Any] = {"is_sdk": True}
         if environment is not None:
             payload["environment"] = environment
         if name is not None:
             payload["name"] = name
+        if prompt_template_version_id is not None:
+            payload["prompt_template_version_id"] = prompt_template_version_id
         response = api_support.post_raw(
             api_key=self.freeplay_api_key,
             url=f"{self.api_base}/v2/projects/{project_id}/test-suites/{suite_id}/runs",
@@ -725,6 +727,32 @@ class CallSupport:
         )
         if response.status_code != 201:
             raise freeplay_response_error("Error creating test suite run", response)
+        return response.json()
+
+    def execute_test_suite_run(
+        self,
+        project_id: str,
+        suite_id: str,
+        environment: Optional[str] = None,
+        name: Optional[str] = None,
+        prompt_template_version_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {}
+        if environment is not None:
+            payload["environment"] = environment
+        if name is not None:
+            payload["name"] = name
+        if prompt_template_version_id is not None:
+            payload["prompt_template_version_id"] = prompt_template_version_id
+        response = api_support.post_raw(
+            api_key=self.freeplay_api_key,
+            url=f"{self.api_base}/v2/projects/{project_id}/test-suites/{suite_id}/runs/execute",
+            payload=payload,
+        )
+        if response.status_code != 201:
+            raise freeplay_response_error(
+                "Error executing test suite run", response
+            )
         return response.json()
 
     def get_test_suite_run_test_cases(

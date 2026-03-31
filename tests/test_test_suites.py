@@ -249,6 +249,89 @@ class TestTestSuites(TestCase):
         self.assertEqual("4", trace_cases[0].output)
         self.assertEqual({"difficulty": "easy"}, trace_cases[0].custom_metadata)
 
+    @responses.activate
+    def test_run_with_prompt_template_version_id(self) -> None:
+        """prompt_template_version_id is forwarded in the create-run request."""
+        version_id = str(uuid4())
+        responses.post(
+            url=f"{self.api_base}/v2/projects/{self.project_id}/test-suites/{self.suite_id}/runs",
+            json={
+                "run_id": self.run_id,
+                "suite_id": self.suite_id,
+                "target_type": "prompt",
+                "total_test_cases": 1,
+                "prompt_template": self._prompt_template_payload(),
+            },
+            status=201,
+        )
+
+        self.test_suites.run(
+            self.project_id,
+            self.suite_id,
+            prompt_template_version_id=version_id,
+        )
+
+        assert responses.calls[0].request.body is not None
+        request_body = json.loads(responses.calls[0].request.body)
+        self.assertEqual(version_id, request_body["prompt_template_version_id"])
+        self.assertTrue(request_body["is_sdk"])
+
+    @responses.activate
+    def test_execute_server_side(self) -> None:
+        """execute() triggers the server-side endpoint and returns results."""
+        responses.post(
+            url=f"{self.api_base}/v2/projects/{self.project_id}/test-suites/{self.suite_id}/runs/execute",
+            json={
+                "run_id": self.run_id,
+                "suite_id": self.suite_id,
+                "status": "complete",
+                "passed": True,
+                "eval_results": {"accuracy": 0.9},
+                "summary_statistics": {
+                    "auto_evaluation": {"accuracy": 0.9},
+                    "human_evaluation": None,
+                    "client_evaluation": None,
+                },
+            },
+            status=201,
+        )
+
+        results = self.test_suites.execute(
+            self.project_id, self.suite_id, environment="production"
+        )
+
+        self.assertEqual(self.run_id, results.run_id)
+        self.assertEqual("complete", results.status)
+        self.assertTrue(results.passed)
+
+    @responses.activate
+    def test_execute_with_version_id(self) -> None:
+        """execute() forwards prompt_template_version_id and optional env."""
+        version_id = str(uuid4())
+        responses.post(
+            url=f"{self.api_base}/v2/projects/{self.project_id}/test-suites/{self.suite_id}/runs/execute",
+            json={
+                "run_id": self.run_id,
+                "suite_id": self.suite_id,
+                "status": "in-progress",
+                "passed": None,
+                "eval_results": None,
+                "summary_statistics": None,
+            },
+            status=201,
+        )
+
+        self.test_suites.execute(
+            self.project_id,
+            self.suite_id,
+            prompt_template_version_id=version_id,
+        )
+
+        assert responses.calls[0].request.body is not None
+        request_body = json.loads(responses.calls[0].request.body)
+        self.assertEqual(version_id, request_body["prompt_template_version_id"])
+        self.assertNotIn("environment", request_body)
+
     # --- Type guards ---
 
     @responses.activate

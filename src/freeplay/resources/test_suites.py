@@ -208,15 +208,20 @@ class TestSuites:
         suite_id: str,
         environment: Optional[str] = None,
         name: Optional[str] = None,
+        prompt_template_version_id: Optional[str] = None,
         page_size: int = 50,
     ) -> TestSuiteRun:
-        """Trigger a run of the given test suite and return a TestSuiteRun
-        object for iterating over test cases, recording results, and
-        retrieving the pass/fail verdict.
+        """Trigger a client-orchestrated run of the given test suite and
+        return a TestSuiteRun for iterating over test cases, recording
+        results, and retrieving the pass/fail verdict.
 
         ``environment`` is the deployment environment tag (e.g. "production")
         used to resolve prompt template versions for prompt-type suites.
-        Not needed for agent-type suites.
+        Not needed for agent-type suites, or when pinning via
+        ``prompt_template_version_id``.
+
+        ``prompt_template_version_id`` optionally pins a specific prompt
+        template version instead of resolving via ``environment``.
 
         ``name`` optionally overrides the auto-generated run name."""
         response = self._call_support.create_test_suite_run(
@@ -224,6 +229,7 @@ class TestSuites:
             suite_id=suite_id,
             environment=environment,
             name=name,
+            prompt_template_version_id=prompt_template_version_id,
         )
 
         template_prompt = None
@@ -241,6 +247,36 @@ class TestSuites:
             recordings=self._recordings,
             page_size=page_size,
         )
+
+    def execute(
+        self,
+        project_id: str,
+        suite_id: str,
+        environment: Optional[str] = None,
+        name: Optional[str] = None,
+        prompt_template_version_id: Optional[str] = None,
+    ) -> TestSuiteRunResults:
+        """Trigger a server-side execution of the given test suite.
+
+        The server runs all test cases, evaluates results, and returns
+        the final pass/fail verdict. Use this when you don't need to
+        supply your own LLM calls.
+
+        ``environment`` optionally specifies the deployment environment
+        tag used to resolve prompt template versions.
+
+        ``prompt_template_version_id`` optionally pins a specific prompt
+        template version instead of resolving via ``environment``.
+
+        ``name`` optionally overrides the auto-generated run name."""
+        response = self._call_support.execute_test_suite_run(
+            project_id=project_id,
+            suite_id=suite_id,
+            environment=environment,
+            name=name,
+            prompt_template_version_id=prompt_template_version_id,
+        )
+        return _parse_run_results(response)
 
 
 # --- Private helpers ---

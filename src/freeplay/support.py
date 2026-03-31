@@ -25,6 +25,7 @@ from freeplay.model import (
     NormalizedOutputSchema,
     SpanKind,
     TestRunInfo,
+    parse_media_variables,
 )
 from freeplay.utils import (
     convert_api_message_to_sdk_message,
@@ -163,25 +164,9 @@ class TestCaseTestRunResponse:
             "custom_metadata"
         )
 
-        if test_case.get("media_variables", None):
-            self.media_variables: Optional[
-                Dict[str, Union[MediaInputBase64, MediaInputUrl]]
-            ] = {}
-            for name, media_data in test_case.get("media_variables", {}).items():
-                media_type = media_data.get("type", "base64")
-                if media_type == "url":
-                    self.media_variables[name] = MediaInputUrl(
-                        type="url",
-                        url=media_data["url"],
-                    )
-                else:
-                    self.media_variables[name] = MediaInputBase64(
-                        type="base64",
-                        data=media_data["data"],
-                        content_type=media_data["content_type"],
-                    )
-        else:
-            self.media_variables = None
+        self.media_variables = parse_media_variables(
+            test_case.get("media_variables")
+        )
 
 
 class TraceTestCaseTestRunResponse:

@@ -1,13 +1,14 @@
 from dataclasses import dataclass
-from typing import Any, Dict, Iterator, List, Optional, Union, cast
+from typing import Any, Callable, Dict, Iterator, List, Optional, TypeVar, Union, cast
 from uuid import uuid4
+
+T = TypeVar("T")
 
 from freeplay.llm_parameters import LLMParameters
 from freeplay.model import (
-    MediaInputBase64,
     MediaInputMap,
-    MediaInputUrl,
     TestRunInfo,
+    parse_media_variables,
 )
 from freeplay.resources.prompts import (
     FormattedPrompt,
@@ -83,7 +84,7 @@ class TestSuiteRun:
         Only valid for prompt-type suites."""
         if self.target_type != "prompt":
             raise ValueError("This is an agent suite. Use trace_test_cases instead.")
-        return self._paginated_completion_test_cases()
+        return self._paginated_test_cases(_parse_completion_test_case)
 
     @property
     def trace_test_cases(self) -> Iterator[TraceTestCase]:
@@ -91,9 +92,11 @@ class TestSuiteRun:
         Only valid for agent-type suites."""
         if self.target_type != "agent":
             raise ValueError("This is a prompt suite. Use test_cases instead.")
-        return self._paginated_trace_test_cases()
+        return self._paginated_test_cases(_parse_trace_test_case)
 
-    def _paginated_completion_test_cases(self) -> Iterator[CompletionTestCase]:
+    def _paginated_test_cases(
+        self, parse_fn: Callable[[Dict[str, Any]], T]
+    ) -> Iterator[T]:
         page = 1
         while True:
             data, has_next = self._call_support.get_test_suite_run_test_cases(
@@ -104,28 +107,7 @@ class TestSuiteRun:
                 page_size=self._page_size,
             )
             for tc in data:
-                yield _parse_completion_test_case(tc)
-            if not has_next:
-                break
-            page += 1
-
-    def _paginated_trace_test_cases(self) -> Iterator[TraceTestCase]:
-        page = 1
-        while True:
-            data, has_next = self._call_support.get_test_suite_run_test_cases(
-                self.project_id,
-                self.suite_id,
-                self.run_id,
-                page=page,
-                page_size=self._page_size,
-            )
-            for tc in data:
-                yield TraceTestCase(
-                    test_case_id=tc["test_case_id"],
-                    input=tc["input"],
-                    output=tc.get("output"),
-                    custom_metadata=tc.get("custom_metadata"),
-                )
+                yield parse_fn(tc)
             if not has_next:
                 break
             page += 1
@@ -257,26 +239,22 @@ class TestSuites:
 
 
 def _parse_completion_test_case(tc: Dict[str, Any]) -> CompletionTestCase:
-    media_variables: Optional[Dict[str, Union[MediaInputBase64, MediaInputUrl]]] = None
-    raw_media = tc.get("media_variables")
-    if raw_media:
-        media_variables = {}
-        for name, media_data in raw_media.items():
-            if media_data.get("type") == "url":
-                media_variables[name] = MediaInputUrl(type="url", url=media_data["url"])
-            else:
-                media_variables[name] = MediaInputBase64(
-                    type="base64",
-                    data=media_data["data"],
-                    content_type=media_data["content_type"],
-                )
     return CompletionTestCase(
         test_case_id=tc["test_case_id"],
         variables=tc["variables"],
         output=tc.get("output"),
         history=tc.get("history"),
         custom_metadata=tc.get("custom_metadata"),
-        media_variables=media_variables,
+        media_variables=parse_media_variables(tc.get("media_variables")),
+    )
+
+
+def _parse_trace_test_case(tc: Dict[str, Any]) -> TraceTestCase:
+    return TraceTestCase(
+        test_case_id=tc["test_case_id"],
+        input=tc["input"],
+        output=tc.get("output"),
+        custom_metadata=tc.get("custom_metadata"),
     )
 
 

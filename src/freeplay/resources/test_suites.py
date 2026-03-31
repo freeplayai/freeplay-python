@@ -14,7 +14,12 @@ from freeplay.resources.prompts import (
     PromptInfo,
     TemplatePrompt,
 )
-from freeplay.resources.recordings import CallInfo, RecordPayload, RecordResponse, Recordings
+from freeplay.resources.recordings import (
+    CallInfo,
+    RecordPayload,
+    RecordResponse,
+    Recordings,
+)
 from freeplay.resources.sessions import SessionInfo, TraceInfo
 from freeplay.resources.test_runs import CompletionTestCase, TraceTestCase
 from freeplay.support import (
@@ -77,9 +82,7 @@ class TestSuiteRun:
         """Lazy-paginated iterator over completion test cases.
         Only valid for prompt-type suites."""
         if self.target_type != "prompt":
-            raise ValueError(
-                "This is an agent suite. Use trace_test_cases instead."
-            )
+            raise ValueError("This is an agent suite. Use trace_test_cases instead.")
         return self._paginated_completion_test_cases()
 
     @property
@@ -87,17 +90,18 @@ class TestSuiteRun:
         """Lazy-paginated iterator over trace test cases.
         Only valid for agent-type suites."""
         if self.target_type != "agent":
-            raise ValueError(
-                "This is a prompt suite. Use test_cases instead."
-            )
+            raise ValueError("This is a prompt suite. Use test_cases instead.")
         return self._paginated_trace_test_cases()
 
     def _paginated_completion_test_cases(self) -> Iterator[CompletionTestCase]:
         page = 1
         while True:
             data, has_next = self._call_support.get_test_suite_run_test_cases(
-                self.project_id, self.suite_id, self.run_id,
-                page=page, page_size=self._page_size,
+                self.project_id,
+                self.suite_id,
+                self.run_id,
+                page=page,
+                page_size=self._page_size,
             )
             for tc in data:
                 yield _parse_completion_test_case(tc)
@@ -109,8 +113,11 @@ class TestSuiteRun:
         page = 1
         while True:
             data, has_next = self._call_support.get_test_suite_run_test_cases(
-                self.project_id, self.suite_id, self.run_id,
-                page=page, page_size=self._page_size,
+                self.project_id,
+                self.suite_id,
+                self.run_id,
+                page=page,
+                page_size=self._page_size,
             )
             for tc in data:
                 yield TraceTestCase(
@@ -151,9 +158,7 @@ class TestSuiteRun:
     ) -> RecordResponse:
         """Record a completion result for this test case."""
         if session_info is None:
-            session_info = SessionInfo(
-                session_id=str(uuid4()), custom_metadata=None
-            )
+            session_info = SessionInfo(session_id=str(uuid4()), custom_metadata=None)
 
         prompt_version_info = None
         if self._template_prompt is not None:
@@ -211,12 +216,25 @@ class TestSuites:
         self,
         project_id: str,
         suite_id: str,
+        environment: Optional[str] = None,
+        name: Optional[str] = None,
         page_size: int = 50,
     ) -> TestSuiteRun:
         """Trigger a run of the given test suite and return a TestSuiteRun
         object for iterating over test cases, recording results, and
-        retrieving the pass/fail verdict."""
-        response = self._call_support.create_test_suite_run(project_id, suite_id)
+        retrieving the pass/fail verdict.
+
+        ``environment`` is the deployment environment tag (e.g. "production")
+        used to resolve prompt template versions for prompt-type suites.
+        Not needed for agent-type suites.
+
+        ``name`` optionally overrides the auto-generated run name."""
+        response = self._call_support.create_test_suite_run(
+            project_id=project_id,
+            suite_id=suite_id,
+            environment=environment,
+            name=name,
+        )
 
         template_prompt = None
         if response.get("prompt_template") is not None:
@@ -239,15 +257,13 @@ class TestSuites:
 
 
 def _parse_completion_test_case(tc: Dict[str, Any]) -> CompletionTestCase:
-    media_variables = None
+    media_variables: Optional[Dict[str, Union[MediaInputBase64, MediaInputUrl]]] = None
     raw_media = tc.get("media_variables")
     if raw_media:
         media_variables = {}
         for name, media_data in raw_media.items():
             if media_data.get("type") == "url":
-                media_variables[name] = MediaInputUrl(
-                    type="url", url=media_data["url"]
-                )
+                media_variables[name] = MediaInputUrl(type="url", url=media_data["url"])
             else:
                 media_variables[name] = MediaInputBase64(
                     type="base64",
@@ -303,7 +319,8 @@ def _build_template_prompt(pt_dict: Dict[str, Any]) -> TemplatePrompt:
         prompt_template_version_id=str(pt_dict["prompt_template_version_id"]),
         template_name=pt_dict["prompt_template_name"],
         environment=None,
-        model_parameters=cast(LLMParameters, metadata.get("params")) or LLMParameters({}),
+        model_parameters=cast(LLMParameters, metadata.get("params"))
+        or LLMParameters({}),
         provider=metadata.get("provider", ""),
         model=metadata.get("model", ""),
         flavor_name=metadata.get("flavor", ""),

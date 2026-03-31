@@ -5,12 +5,11 @@ from uuid import uuid4
 
 import responses
 
+from freeplay.model import MediaInputBase64, MediaInputUrl
 from freeplay.resources.recordings import Recordings
 from freeplay.resources.sessions import SessionInfo
-from freeplay.resources.test_runs import CompletionTestCase, TraceTestCase
+from freeplay.resources.test_runs import CompletionTestCase
 from freeplay.resources.test_suites import (
-    TestSuiteRun,
-    TestSuiteRunResults,
     TestSuites,
 )
 from freeplay.support import CallSupport
@@ -31,6 +30,7 @@ class TestTestSuites(TestCase):
         self.recordings = Recordings(self.call_support)
         self.test_suites = TestSuites(self.call_support, self.recordings)
 
+        self.environment = "latest"
         self.prompt_template_id = str(uuid4())
         self.prompt_template_version_id = str(uuid4())
 
@@ -167,13 +167,13 @@ class TestTestSuites(TestCase):
         self._mock_create_run_prompt()
         self._mock_test_cases_completion()
 
-        run = self.test_suites.run(self.project_id, self.suite_id)
+        run = self.test_suites.run(self.project_id, self.suite_id, self.environment)
 
         self.assertEqual(self.run_id, run.run_id)
         self.assertEqual(self.suite_id, run.suite_id)
         self.assertEqual("prompt", run.target_type)
         self.assertEqual(2, run.total_test_cases)
-        self.assertIsNotNone(run._template_prompt)
+        self.assertIsNotNone(run._template_prompt)  # pyright: ignore[reportPrivateUsage]
 
         test_cases = list(run.test_cases)
         self.assertEqual(2, len(test_cases))
@@ -184,6 +184,7 @@ class TestTestSuites(TestCase):
         self.assertEqual({"name": "Bob"}, test_cases[1].variables)
         self.assertEqual("expected output", test_cases[1].output)
         self.assertIsNotNone(test_cases[1].history)
+        assert test_cases[1].history is not None
         self.assertEqual(2, len(test_cases[1].history))
         self.assertEqual({"key": "value"}, test_cases[1].custom_metadata)
 
@@ -222,7 +223,9 @@ class TestTestSuites(TestCase):
             status=200,
         )
 
-        run = self.test_suites.run(self.project_id, self.suite_id, page_size=1)
+        run = self.test_suites.run(
+            self.project_id, self.suite_id, self.environment, page_size=1
+        )
         test_cases = list(run.test_cases)
 
         self.assertEqual(2, len(test_cases))
@@ -234,10 +237,10 @@ class TestTestSuites(TestCase):
         self._mock_create_run_agent()
         self._mock_test_cases_trace()
 
-        run = self.test_suites.run(self.project_id, self.suite_id)
+        run = self.test_suites.run(self.project_id, self.suite_id, self.environment)
 
         self.assertEqual("agent", run.target_type)
-        self.assertIsNone(run._template_prompt)
+        self.assertIsNone(run._template_prompt)  # pyright: ignore[reportPrivateUsage]
 
         trace_cases = list(run.trace_test_cases)
         self.assertEqual(1, len(trace_cases))
@@ -251,14 +254,14 @@ class TestTestSuites(TestCase):
     @responses.activate
     def test_test_cases_raises_for_agent_suite(self) -> None:
         self._mock_create_run_agent()
-        run = self.test_suites.run(self.project_id, self.suite_id)
+        run = self.test_suites.run(self.project_id, self.suite_id, self.environment)
         with self.assertRaises(ValueError):
             list(run.test_cases)
 
     @responses.activate
     def test_trace_test_cases_raises_for_prompt_suite(self) -> None:
         self._mock_create_run_prompt()
-        run = self.test_suites.run(self.project_id, self.suite_id)
+        run = self.test_suites.run(self.project_id, self.suite_id, self.environment)
         with self.assertRaises(ValueError):
             list(run.trace_test_cases)
 
@@ -267,7 +270,7 @@ class TestTestSuites(TestCase):
     @responses.activate
     def test_format_prompt(self) -> None:
         self._mock_create_run_prompt()
-        run = self.test_suites.run(self.project_id, self.suite_id)
+        run = self.test_suites.run(self.project_id, self.suite_id, self.environment)
 
         tc = CompletionTestCase(
             test_case_id="tc-1",
@@ -290,7 +293,7 @@ class TestTestSuites(TestCase):
     @responses.activate
     def test_format_prompt_raises_for_agent_suite(self) -> None:
         self._mock_create_run_agent()
-        run = self.test_suites.run(self.project_id, self.suite_id)
+        run = self.test_suites.run(self.project_id, self.suite_id, self.environment)
 
         tc = CompletionTestCase(
             test_case_id="tc-1",
@@ -322,7 +325,7 @@ class TestTestSuites(TestCase):
             status=201,
         )
 
-        run = self.test_suites.run(self.project_id, self.suite_id)
+        run = self.test_suites.run(self.project_id, self.suite_id, self.environment)
         tc = CompletionTestCase(
             test_case_id="tc-1",
             variables={"name": "World"},
@@ -348,7 +351,7 @@ class TestTestSuites(TestCase):
             status=201,
         )
 
-        run = self.test_suites.run(self.project_id, self.suite_id)
+        run = self.test_suites.run(self.project_id, self.suite_id, self.environment)
         tc = CompletionTestCase(
             test_case_id=self.test_case_id_1,
             variables={"name": "Alice"},
@@ -369,6 +372,7 @@ class TestTestSuites(TestCase):
 
         self.assertEqual(completion_id, result.completion_id)
 
+        assert responses.calls[-1].request.body is not None
         request_body = json.loads(responses.calls[-1].request.body)
         self.assertEqual(self.run_id, request_body["test_run_info"]["test_run_id"])
         self.assertEqual(
@@ -383,7 +387,7 @@ class TestTestSuites(TestCase):
         self._mock_create_run_prompt()
         self._mock_results(status="complete", passed=True)
 
-        run = self.test_suites.run(self.project_id, self.suite_id)
+        run = self.test_suites.run(self.project_id, self.suite_id, self.environment)
         results = run.get_results()
 
         self.assertEqual(self.run_id, results.run_id)
@@ -391,8 +395,10 @@ class TestTestSuites(TestCase):
         self.assertEqual("complete", results.status)
         self.assertTrue(results.passed)
         self.assertIsNotNone(results.eval_results)
+        assert results.eval_results is not None
         self.assertEqual(0.95, results.eval_results["accuracy"])
         self.assertIsNotNone(results.summary_statistics)
+        assert results.summary_statistics is not None
         self.assertIsNotNone(results.summary_statistics.auto_evaluation)
         self.assertIsNotNone(results.summary_statistics.human_evaluation)
         self.assertIsNone(results.summary_statistics.client_evaluation)
@@ -402,7 +408,7 @@ class TestTestSuites(TestCase):
         self._mock_create_run_prompt()
         self._mock_results(status="in-progress", passed=None)
 
-        run = self.test_suites.run(self.project_id, self.suite_id)
+        run = self.test_suites.run(self.project_id, self.suite_id, self.environment)
         results = run.get_results()
 
         self.assertEqual("in-progress", results.status)
@@ -415,7 +421,7 @@ class TestTestSuites(TestCase):
         self._mock_create_run_prompt()
         self._mock_results(status="complete", passed=False)
 
-        run = self.test_suites.run(self.project_id, self.suite_id)
+        run = self.test_suites.run(self.project_id, self.suite_id, self.environment)
         results = run.get_results()
 
         self.assertEqual("complete", results.status)
@@ -426,7 +432,7 @@ class TestTestSuites(TestCase):
     @responses.activate
     def test_get_test_run_info(self) -> None:
         self._mock_create_run_prompt()
-        run = self.test_suites.run(self.project_id, self.suite_id)
+        run = self.test_suites.run(self.project_id, self.suite_id, self.environment)
 
         info = run.get_test_run_info("some-test-case-id")
         self.assertEqual(self.run_id, info.test_run_id)
@@ -464,23 +470,26 @@ class TestTestSuites(TestCase):
             status=200,
         )
 
-        run = self.test_suites.run(self.project_id, self.suite_id)
+        run = self.test_suites.run(self.project_id, self.suite_id, self.environment)
         test_cases = list(run.test_cases)
 
         self.assertEqual(1, len(test_cases))
         tc = test_cases[0]
         self.assertIsNotNone(tc.media_variables)
+        assert tc.media_variables is not None
+
         self.assertIn("avatar", tc.media_variables)
-        self.assertEqual("url", tc.media_variables["avatar"].type)
-        self.assertEqual(
-            "https://example.com/avatar.png", tc.media_variables["avatar"].url
-        )
+        avatar = tc.media_variables["avatar"]
+        self.assertEqual("url", avatar.type)
+        assert isinstance(avatar, MediaInputUrl)
+        self.assertEqual("https://example.com/avatar.png", avatar.url)
+
         self.assertIn("document", tc.media_variables)
-        self.assertEqual("base64", tc.media_variables["document"].type)
-        self.assertEqual("aGVsbG8=", tc.media_variables["document"].data)
-        self.assertEqual(
-            "application/pdf", tc.media_variables["document"].content_type
-        )
+        document = tc.media_variables["document"]
+        self.assertEqual("base64", document.type)
+        assert isinstance(document, MediaInputBase64)
+        self.assertEqual("aGVsbG8=", document.data)
+        self.assertEqual("application/pdf", document.content_type)
 
     # --- prompt template with tool schema ---
 
@@ -509,8 +518,10 @@ class TestTestSuites(TestCase):
             status=201,
         )
 
-        run = self.test_suites.run(self.project_id, self.suite_id)
-        self.assertIsNotNone(run._template_prompt)
-        self.assertIsNotNone(run._template_prompt.tool_schema)
-        self.assertEqual(1, len(run._template_prompt.tool_schema))
-        self.assertEqual("get_weather", run._template_prompt.tool_schema[0].name)
+        run = self.test_suites.run(self.project_id, self.suite_id, self.environment)
+        self.assertIsNotNone(run._template_prompt)  # pyright: ignore[reportPrivateUsage]
+        assert run._template_prompt is not None  # pyright: ignore[reportPrivateUsage]
+        self.assertIsNotNone(run._template_prompt.tool_schema)  # pyright: ignore[reportPrivateUsage]
+        assert run._template_prompt.tool_schema is not None  # pyright: ignore[reportPrivateUsage]
+        self.assertEqual(1, len(run._template_prompt.tool_schema))  # pyright: ignore[reportPrivateUsage]
+        self.assertEqual("get_weather", run._template_prompt.tool_schema[0].name)  # pyright: ignore[reportPrivateUsage]

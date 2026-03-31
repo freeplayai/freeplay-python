@@ -127,9 +127,7 @@ class TestSuiteRun:
             test_case.variables,
             history=test_case.history,
             media_inputs=(
-                media_inputs
-                if media_inputs is not None
-                else test_case.media_variables
+                media_inputs if media_inputs is not None else test_case.media_variables
             ),
         ).format()
 

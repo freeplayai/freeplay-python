@@ -163,9 +163,7 @@ class TestCaseTestRunResponse:
             "custom_metadata"
         )
 
-        self.media_variables = parse_media_variables(
-            test_case.get("media_variables")
-        )
+        self.media_variables = parse_media_variables(test_case.get("media_variables"))
 
 
 class TraceTestCaseTestRunResponse:
@@ -750,9 +748,7 @@ class CallSupport:
             payload=payload,
         )
         if response.status_code != 201:
-            raise freeplay_response_error(
-                "Error executing test suite run", response
-            )
+            raise freeplay_response_error("Error executing test suite run", response)
         return response.json()
 
     def get_test_suite_run_test_cases(

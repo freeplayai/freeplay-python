@@ -2,8 +2,6 @@ from dataclasses import dataclass
 from typing import Any, Callable, Dict, Iterator, List, Optional, TypeVar, Union, cast
 from uuid import uuid4
 
-T = TypeVar("T")
-
 from freeplay.llm_parameters import LLMParameters
 from freeplay.model import (
     MediaInputMap,
@@ -33,6 +31,8 @@ from freeplay.support import (
     TemplateMessage,
     ToolSchema,
 )
+
+T = TypeVar("T")
 
 
 @dataclass

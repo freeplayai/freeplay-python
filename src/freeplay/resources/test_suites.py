@@ -126,7 +126,11 @@ class TestSuiteRun:
         return self._template_prompt.bind(
             test_case.variables,
             history=test_case.history,
-            media_inputs=media_inputs or test_case.media_variables,
+            media_inputs=(
+                media_inputs
+                if media_inputs is not None
+                else test_case.media_variables
+            ),
         ).format()
 
     def record(
@@ -139,6 +143,8 @@ class TestSuiteRun:
         **kwargs: Any,
     ) -> RecordResponse:
         """Record a completion result for this test case."""
+        if self.target_type != "prompt":
+            raise ValueError("This is an agent suite. Use record_trace instead.")
         if session_info is None:
             session_info = SessionInfo(session_id=str(uuid4()), custom_metadata=None)
 
@@ -168,6 +174,8 @@ class TestSuiteRun:
         eval_results: Optional[Dict[str, Union[bool, float]]] = None,
     ) -> None:
         """Record a trace result for this test case."""
+        if self.target_type != "agent":
+            raise ValueError("This is a prompt suite. Use record instead.")
         trace_info.record_output(
             self.project_id,
             output,

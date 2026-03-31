@@ -66,21 +66,25 @@ print(f"Started run {run.run_id} — {run.total_test_cases} test cases")
 for test_case in run.test_cases:
     formatted = run.format_prompt(test_case)
 
-    start = time.time()
-    completion = openai_client.chat.completions.create(
-        messages=formatted.llm_prompt,
-        model=formatted.prompt_info.model,
-        tools=formatted.tool_schema,
+    request_kwargs = {
+        "messages": formatted.llm_prompt,
+        "model": formatted.prompt_info.model,
         **formatted.prompt_info.model_parameters,
-    )
+    }
+    if formatted.tool_schema:
+        request_kwargs["tools"] = formatted.tool_schema
+
+    start = time.time()
+    completion = openai_client.chat.completions.create(**request_kwargs)
     end = time.time()
 
-    print(f"  [{test_case.id}] {completion.choices[0].message.content[:80]}...")
+    assistant_message = completion.choices[0].message.model_dump(exclude_none=True)
+    preview = assistant_message.get("content") or "<tool call>"
+    print(f"  [{test_case.id}] {str(preview)[:80]}...")
 
     run.record(
         test_case,
-        all_messages=formatted.llm_prompt
-        + [{"role": "assistant", "content": completion.choices[0].message.content}],
+        all_messages=[*formatted.llm_prompt, assistant_message],
         call_info=CallInfo.from_prompt_info(formatted.prompt_info, start, end),
     )
 

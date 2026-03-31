@@ -380,6 +380,37 @@ class TestTestSuites(TestCase):
         )
         self.assertIsNotNone(request_body.get("prompt_info"))
 
+    @responses.activate
+    def test_record_raises_for_agent_suite(self) -> None:
+        self._mock_create_run_agent()
+        run = self.test_suites.run(self.project_id, self.suite_id, self.environment)
+        tc = CompletionTestCase(
+            test_case_id="tc-1",
+            variables={"name": "World"},
+            output=None,
+            history=None,
+            custom_metadata=None,
+        )
+        with self.assertRaises(ValueError):
+            run.record(tc, all_messages=[])
+
+    @responses.activate
+    def test_record_trace_raises_for_prompt_suite(self) -> None:
+        from freeplay.resources.sessions import TraceInfo
+        from freeplay.resources.test_runs import TraceTestCase
+        from unittest.mock import MagicMock
+
+        self._mock_create_run_prompt()
+        run = self.test_suites.run(self.project_id, self.suite_id, self.environment)
+        tc = TraceTestCase(
+            test_case_id="tc-1",
+            input="hello",
+            output=None,
+            custom_metadata=None,
+        )
+        with self.assertRaises(ValueError):
+            run.record_trace(tc, trace_info=MagicMock(spec=TraceInfo), output="out")
+
     # --- get_results ---
 
     @responses.activate

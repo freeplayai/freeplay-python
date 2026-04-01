@@ -30,6 +30,25 @@ MediaInput = Union[MediaInputUrl, MediaInputBase64]
 MediaInputMap = Dict[str, MediaInput]
 
 
+def parse_media_variables(
+    raw: Optional[Dict[str, Any]],
+) -> Optional[Dict[str, Union[MediaInputBase64, MediaInputUrl]]]:
+    """Parse raw media variable dicts from the API into typed dataclasses."""
+    if not raw:
+        return None
+    result: Dict[str, Union[MediaInputBase64, MediaInputUrl]] = {}
+    for name, media_data in raw.items():
+        if media_data.get("type") == "url":
+            result[name] = MediaInputUrl(type="url", url=media_data["url"])
+        else:
+            result[name] = MediaInputBase64(
+                type="base64",
+                data=media_data["data"],
+                content_type=media_data["content_type"],
+            )
+    return result
+
+
 MediaTypes = Literal["image", "audio", "file"]
 
 

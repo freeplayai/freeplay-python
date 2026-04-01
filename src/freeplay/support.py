@@ -1,7 +1,7 @@
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from json import JSONEncoder
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 from urllib.parse import quote
 from uuid import UUID
 
@@ -18,13 +18,13 @@ from freeplay.model import (
     InputVariables,
     JSONValue,
     MediaInput,
-    MediaInputBase64,
     MediaInputMap,
     MediaInputUrl,
     NormalizedMessage,
     NormalizedOutputSchema,
     SpanKind,
     TestRunInfo,
+    parse_media_variables,
 )
 from freeplay.utils import (
     convert_api_message_to_sdk_message,
@@ -163,25 +163,7 @@ class TestCaseTestRunResponse:
             "custom_metadata"
         )
 
-        if test_case.get("media_variables", None):
-            self.media_variables: Optional[
-                Dict[str, Union[MediaInputBase64, MediaInputUrl]]
-            ] = {}
-            for name, media_data in test_case.get("media_variables", {}).items():
-                media_type = media_data.get("type", "base64")
-                if media_type == "url":
-                    self.media_variables[name] = MediaInputUrl(
-                        type="url",
-                        url=media_data["url"],
-                    )
-                else:
-                    self.media_variables[name] = MediaInputBase64(
-                        type="base64",
-                        data=media_data["data"],
-                        content_type=media_data["content_type"],
-                    )
-        else:
-            self.media_variables = None
+        self.media_variables = parse_media_variables(test_case.get("media_variables"))
 
 
 class TraceTestCaseTestRunResponse:
@@ -718,3 +700,91 @@ class CallSupport:
                 for jsn in json_dom
             ]
         )
+
+    # --- Test Suites ---
+
+    def create_test_suite_run(
+        self,
+        project_id: str,
+        suite_id: str,
+        environment: Optional[str] = None,
+        name: Optional[str] = None,
+        prompt_template_version_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {"is_sdk": True}
+        if environment is not None:
+            payload["environment"] = environment
+        if name is not None:
+            payload["name"] = name
+        if prompt_template_version_id is not None:
+            payload["prompt_template_version_id"] = prompt_template_version_id
+        response = api_support.post_raw(
+            api_key=self.freeplay_api_key,
+            url=f"{self.api_base}/v2/projects/{project_id}/test-suites/{suite_id}/runs",
+            payload=payload,
+        )
+        if response.status_code != 201:
+            raise freeplay_response_error("Error creating test suite run", response)
+        return response.json()
+
+    def execute_test_suite_run(
+        self,
+        project_id: str,
+        suite_id: str,
+        environment: Optional[str] = None,
+        name: Optional[str] = None,
+        prompt_template_version_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {}
+        if environment is not None:
+            payload["environment"] = environment
+        if name is not None:
+            payload["name"] = name
+        if prompt_template_version_id is not None:
+            payload["prompt_template_version_id"] = prompt_template_version_id
+        response = api_support.post_raw(
+            api_key=self.freeplay_api_key,
+            url=f"{self.api_base}/v2/projects/{project_id}/test-suites/{suite_id}/runs/execute",
+            payload=payload,
+        )
+        if response.status_code != 201:
+            raise freeplay_response_error("Error executing test suite run", response)
+        return response.json()
+
+    def get_test_suite_run_test_cases(
+        self,
+        project_id: str,
+        suite_id: str,
+        run_id: str,
+        page: int,
+        page_size: int,
+    ) -> Tuple[List[Dict[str, Any]], bool]:
+        response = api_support.get_raw(
+            api_key=self.freeplay_api_key,
+            url=(
+                f"{self.api_base}/v2/projects/{project_id}"
+                f"/test-suites/{suite_id}/runs/{run_id}/test-cases"
+            ),
+            params={"page": str(page), "page_size": str(page_size)},
+        )
+        if response.status_code != 200:
+            raise freeplay_response_error(
+                "Error fetching test cases for suite run", response
+            )
+        json_data = response.json()
+        has_next = json_data.get("pagination", {}).get("has_next", False)
+        return json_data.get("data", []), has_next
+
+    def get_test_suite_run_results(
+        self, project_id: str, suite_id: str, run_id: str
+    ) -> Dict[str, Any]:
+        response = api_support.get_raw(
+            api_key=self.freeplay_api_key,
+            url=(
+                f"{self.api_base}/v2/projects/{project_id}"
+                f"/test-suites/{suite_id}/runs/{run_id}/results"
+            ),
+        )
+        if response.status_code != 200:
+            raise freeplay_response_error("Error fetching suite run results", response)
+        return response.json()

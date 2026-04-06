@@ -300,9 +300,15 @@ class BoundPrompt:
 
         effective_model_parameters = self.prompt_info.model_parameters
         if final_flavor in ("gemini_chat", "gemini_api_chat"):
+            if not hasattr(effective_model_parameters, "for_gemini"):
+                effective_model_parameters = LLMParameters(
+                    effective_model_parameters or {}
+                )
             effective_model_parameters = effective_model_parameters.for_gemini()
 
-        params_changed = effective_model_parameters is not self.prompt_info.model_parameters
+        params_changed = (
+            effective_model_parameters is not self.prompt_info.model_parameters
+        )
         flavor_changed = final_flavor != self.prompt_info.flavor_name
 
         if params_changed or flavor_changed:

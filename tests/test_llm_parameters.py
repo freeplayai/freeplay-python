@@ -58,12 +58,14 @@ class TestLLMParametersForGemini(unittest.TestCase):
         self.assertEqual(result["thinking_config"], {"thinking_budget": 0})
 
     def test_combined_parameters(self) -> None:
-        params = LLMParameters({
-            "temperature": 0,
-            "max_tokens": 256,
-            "thinking_level": "low",
-            "top_p": 0.9,
-        })
+        params = LLMParameters(
+            {
+                "temperature": 0,
+                "max_tokens": 256,
+                "thinking_level": "low",
+                "top_p": 0.9,
+            }
+        )
         result = params.for_gemini()
         self.assertEqual(result["temperature"], 0)
         self.assertEqual(result["max_output_tokens"], 256)
@@ -83,11 +85,13 @@ class TestLLMParametersForGemini(unittest.TestCase):
         self.assertIsInstance(result, LLMParameters)
 
     def test_does_not_mutate_original(self) -> None:
-        params = LLMParameters({
-            "max_tokens": 256,
-            "thinking_level": "high",
-            "temperature": 0.5,
-        })
+        params = LLMParameters(
+            {
+                "max_tokens": 256,
+                "thinking_level": "high",
+                "temperature": 0.5,
+            }
+        )
         _ = params.for_gemini()
         self.assertEqual(params["max_tokens"], 256)
         self.assertEqual(params["thinking_level"], "high")
@@ -95,10 +99,12 @@ class TestLLMParametersForGemini(unittest.TestCase):
         self.assertNotIn("thinking_config", params)
 
     def test_passthrough_unknown_params(self) -> None:
-        params = LLMParameters({
-            "top_k": 40,
-            "stop_sequences": ["END"],
-        })
+        params = LLMParameters(
+            {
+                "top_k": 40,
+                "stop_sequences": ["END"],
+            }
+        )
         result = params.for_gemini()
         self.assertEqual(result["top_k"], 40)
         self.assertEqual(result["stop_sequences"], ["END"])

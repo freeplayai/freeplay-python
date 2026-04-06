@@ -1514,7 +1514,11 @@ class TestFreeplay(TestCase):
             prompt_template_version_id=str(uuid.uuid4()),
             template_name="template-name",
             environment="environment",
-            model_parameters={"temperature": 0, "max_tokens": 256, "thinking_level": "low"},  # type: ignore
+            model_parameters={
+                "temperature": 0,
+                "max_tokens": 256,
+                "thinking_level": "low",
+            },  # type: ignore
             provider_info=None,
             provider="gemini",
             model="gemini-2.0-flash",

@@ -1490,9 +1490,7 @@ class TestFreeplay(TestCase):
             prompt_template_version_id=str(uuid.uuid4()),
             template_name="template-name",
             environment="environment",
-            model_parameters=LLMParameters(
-                {"temperature": 0.5, "max_tokens": 256}
-            ),
+            model_parameters=LLMParameters({"temperature": 0.5, "max_tokens": 256}),
             provider_info=None,
             provider="openai",
             model="gpt-4",

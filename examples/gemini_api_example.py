@@ -24,6 +24,7 @@ from google import genai
 from google.genai import types
 
 from freeplay import CallInfo, Freeplay, RecordPayload, ResponseInfo
+from freeplay.utils import convert_provider_message_to_dict
 
 fp_client = Freeplay(
     freeplay_api_key=os.environ["FREEPLAY_API_KEY"],
@@ -70,8 +71,8 @@ end = time.time()
 
 print(f"\nResponse: {response.text[:200]}...")
 
-# Build messages for recording
-assistant_message = response.candidates[0].content
+# Build messages for recording -- convert SDK objects to dicts for JSON serialization
+assistant_message = convert_provider_message_to_dict(response.candidates[0].content)
 all_messages = list(formatted_prompt.llm_prompt)
 all_messages.append(assistant_message)
 

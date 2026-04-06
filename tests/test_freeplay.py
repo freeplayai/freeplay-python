@@ -1426,6 +1426,86 @@ class TestFreeplay(TestCase):
             ],
         )
 
+    def test_format__gemini_api_maps_parameters(self) -> None:
+        """format() auto-maps temperature, max_tokens, and thinking_level for gemini_api_chat."""
+        messages: List[TemplateMessage] = [
+            TemplateChatMessage(role="user", content="Hello"),
+        ]
+        prompt_info = PromptInfo(
+            prompt_template_id=str(uuid.uuid4()),
+            prompt_template_version_id=str(uuid.uuid4()),
+            template_name="template-name",
+            environment="environment",
+            model_parameters=LLMParameters(
+                {"temperature": 0, "max_tokens": 256, "thinking_level": "low"}
+            ),
+            provider_info=None,
+            provider="gemini",
+            model="gemini-2.0-flash",
+            flavor_name="gemini_api_chat",
+        )
+        bound = TemplatePrompt(prompt_info, messages=messages).bind({})
+        formatted = bound.format()
+
+        params = formatted.prompt_info.model_parameters
+        self.assertEqual(params["temperature"], 0)
+        self.assertEqual(params["max_output_tokens"], 256)
+        self.assertEqual(params["thinking_config"], {"thinking_budget": 1024})
+        self.assertNotIn("max_tokens", params)
+        self.assertNotIn("thinking_level", params)
+
+    def test_format__vertex_gemini_maps_parameters(self) -> None:
+        """format() auto-maps parameters for gemini_chat (Vertex AI) flavor."""
+        messages: List[TemplateMessage] = [
+            TemplateChatMessage(role="user", content="Hello"),
+        ]
+        prompt_info = PromptInfo(
+            prompt_template_id=str(uuid.uuid4()),
+            prompt_template_version_id=str(uuid.uuid4()),
+            template_name="template-name",
+            environment="environment",
+            model_parameters=LLMParameters(
+                {"temperature": 0.5, "thinking_level": "high"}
+            ),
+            provider_info=None,
+            provider="vertex",
+            model="gemini-pro",
+            flavor_name="gemini_chat",
+        )
+        bound = TemplatePrompt(prompt_info, messages=messages).bind({})
+        formatted = bound.format()
+
+        params = formatted.prompt_info.model_parameters
+        self.assertEqual(params["temperature"], 0.5)
+        self.assertEqual(params["thinking_config"], {"thinking_budget": 24576})
+        self.assertNotIn("thinking_level", params)
+
+    def test_format__openai_does_not_map_parameters(self) -> None:
+        """format() does NOT apply Gemini parameter mapping to non-Gemini flavors."""
+        messages: List[TemplateMessage] = [
+            TemplateChatMessage(role="user", content="Hello"),
+        ]
+        prompt_info = PromptInfo(
+            prompt_template_id=str(uuid.uuid4()),
+            prompt_template_version_id=str(uuid.uuid4()),
+            template_name="template-name",
+            environment="environment",
+            model_parameters=LLMParameters(
+                {"temperature": 0.5, "max_tokens": 256}
+            ),
+            provider_info=None,
+            provider="openai",
+            model="gpt-4",
+            flavor_name="openai_chat",
+        )
+        bound = TemplatePrompt(prompt_info, messages=messages).bind({})
+        formatted = bound.format()
+
+        params = formatted.prompt_info.model_parameters
+        self.assertEqual(params["temperature"], 0.5)
+        self.assertEqual(params["max_tokens"], 256)
+        self.assertNotIn("max_output_tokens", params)
+
     def test_prompt_format__history_without_placeholder(self) -> None:
         messages: List[TemplateMessage] = [
             TemplateChatMessage(role="system", content="System message"),

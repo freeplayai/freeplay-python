@@ -26,6 +26,8 @@ formatted_prompt = (
 # Initialize Vertex AI
 vertexai.init(project="fp-d-int-069c", location="us-central1")
 
+# model_parameters are automatically mapped to Gemini-compatible names by format():
+#   max_tokens -> max_output_tokens, thinking_level -> thinking_config, etc.
 model = GenerativeModel(
     model_name=formatted_prompt.prompt_info.model,
     system_instruction=formatted_prompt.system_content,

@@ -298,10 +298,14 @@ class BoundPrompt:
             else None
         )
 
-        effective_prompt_info = (
-            replace(self.prompt_info, flavor_name=final_flavor)
-            if final_flavor != self.prompt_info.flavor_name
-            else self.prompt_info
+        effective_model_parameters = self.prompt_info.model_parameters
+        if final_flavor in ("gemini_chat", "gemini_api_chat"):
+            effective_model_parameters = effective_model_parameters.for_gemini()
+
+        effective_prompt_info = replace(
+            self.prompt_info,
+            flavor_name=final_flavor,
+            model_parameters=effective_model_parameters,
         )
 
         if isinstance(formatted_prompt, str):

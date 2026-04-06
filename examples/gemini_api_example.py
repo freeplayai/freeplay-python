@@ -47,10 +47,6 @@ formatted_prompt = (
 )
 
 # model_parameters are automatically mapped to Gemini-compatible names by format():
-#   max_tokens      -> max_output_tokens
-#   thinking_level  -> thinking_config
-#   temperature     -> temperature (unchanged)
-# They can be spread directly into GenerateContentConfig.
 print(f"Model: {formatted_prompt.prompt_info.model}")
 print(f"Mapped parameters: {dict(formatted_prompt.prompt_info.model_parameters)}")
 
@@ -71,7 +67,7 @@ end = time.time()
 
 print(f"\nResponse: {response.text[:200]}...")
 
-# Build messages for recording -- convert SDK objects to dicts for JSON serialization
+# Build messages for recording
 assistant_message = convert_provider_message_to_dict(response.candidates[0].content)
 all_messages = list(formatted_prompt.llm_prompt)
 all_messages.append(assistant_message)

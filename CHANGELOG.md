@@ -2,6 +2,10 @@
 
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
+## [0.6.1] - 2026-04-2026
+
+- **Gemini Parameter Mapping**: Fix some issues with Gemini parameter mapping (namely thinking_level, max_tokens)
+
 ## [0.6.0] - 2026-03-28
 
 ### Breaking changes

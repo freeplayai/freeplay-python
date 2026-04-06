@@ -1504,6 +1504,32 @@ class TestFreeplay(TestCase):
         self.assertEqual(params["max_tokens"], 256)
         self.assertNotIn("max_output_tokens", params)
 
+    def test_format__gemini_maps_plain_dict_parameters(self) -> None:
+        """format() handles model_parameters that are a plain dict (not LLMParameters)."""
+        messages: List[TemplateMessage] = [
+            TemplateChatMessage(role="user", content="Hello"),
+        ]
+        prompt_info = PromptInfo(
+            prompt_template_id=str(uuid.uuid4()),
+            prompt_template_version_id=str(uuid.uuid4()),
+            template_name="template-name",
+            environment="environment",
+            model_parameters={"temperature": 0, "max_tokens": 256, "thinking_level": "low"},  # type: ignore
+            provider_info=None,
+            provider="gemini",
+            model="gemini-2.0-flash",
+            flavor_name="gemini_api_chat",
+        )
+        bound = TemplatePrompt(prompt_info, messages=messages).bind({})
+        formatted = bound.format()
+
+        params = formatted.prompt_info.model_parameters
+        self.assertEqual(params["temperature"], 0)
+        self.assertEqual(params["max_output_tokens"], 256)
+        self.assertEqual(params["thinking_config"], {"thinking_budget": 1024})
+        self.assertNotIn("max_tokens", params)
+        self.assertNotIn("thinking_level", params)
+
     def test_prompt_format__history_without_placeholder(self) -> None:
         messages: List[TemplateMessage] = [
             TemplateChatMessage(role="system", content="System message"),

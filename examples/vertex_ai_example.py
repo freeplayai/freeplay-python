@@ -1,7 +1,7 @@
 import os
 
-import vertexai
-from vertexai.generative_models import GenerativeModel, Part, Content
+from google import genai
+from google.genai import types
 
 from freeplay import Freeplay, RecordPayload, CallInfo
 from freeplay.utils import convert_provider_message_to_dict
@@ -23,51 +23,31 @@ formatted_prompt = (
     .format()
 )
 
-# Initialize Vertex AI
-vertexai.init(project="fp-d-int-069c", location="us-central1")
+# Initialize the google-genai client for Vertex AI
+client = genai.Client(
+    vertexai=True,
+    project=os.environ.get("GOOGLE_CLOUD_PROJECT", "fp-d-int-069c"),
+    location=os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1"),
+)
 
 # model_parameters are automatically mapped to Gemini-compatible names by format():
 #   max_tokens -> max_output_tokens, thinking_level -> thinking_config, etc.
-model = GenerativeModel(
-    model_name=formatted_prompt.prompt_info.model,
-    system_instruction=formatted_prompt.system_content,
-    generation_config=formatted_prompt.prompt_info.model_parameters,
-    tools=formatted_prompt.tool_schema,
+# They can be passed directly as the generation config.
+response = client.models.generate_content(
+    model=formatted_prompt.prompt_info.model,
+    contents=formatted_prompt.llm_prompt,
+    config=types.GenerateContentConfig(
+        system_instruction=formatted_prompt.system_content,
+        tools=formatted_prompt.tool_schema,
+        **formatted_prompt.prompt_info.model_parameters,
+    ),
 )
 
-# Start a chat session for function calling
-chat = model.start_chat()
-
-# Extract the user message from Freeplay's formatted prompt
-initial_message = formatted_prompt.llm_prompt[0]["parts"][0]["text"]
-response = chat.send_message(initial_message)
-
-# Handle the response
 content = response.candidates[0].content
 
-# Check if the model wants to call a function
-if content.parts[0].function_call:
-    function_call = content.parts[0].function_call
-
-    # Execute your function (replace with your actual function logic)
-    function_result = {"weather": "sunny", "temperature": 72}
-
-    # Send function result back to the model
-    function_response_part = Part.from_function_response(
-        name=function_call.name, response=function_result
-    )
-    function_response = chat.send_message(function_response_part)
-
-    # Build complete message history for recording
-    all_messages = list(formatted_prompt.llm_prompt)  # Start with initial messages
-    all_messages.append(content)
-    all_messages.append(Content(role="user", parts=[function_response_part]))
-    all_messages.append(function_response.candidates[0].content)
-else:
-    # For non-function-call responses
-    all_messages = formatted_prompt.all_messages(content)
-
-# Convert all messages to dicts for recording
+# Build messages for recording
+all_messages = list(formatted_prompt.llm_prompt)
+all_messages.append(content)
 all_messages_dict = [convert_provider_message_to_dict(msg) for msg in all_messages]
 
 fp_client.recordings.create(

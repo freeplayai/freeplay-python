@@ -24,51 +24,50 @@ class TestLLMParametersForGemini(unittest.TestCase):
         params = LLMParameters({"thinking_level": "low"})
         result = params.for_gemini()
         self.assertNotIn("thinking_level", result)
-        self.assertEqual(result["thinking_config"], {"thinking_budget": 1024})
+        self.assertEqual(result["thinking_config"], {"thinking_level": "low"})
 
     def test_thinking_level_medium(self) -> None:
         params = LLMParameters({"thinking_level": "medium"})
         result = params.for_gemini()
-        self.assertEqual(result["thinking_config"], {"thinking_budget": 8192})
+        self.assertEqual(result["thinking_config"], {"thinking_level": "medium"})
 
     def test_thinking_level_high(self) -> None:
         params = LLMParameters({"thinking_level": "high"})
         result = params.for_gemini()
-        self.assertEqual(result["thinking_config"], {"thinking_budget": 24576})
+        self.assertEqual(result["thinking_config"], {"thinking_level": "high"})
 
-    def test_thinking_level_off(self) -> None:
-        params = LLMParameters({"thinking_level": "off"})
+    def test_thinking_level_minimal(self) -> None:
+        params = LLMParameters({"thinking_level": "minimal"})
         result = params.for_gemini()
-        self.assertEqual(result["thinking_config"], {"thinking_budget": 0})
-
-    def test_thinking_level_none(self) -> None:
-        params = LLMParameters({"thinking_level": "none"})
-        result = params.for_gemini()
-        self.assertEqual(result["thinking_config"], {"thinking_budget": 0})
+        self.assertEqual(result["thinking_config"], {"thinking_level": "minimal"})
 
     def test_thinking_level_case_insensitive(self) -> None:
         params = LLMParameters({"thinking_level": "Low"})
         result = params.for_gemini()
-        self.assertEqual(result["thinking_config"], {"thinking_budget": 1024})
+        self.assertEqual(result["thinking_config"], {"thinking_level": "low"})
 
-    def test_thinking_level_numeric(self) -> None:
+    def test_thinking_level_numeric_uses_budget(self) -> None:
+        """Numeric thinking_level values map to thinking_budget for Gemini 2.5 models."""
         params = LLMParameters({"thinking_level": 4096})
         result = params.for_gemini()
         self.assertEqual(result["thinking_config"], {"thinking_budget": 4096})
 
+    def test_thinking_level_zero_uses_budget(self) -> None:
+        params = LLMParameters({"thinking_level": 0})
+        result = params.for_gemini()
+        self.assertEqual(result["thinking_config"], {"thinking_budget": 0})
+
     def test_combined_parameters(self) -> None:
-        params = LLMParameters(
-            {
-                "temperature": 0,
-                "max_tokens": 256,
-                "thinking_level": "low",
-                "top_p": 0.9,
-            }
-        )
+        params = LLMParameters({
+            "temperature": 0,
+            "max_tokens": 256,
+            "thinking_level": "low",
+            "top_p": 0.9,
+        })
         result = params.for_gemini()
         self.assertEqual(result["temperature"], 0)
         self.assertEqual(result["max_output_tokens"], 256)
-        self.assertEqual(result["thinking_config"], {"thinking_budget": 1024})
+        self.assertEqual(result["thinking_config"], {"thinking_level": "low"})
         self.assertEqual(result["top_p"], 0.9)
         self.assertNotIn("max_tokens", result)
         self.assertNotIn("thinking_level", result)
@@ -84,13 +83,11 @@ class TestLLMParametersForGemini(unittest.TestCase):
         self.assertIsInstance(result, LLMParameters)
 
     def test_does_not_mutate_original(self) -> None:
-        params = LLMParameters(
-            {
-                "max_tokens": 256,
-                "thinking_level": "high",
-                "temperature": 0.5,
-            }
-        )
+        params = LLMParameters({
+            "max_tokens": 256,
+            "thinking_level": "high",
+            "temperature": 0.5,
+        })
         _ = params.for_gemini()
         self.assertEqual(params["max_tokens"], 256)
         self.assertEqual(params["thinking_level"], "high")
@@ -98,12 +95,10 @@ class TestLLMParametersForGemini(unittest.TestCase):
         self.assertNotIn("thinking_config", params)
 
     def test_passthrough_unknown_params(self) -> None:
-        params = LLMParameters(
-            {
-                "top_k": 40,
-                "stop_sequences": ["END"],
-            }
-        )
+        params = LLMParameters({
+            "top_k": 40,
+            "stop_sequences": ["END"],
+        })
         result = params.for_gemini()
         self.assertEqual(result["top_k"], 40)
         self.assertEqual(result["stop_sequences"], ["END"])

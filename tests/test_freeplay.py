@@ -1450,7 +1450,7 @@ class TestFreeplay(TestCase):
         params = formatted.prompt_info.model_parameters
         self.assertEqual(params["temperature"], 0)
         self.assertEqual(params["max_output_tokens"], 256)
-        self.assertEqual(params["thinking_config"], {"thinking_budget": 1024})
+        self.assertEqual(params["thinking_config"], {"thinking_level": "low"})
         self.assertNotIn("max_tokens", params)
         self.assertNotIn("thinking_level", params)
 
@@ -1477,7 +1477,7 @@ class TestFreeplay(TestCase):
 
         params = formatted.prompt_info.model_parameters
         self.assertEqual(params["temperature"], 0.5)
-        self.assertEqual(params["thinking_config"], {"thinking_budget": 24576})
+        self.assertEqual(params["thinking_config"], {"thinking_level": "high"})
         self.assertNotIn("thinking_level", params)
 
     def test_format__openai_does_not_map_parameters(self) -> None:
@@ -1526,7 +1526,7 @@ class TestFreeplay(TestCase):
         params = formatted.prompt_info.model_parameters
         self.assertEqual(params["temperature"], 0)
         self.assertEqual(params["max_output_tokens"], 256)
-        self.assertEqual(params["thinking_config"], {"thinking_budget": 1024})
+        self.assertEqual(params["thinking_config"], {"thinking_level": "low"})
         self.assertNotIn("max_tokens", params)
         self.assertNotIn("thinking_level", params)
 

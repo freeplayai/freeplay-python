@@ -33,7 +33,7 @@ constraint-dependencies = [
 [dependency-groups]
 dev = [
     "mypy>=1.0.0,<2.0.0",
-    "pyright>=1.1.405",
+    "pyright>=1.1.408",
     "ruff>=0.9.7,<1.0.0",
     "types-requests>=2.31.0,<3.0.0",
     "anthropic[bedrock]>=0.39.0,<1.0.0",

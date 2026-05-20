@@ -9,6 +9,7 @@ resolution-markers = [
 
 [manifest]
 constraints = [
+    { name = "authlib", specifier = ">=1.7.2" },
     { name = "protobuf", specifier = ">=5.29.6" },
     { name = "pyasn1", specifier = ">=0.6.3" },
     { name = "urllib3", specifier = ">=2.7.0" },

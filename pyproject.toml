@@ -25,6 +25,7 @@ build-backend = "hatchling.build"
 
 [tool.uv]
 constraint-dependencies = [
+    "authlib>=1.7.2",
     "protobuf>=5.29.6",
     "pyasn1>=0.6.3",
     "urllib3>=2.7.0",

@@ -9,7 +9,6 @@ resolution-markers = [
 
 [manifest]
 constraints = [
-    { name = "click", specifier = ">=8.3.3" },
     { name = "cryptography", specifier = ">=50.0.0" },
     { name = "protobuf", specifier = ">=5.29.6" },
     { name = "pyasn1", specifier = ">=0.6.3" },
@@ -396,7 +395,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "click", specifier = ">=8.1.7,<9.0.0" },
+    { name = "click", specifier = ">=8.3.3,<9.0.0" },
     { name = "dacite", specifier = ">=1.8.0,<2.0.0" },
     { name = "pystache", specifier = ">=0.6.5,<1.0.0" },
     { name = "requests", specifier = ">=2.33.0,<3.0.0.dev0" },

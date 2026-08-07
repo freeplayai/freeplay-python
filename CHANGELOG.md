@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.1] - 2026-08-07
+
+### Changed
+
+- Updated dependencies to remediate known security vulnerabilities.
+
 Notable additions, fixes, or breaking changes to the Freeplay SDK.
 
 ## [0.6.0] - 2026-03-28

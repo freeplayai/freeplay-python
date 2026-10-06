@@ -28,7 +28,7 @@ constraint-dependencies = [
     "cryptography>=50.0.0",
     "protobuf>=5.29.6",
     "pyasn1>=0.6.3",
-    "urllib3>=2.7.0",
+    "urllib3>=2.8.0",
 ]
 
 [dependency-groups]
